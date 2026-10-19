@@ -1,7 +1,7 @@
 ISO-10303-21;
 HEADER;
 FILE_DESCRIPTION(('Shape Data from Truck'), '2;1');
-FILE_NAME('crystal_block_rust.step', '2026-10-19 03:16:53.493191322', (''), (''), 'truck', 'SNSS snss-cad (truck)', '');
+FILE_NAME('crystal_block_rust.step', '2026-10-19 06:42:16.737357885', (''), (''), 'truck', 'SNSS snss-cad (truck)', '');
 FILE_SCHEMA(('ISO-10303-042'));
 ENDSEC;
 DATA;
