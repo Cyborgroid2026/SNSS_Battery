@@ -100,12 +100,13 @@ def run(name, t_plate, t_amb, h_out, ins_side, ins_top, t0_gel, *, thaw=False, t
     ksp.setType("preonly"); ksp.getPC().setType("lu"); ksp.getPC().setFactorSolverType("mumps")
 
     gel_dofs = np.where(in_gel)[0]
-    if xdmf:  # ParaView 용: 온도 · 얼음 비율 (겔만, 0 = 물 1 = 얼음) 을 시간별로 기록. 시간 단위는 h
+    if xdmf:  # ParaView 용: 온도 · 얼음 비율 (겔: 0 = 물 1 = 얼음, 겔 밖 −1) 을 시간별로 기록. 시간 단위는 h
         from dolfinx import io
 
         ice = fem.Function(V, name="ice_fraction")
         T.name = "temperature_C"
-        ice_expr = fem.Expression(ufl.conditional(gel, 1 - phi(T), -0.0), V.element.interpolation_points())
+        # 겔 밖(병 · 단열재 · 공기)은 −1 → ParaView 에서 겔만 골라 칠함
+        ice_expr = fem.Expression(ufl.conditional(gel, 1 - phi(T), -1.0), V.element.interpolation_points())
         out_file = io.XDMFFile(msh.comm, str(xdmf), "w")
         out_file.write_mesh(msh)
         next_write = 0.0

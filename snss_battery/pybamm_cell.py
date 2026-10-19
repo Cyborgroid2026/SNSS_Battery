@@ -195,8 +195,11 @@ def write(path: Path = OUT) -> dict:
     return r
 
 
-def view(current_ma: float = 0.1, n_cycles: int = 1) -> None:
-    """PyBaMM 공식 그래프 창 (dynamic_plot): 시간 슬라이더로 전압 · 세포 안 농도 분포를 봄. 확산 + 활동도 모델."""
+VIEW = Path(__file__).resolve().parents[1] / "spec" / "pybamm_view.json"
+
+
+def solve_view(current_ma: float = 0.1, n_cycles: int = 1):
+    """태어난 상태 방전 → (충전 → 방전) × n 을 확산 + 활동도 모델로 풀어 시간축 하나로 이은 PyBaMM 해."""
     import pybamm
 
     from .bottle import BottleGelBattery
@@ -217,8 +220,39 @@ def view(current_ma: float = 0.1, n_cycles: int = 1) -> None:
                            inputs={"I [A]": i if p == "discharge" else -i, "discharge": 1.0 if p == "discharge" else 0.0})
         sols.append(sol)
     total = sols[0]
-    for s in sols[1:]:
-        total = total + s  # 단계를 이어 붙임
+    for s_ in sols[1:]:
+        total = total + s_  # 단계를 이어 붙임
+    ends = [float(x.t[-1]) / 3600 for x in sols]
+    return total, {"current_ma": current_ma, "v_min": v_min, "v_max": v_max, "phase_end_h": ends,
+                   "phases": [p for _, p in phases]}
+
+
+def export_view(path: Path = VIEW) -> dict:
+    """웹 뷰어 '표준 도구' 탭용: 전압 곡선 + 세포 안 농도 분포를 시간별로 (VS Code 통합 브라우저에서 보임)."""
+    sol, meta = solve_view()
+    t = sol.t
+    ts = np.linspace(t[0], t[-1], 240)
+    f = lambda name: np.interp(ts, t, np.ravel(sol[name].entries)).round(5).tolist()
+    xa = np.ravel(sol["c_A [mol.m-3]"].mesh.nodes) * 1e6 if hasattr(sol["c_A [mol.m-3]"], "mesh") else None
+    ca, cb = sol["c_A [mol.m-3]"].entries, sol["c_B [mol.m-3]"].entries  # (격자, 시간)
+    tp = np.linspace(t[0], t[-1], 60)
+    pick = [int(np.argmin(np.abs(t - x))) for x in tp]
+    n = ca.shape[0]
+    out = {**meta, "tool": f"PyBaMM {__import__('pybamm').__version__}",
+           "t_h": (ts / 3600).round(4).tolist(), "V": f("Voltage [V]"), "OCV": f("OCV [V]"), "Ve": f("Electrode voltage [V]"),
+           "cA_s": f("c_A,s [mol.m-3]"), "cA_mean": f("c_A mean [mol.m-3]"), "cB_mean": f("c_B mean [mol.m-3]"),
+           "profile_t_h": (t[pick] / 3600).round(4).tolist(),
+           "x_um": (xa.tolist() if xa is not None else np.linspace(0, 250, n).tolist()),
+           "cA": [ca[:, k].round(4).tolist() for k in pick], "cB": [cb[:, k].round(4).tolist() for k in pick]}
+    path.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+    return out
+
+
+def view(current_ma: float = 0.1, n_cycles: int = 1) -> None:
+    """PyBaMM 공식 그래프 창 (dynamic_plot): 시간 슬라이더로 전압 · 세포 안 농도 분포를 봄. 확산 + 활동도 모델."""
+    import pybamm
+
+    total, _ = solve_view(current_ma, n_cycles)
     pybamm.dynamic_plot(total, [["Voltage [V]", "OCV [V]"], "Electrode voltage [V]",
                                 "c_A [mol.m-3]", "c_B [mol.m-3]", ["c_A,s [mol.m-3]", "c_A mean [mol.m-3]"]],
                         time_unit="hours")

@@ -198,6 +198,8 @@ def cmd_pybamm(_: argparse.Namespace) -> None:
     r = pybamm_cell.write()
     print(pybamm_cell.describe(r))
     print(f"저장: {pybamm_cell.OUT}")
+    pybamm_cell.export_view()
+    print(f"웹 뷰어용: {pybamm_cell.VIEW}")
 
 
 def cmd_quantum(_: argparse.Namespace) -> None:

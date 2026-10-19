@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 표준 시뮬레이션 도구 실행 — PHREEQC · PyBaMM · FEniCSx · eLabFTW
 #
+#   ./tools.sh web           웹 뷰어 → http://127.0.0.1:8765/#tools (VS Code: Browser: Open Integrated Browser 에 붙여 넣기)
 #   ./tools.sh chem          용액 화학 (PHREEQC): 활동도, 어는점, 막전위 보정
 #   ./tools.sh pybamm        배터리 (PyBaMM): 충방전, 기존 모델과 비교
 #   ./tools.sh fem           동결·해동 (FEniCSx, Docker) 다시 계산 — 약 2분
@@ -9,8 +10,9 @@
 #   ./tools.sh elab-push     공정을 eLabFTW 템플릿·실험으로 올림 (실행할 때마다 새로 만들어짐)
 #   ./tools.sh elab-down     eLabFTW 서버 끄기
 #   ./tools.sh all           chem → pybamm → fem 계산 (eLabFTW 는 건드리지 않음)
-#   ./tools.sh view-freeze   ParaView 로 동결 애니메이션 보기 (새 레시피 · 저가 나란히)
-#   ./tools.sh view-battery  PyBaMM 그래프 창으로 충방전 보기 (시간 슬라이더)
+#   ./tools.sh fem-movie     동결 애니메이션 다시 만들기 (FEniCSx → ParaView 프레임, 웹 '표준 도구' 탭에 나옴)
+#   ./tools.sh view-freeze   (데스크톱 창) ParaView 로 동결 애니메이션
+#   ./tools.sh view-battery  (데스크톱 창) PyBaMM 그래프 창
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -68,12 +70,20 @@ cmd_view_freeze() {
     SNSS_ROOT="$PWD" "$(paraview_bin)" --script="$PWD/sim/view_freeze.py" >/dev/null 2>&1 &
     echo "ParaView 를 열었습니다. 위쪽 ▶ 단추로 재생 (파랑 = 얼음, 빨간 선 = 얼음 전선)."
 }
-cmd_fem_movie() { "$PY" -c "from snss_battery import fem; fem.run(xdmf=True)"; }
+cmd_fem_movie() {  # FEniCSx 로 애니메이션 데이터 → ParaView(pvbatch) 로 웹용 프레임
+    "$PY" -c "from snss_battery import fem; fem.run(xdmf=True)"
+    SNSS_ROOT="$PWD" "$(dirname "$(paraview_bin)")/pvbatch" sim/render_frames.py 2>&1 | grep -v "hwloc\|^\*\|^$" || true
+}
 cmd_view_battery() { need_venv; "$VPY" -c "from snss_battery import pybamm_cell; pybamm_cell.view()"; }
+cmd_web() {
+    echo "웹 뷰어 → http://127.0.0.1:8765/#tools  (VS Code: Ctrl+Shift+P → 'Browser: Open Integrated Browser' → 주소 붙여 넣기)"
+    "$PY" -m snss_battery web --port 8765
+}
 cmd_elab_push() { need_elab_env; "$PY" -m snss_battery elab; }
 cmd_elab_down() { need_elab_env; "${COMPOSE[@]}" down; }
 
 case "${1:-}" in
+    web) cmd_web ;;
     chem) cmd_chem ;;
     pybamm) cmd_pybamm ;;
     fem) cmd_fem ;;
@@ -85,5 +95,5 @@ case "${1:-}" in
     view-freeze) cmd_view_freeze ;;
     fem-movie) cmd_fem_movie ;;
     view-battery) cmd_view_battery ;;
-    *) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+    *) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

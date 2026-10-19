@@ -8,8 +8,8 @@ from paraview.simple import *  # noqa: F401,F403
 
 # paraview --script 로 실행하면 __file__ 이 없음 → tools.sh 가 넘기는 SNSS_ROOT, 없으면 현재 폴더
 ROOT = os.environ.get("SNSS_ROOT") or os.getcwd()
-CASES = [("freeze_A_new_recipe.xdmf", "A · 새 레시피: 저온실 +4 °C, 냉각판 −20 °C, 단열 3 cm"),
-         ("freeze_E_low_cost.xdmf", "E · 저가: 냉동실 −20 °C, 쟁반 −15 °C, 단열 8 cm")]
+CASES = [("freeze_A_new_recipe.xdmf", "A · 새 레시피 (저온실 냉각판)"),
+         ("freeze_E_low_cost.xdmf", "E · 저가 (냉동실 + 단열 8 cm)")]
 
 # 한글 글꼴 (ParaView 기본 글꼴에는 한글이 없음): 나눔 글꼴이 없으면 기본 글꼴 (한글이 네모로 나옴)
 # 나눔 TTF 는 첫 문자표가 Mac Roman 이라 VTK 가 한글을 못 그림 → 유니코드 문자표만 있는 Noto CJK 를 먼저
@@ -37,12 +37,19 @@ for k, (name, title) in enumerate(CASES):
     if k:
         layout.SplitHorizontal(0, 0.5)
         layout.AssignView(2, view)
-    disp = Show(full, view)
+    # 바탕: 병 · 단열재 (회색 한 색)
+    back = Show(full, view)
+    back.ColorArrayName = ["POINTS", ""]
+    back.DiffuseColor = back.AmbientColor = [0.62, 0.64, 0.67]
+    # 겔만 (얼음 비율 0–1): 흰색 = 물 → 파랑 = 얼음
+    gel = Threshold(registrationName=f"겔 {k}", Input=full)
+    gel.Scalars = ["POINTS", "ice_fraction"]
+    gel.LowerThreshold, gel.UpperThreshold = -0.5, 1.5
+    disp = Show(gel, view)
     ColorBy(disp, ("POINTS", "ice_fraction"))
     lut = GetColorTransferFunction("ice_fraction")
-    # −0 (병·단열재) 는 회색, 0 (물) 흰색 → 1 (얼음) 파랑
-    lut.RGBPoints = [-0.0001, 0.75, 0.75, 0.75, 0.0, 1.0, 1.0, 1.0, 1.0, 0.13, 0.4, 0.85]
-    lut.RescaleTransferFunction(-0.0001, 1.0)
+    lut.RGBPoints = [0.0, 1.0, 1.0, 1.0, 1.0, 0.13, 0.4, 0.85]
+    lut.RescaleTransferFunction(0.0, 1.0)
     lut.AutomaticRescaleRangeMode = "Never"
     bar = GetScalarBar(lut, view)
     bar.Title, bar.ComponentTitle, bar.Visibility = "얼음 비율 (0 물 · 1 얼음)", "", 1
@@ -51,7 +58,7 @@ for k, (name, title) in enumerate(CASES):
     bar.WindowLocation, bar.Position, bar.ScalarBarLength = "Any Location", [0.86, 0.25], 0.4
     korean(bar, "Title")
     # 얼음 전선 = 얼음 비율 0.5 등치선
-    front = Contour(registrationName=f"얼음 전선 {k}", Input=full)
+    front = Contour(registrationName=f"얼음 전선 {k}", Input=gel)
     front.ContourBy = ["POINTS", "ice_fraction"]
     front.Isosurfaces = [0.5]
     fd = Show(front, view)

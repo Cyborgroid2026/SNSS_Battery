@@ -104,6 +104,7 @@ def build_site(
         "quantum": quantum,
         "recipes": recipes,
         "samples": _samples(battery, folder),
+        "tools": _standard_tools(folder),
         "lighting": {"text": lighting.describe(), "budget_mw": {k: v * 1000 for k, v in lighting.budget_w.items()},
                      "led_off_h": lighting.led.first_off_h(), "bulb_k": lighting.bulb.parallel,
                      "bulb_peak_mw": lighting.bulb.peak_power_w() * 1000},
@@ -180,6 +181,32 @@ def _tissue_sample(folder: Path) -> dict:
     model = {"W": tr.params.window_mm, "H": tr.params.height_mm, "spacing": tr.params.cell_um / 1000, "film_um": tr.params.film_um,
              "c_brine": tr.c_brine, "wall_mv": tr.wall_mv, "cells": cells, "faces": faces, "n_veins": len(tr.veins)}
     (folder / "model_tissue.json").write_text(json.dumps(model, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    return out
+
+
+def _standard_tools(folder: Path) -> dict:
+    """'표준 도구' 탭: PHREEQC · PyBaMM · FEniCSx(ParaView 프레임) · eLabFTW 결과를 모음. 없는 것은 빠짐."""
+    from . import chem
+
+    spec = ROOT / "spec"
+    load = lambda name: json.loads((spec / name).read_text(encoding="utf-8")) if (spec / name).exists() else None
+    out: dict = {}
+    try:
+        m = [x for x in chem.table()["molality"] if x <= 5.5]
+        out["phreeqc"] = {"m": m, "gamma25": [chem.gamma(x, 25) for x in m], "gamma0": [chem.gamma(x, 0) for x in m],
+                          "tf": [chem.freezing_point_c(x) for x in m], "report": chem.report()}
+    except (OSError, KeyError, ValueError):
+        pass
+    if (val := load("pybamm_validation.json")):
+        val.pop("curves", None)
+        out["pybamm"] = {"validation": val, "view": load("pybamm_view.json")}
+    if (fem := load("fenicsx_freezing.json")):
+        out["fem"] = fem
+        frames = ROOT / "results" / "frames"
+        if (frames / "frames.json").exists():  # ParaView 프레임 (./tools.sh fem-movie)
+            shutil.copytree(frames, folder / "frames", dirs_exist_ok=True)
+            out["frames"] = json.loads((frames / "frames.json").read_text())
+    out["elab_url"] = "http://localhost:3148"
     return out
 
 
@@ -720,6 +747,10 @@ aside .panel { background: var(--panel); border: 1px solid var(--line); border-r
       나노미터 층이 있으므로 CAD 에서 확대해서 보세요. 결정 블록 STEP 은 도메인 층 252개 + 벽 252장(고체 504개)입니다.</p>
     <pre id="qText"></pre>
   </section>
+  <section data-id="tools" data-tab="표준 도구">
+    <p class="sub">분야마다 표준으로 쓰이는 공개 도구로 다시 계산한 결과입니다. 다시 계산: <code>./tools.sh all</code> · 애니메이션: <code>./tools.sh fem-movie</code>.</p>
+    <div id="toolsBody"></div>
+  </section>
   <section data-id="verify" data-tab="검증">
     <h2>① 계산 재현성 — Python · Rust · C# 독립 구현 비교</h2>
     <p class="sub">같은 명세(<code>spec/SPEC.md</code>)를 세 언어로 따로 구현했습니다. 같은 난수(SplitMix64)·같은 입력에서 같은 숫자가 나오면
@@ -910,11 +941,11 @@ function show(name) {
   const sec = sections.find((s) => s.dataset.tab === name);
   if (sec) { history.replaceState(null, "", location.search + "#" + sec.dataset.id); (tabHooks[sec.dataset.id] || (() => {}))(); }
 }
-const GROUPS = [["작업", ["lab", "cad", "process", "recipe"]], ["검증", ["verify", "log"]],
+const GROUPS = [["작업", ["lab", "cad", "process", "recipe"]], ["검증", ["tools", "verify", "log"]],
                 ["자료", ["overview", "drawing", "bom", "files", "quantum"]], ["비교 · 층 모델", ["fractal", "light", "sim"]]];
 const ICONS = { lab: "⚗", cad: "⬡", process: "❄", recipe: "☰", fractal: "⬢", light: "💡", sim: "∿", quantum: "⚛",
-                verify: "✓", log: "✎", overview: "◎", drawing: "📐", bom: "▤", files: "⇩" };
-const NEW = new Set(["lab", "cad"]);
+                tools: "▶", verify: "✓", log: "✎", overview: "◎", drawing: "📐", bom: "▤", files: "⇩" };
+const NEW = new Set(["lab", "cad", "tools"]);
 const grouped = new Set(GROUPS.flatMap(([, ids]) => ids));
 for (const [label, ids] of [...GROUPS, ["기타", sections.map((s) => s.dataset.id).filter((id) => !grouped.has(id))]]) {
   const secs = ids.map((id) => sections.find((s) => s.dataset.id === id)).filter(Boolean);
@@ -1562,6 +1593,7 @@ const fromHash = fromHashSec();
 show(fromHash ? fromHash.dataset.tab : sections.some((s) => s.dataset.tab === saved) ? saved : "실험대");
 </script>
 <script src="ui/lab.js"></script>
+<script src="ui/tools.js"></script>
 <script type="importmap">
 { "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/" } }
 </script>
