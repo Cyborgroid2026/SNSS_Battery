@@ -149,9 +149,11 @@ def build_site(
 
 def _tissue_sample(folder: Path) -> dict:
     """통째 결정 · 인공세포 조직: 3D 보로노이 세포 + 프랙탈 동결 전선 (층·극성 없음) → model_tissue.json."""
+    from .process import process, summary
     from .tissue import TissueRecipe, freezing, tissue_for
 
     rc = TissueRecipe()
+    steps = process(rc)
     bat = rc.battery()
     tr = tissue_for(bat)
     d = BottleDesign(bat)
@@ -169,6 +171,7 @@ def _tissue_sample(folder: Path) -> dict:
         "c_bottom_mM": f["c_bottom_mM"], "c_top_mM": f["c_top_mM"], "n_veins": len(tr.veins),
         "freezing": freezing(bat.gel_height_mm, rc.plate_c), "describe": tr.describe(),
         "amounts": rc.amounts(), "freeze_thaw": rc.freeze_thaw, "plate_c": rc.plate_c, "shelf_days": bat.shelf_time_constant_days,
+        "process": [x.to_json() for x in steps], "process_summary": summary(steps),
     }
     r6 = lambda v: round(float(v), 5)
     cells = [{"c": round(x.conc_m * 1000, 3), "v": r6(x.volume_mm3), "fv": r6(x.film_mm3), "e": x.energy_j, "t": round(x.freeze_h, 3),
@@ -690,11 +693,12 @@ aside .panel { background: var(--panel); border: 1px solid var(--line); border-r
     <pre id="lightText"></pre>
   </section>
   <section data-id="recipe" data-tab="레시피">
-    <p class="sub">통째 결정 — 약국 식염수병 안 식염수에 PVA · GO 를 섞고, 병 그대로 아래에서 위로 얼립니다. 얼음 결정이 세포가 되고 GO·PVA 가 막이 됩니다.
+    <p class="sub">통째 결정 — 약국 식염수병 안 식염수에 PVA · GO 를 섞고, 병을 그릇으로 삼아 냉각판 위에서 아래부터 위로 얼립니다. 얼음 결정이 세포가 되고 GO·PVA 가 막이 됩니다.
       층도 극성도 없습니다. 자세한 설명·근거 문헌·위험 요소: <code>RECIPE.md</code>. 수치는 모델 예측입니다.</p>
     <div id="recipeCards"></div>
-    <h2>만드는 순서 (요약)</h2>
-    <ol class="steps" id="recipeSteps"></ol>
+    <h2>공정 — 수작업 / 기계작업 (실험실 장비)</h2>
+    <p class="note-line" id="recipeSum"></p>
+    <table id="recipeSteps"></table>
     <h2>대조군 — 함께 만들 것</h2>
     <table id="recipeCtrl"></table>
   </section>
@@ -1420,14 +1424,12 @@ try { (function process() {
       <div class="card"><div class="k">윗면–아랫면 전압</div><div class="v">${(1000 * r.ocv).toFixed(1)} mV — 사실상 0 (층·극성 없음)</div></div>
     </div>
     <table>${r.amounts.map(([g, items]) => `<tr><th colspan="3">${esc(g)}</th></tr>` + items.map(([n, v, u]) => `<tr><td>${esc(n)}</td><td class="n">${v.toFixed(2)}</td><td>${esc(u)}</td></tr>`).join("")).join("")}</table>`;
-  $("#recipeSteps").innerHTML = [
-    "병에서 생리식염수 100 mL 를 덜어 PVA 를 90 °C 에서 녹이고 식힘",
-    "GO 분산액만큼 식염수를 더 덜어 내고, PVA 용액과 GO 를 병에 넣어 천천히 굴려 섞음 (한 번에, 층 없음)",
-    `냉동실(${r.plate_c} °C) 바닥 금속판 위에 병을 세우고 옆면을 단열 → 아래에서 위로 약 ${F.hours.toFixed(0)} h (얼음 결정 = 세포)`,
-    `냉장 해동 2 h · 다시 동결 12 h 를 ${r.freeze_thaw - 1}번 더 — PVA 골격 강화 (막 손상 여부 확인)`,
-    "병을 잘라 결정을 꺼내고, 윗면–아랫면 전압(≈0)과 단면 국소 전도도(막 사이 진한 소금물)를 잼",
-    "에너지를 꺼내는 채널·효소·전극 연결은 결정화가 끝난 뒤 빈 결합 자리에 넣음 (동결이 생체 요소를 망가뜨리지 않게)",
-  ].map((t) => `<li>${esc(t)}</li>`).join("");
+  const P = r.process_summary, dur = (h) => (h >= 1 ? `${h.toFixed(1)} h` : `${Math.round(h * 60)} 분`);
+  $("#recipeSum").textContent = `전체 약 ${P.hours.toFixed(0)} h (${P.days.toFixed(1)} 일) · 손이 드는 시간 약 ${P.hands_h.toFixed(1)} h · `
+    + `수작업 ${P.hand_steps}단계 / 기계작업 ${P.machine_steps}단계. 기계작업 동안 사람은 확인만 합니다.`;
+  $("#recipeSteps").innerHTML = "<tr><th>#</th><th>단계</th><th>구분</th><th>손</th><th>걸림</th><th>장비</th><th>할 일</th><th>넘어가는 조건</th></tr>"
+    + r.process.map((x, k) => `<tr><td>${k + 1}</td><td><b>${esc(x.title)}</b></td><td><span class="mode ${x.mode}">${esc(x.mode_ko)}</span></td>`
+      + `<td class="n">${x.hands_min.toFixed(0)} 분</td><td class="n">${dur(x.hours)}</td><td>${esc(x.equipment.join(" · "))}</td><td>${esc(x.action)}</td><td>${esc(x.check)}</td></tr>`).join("");
   $("#recipeCtrl").innerHTML = "<tr><th>시료</th><th>만드는 법</th><th>보려는 것</th></tr>" + [
     ["대조군 A: 방향 없이 빨리 얼림", "같은 병을 냉동실에 그냥 넣음 (단열·금속판 없음)", "세포가 작고 고름 · 위아래 차이 없음"],
     ["대조군 B: 식염수 + PVA 만", "GO 없이 같은 동결", "막(GO)이 없으면 소금물이 갇히지 않음 → 대비 약함"],

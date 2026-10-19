@@ -115,3 +115,7 @@ ol.lab-steps li.on::before { background: #e07a1f; color: #fff; }
 #wbMeter small { display: block; font-size: 10.5px; color: #6f8a86; }
 #wbMeter b { display: block; font: 600 24px/1.2 ui-monospace, "NanumGothicCoding", monospace; color: #9cf0c5; }
 .samplebar select { max-width: 260px; }
+/* 공정 구분: 수작업 / 기계작업 (process.py) */
+.mode { display: inline-block; padding: 0 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; color: #fff; line-height: 17px; vertical-align: 1px; }
+.mode.hand { background: #e07a1f; }
+.mode.machine { background: #3b7dd8; }

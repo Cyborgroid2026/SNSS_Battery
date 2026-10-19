@@ -146,6 +146,9 @@ def cmd_tissue(a: argparse.Namespace) -> None:
         print(f"  [{group}]")
         for item, value, unit in items:
             print(f"    {item:<28} {value:9.2f} {unit}")
+    from .process import describe, process
+
+    print(describe(process(rc)))
 
 
 def cmd_recipe(a: argparse.Namespace) -> None:

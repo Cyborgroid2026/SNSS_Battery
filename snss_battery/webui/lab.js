@@ -32,27 +32,24 @@
   function steps(s) {
     const q = s.q || {};
     if (s.tissue) {
-      const z = s.tq, F = s.freezing;
-      return [
-        { id: "weigh", t: "계량", d: "PVA 가루를 잰다", h: 0.2, sec: 3, n: () => nb([["PVA 가루", `${f1(z.pva)} g`], ["GO 분산액 4 mg/mL", `${f1(z.go)} mL`]]) },
-        { id: "stock", t: "PVA 녹이기", d: `병에서 식염수 ${z.take.toFixed(0)} mL 를 덜어 90 °C 중탕`, h: 1.5, sec: 5,
-          n: () => nb([["덜어 낸 식염수", `${f1(z.take)} mL`], ["PVA", `${f1(z.pva)} g (${f1(z.pvaWt)} wt%)`], ["온도", "90 °C · 투명해질 때까지"]]) },
-        { id: "prep", t: "GO 준비", d: "그래핀 폴리머 액정 (GO 분산액)", h: 0.3, sec: 4,
-          n: () => nb([["GO 4 mg/mL", `${f1(z.go)} mL`], ["넘침 방지", `병에서 식염수 ${f1(z.extra)} mL 더 빼기`]]) },
-        { id: "mix", t: "병에 다시 넣고 섞기", d: "약국 식염수병 그대로 — 뚜껑 닫고 천천히 굴림", h: 0.3, sec: 4,
-          n: () => nb([["병", `${f1(s.fill_ml)} mL 그대로`], ["넣는 것", "PVA 용액 · GO"], ["층 · 극성", "없음 — 한 번에 섞음"]]) },
-        { id: "dfreeze", t: "방향성 동결 — 결정 = 세포", d: `금속판(${s.plate_c} °C) 위, 옆면 단열 → 아래에서 위로`, h: F.hours, sec: 16,
-          n: () => nb([["얼음 전선 속도", `${F.v_mid_um_s.toFixed(1)} → ${F.v_top_um_s.toFixed(1)} µm/s`], ["걸리는 시간", `약 ${F.hours.toFixed(0)} h`],
-                       ["세포 폭 (추정)", `${F.cell_mid_um.toFixed(0)}–${F.cell_top_um.toFixed(0)} µm`], ["소금", `얼음에 ${(100 * s.k_eff).toFixed(1)} % 만 → 나머지는 막 사이로`]]) },
-        { id: "ft", t: `동결-해동 ${s.freeze_thaw - 1}회 더`, d: "해동 2 h (4 °C) · 다시 동결 — PVA 골격 강화", h: 14 * (s.freeze_thaw - 1), sec: 6,
-          n: () => nb([["해동", "얼음 → 묽은 내강 (비어 있는 세포)"], ["막 사이", `진한 소금물 ${s.c_brine_m.toFixed(2)} M`], ["위험", "부피 팽창 9 % 로 막 손상 가능 — S4 확인"]]) },
-        { id: "demold", t: "병 절단 · 꺼내기", d: "절단 가이드 띠로 자르고 결정을 꺼냄", h: 0.3, sec: 4, n: () => nb([["절단선 A", `바닥에서 ${f1(s.cut_z)} mm`], ["측정", "10분 안에"]]) },
-        { id: "meas", t: "윗면–아랫면 전압", d: "흑연 막대, 10 MΩ 멀티미터 — 대칭 확인", h: 0.1, sec: 5,
-          n: () => nb([["모델 예측", `${(1000 * s.ocv).toFixed(1)} mV (사실상 0)`], ["이유", "층·극성 없음 → 막전위 상쇄"], ["판정", "E2: |V| < 50 mV"]]) },
-        { id: "cond", t: "에너지 확인 — 국소 전도도", d: "단면을 가는 탐침으로 훑어 막 사이 소금물 · 묽은 내강 구분", h: 0.3, sec: 6,
-          n: () => nb([["내강", `${s.c_lumen_mM.toFixed(1)} mM → 약 ${(0.12 * s.c_lumen_mM).toFixed(2)} mS/cm`], ["막 사이", `${s.c_brine_m.toFixed(2)} M → 약 ${(s.c_brine_m < 2 ? 85 * s.c_brine_m : 150).toFixed(0)} mS/cm`],
-                       ["저장 에너지", `${s.energy_j.toFixed(0)} J (잠겨 있음)`], ["판정", "E1: 대비 10배 이상"]]) },
-      ];
+      // 공정은 snss_battery/process.py (RECIPE.md 3절과 같음) — 단계마다 수작업 / 기계작업
+      const F = s.freezing;
+      const extra = {
+        dfreeze: [["얼음 전선 속도", `${F.v_mid_um_s.toFixed(1)} → ${F.v_top_um_s.toFixed(1)} µm/s`], ["세포 폭 (추정)", `${F.cell_mid_um.toFixed(0)}–${F.cell_top_um.toFixed(0)} µm`],
+                  ["소금", `얼음에 ${(100 * s.k_eff).toFixed(1)} % 만 → 나머지는 막 사이로`]],
+        thaw: [["해동 뒤", "얼음 → 묽은 내강 (비어 있는 세포)"], ["막 사이", `진한 소금물 ${s.c_brine_m.toFixed(2)} M`]],
+        ft: [["위험", "부피 팽창 9 % 로 막 손상 가능 — S4 확인"]],
+        demold: [["절단선 A", `바닥에서 ${f1(s.cut_z)} mm`]],
+        meas: [["모델 예측", `${(1000 * s.ocv).toFixed(1)} mV (사실상 0)`], ["이유", "층·극성 없음 → 막전위 상쇄"], ["판정", "E2: |V| < 50 mV"]],
+        cond: [["내강", `${s.c_lumen_mM.toFixed(1)} mM`], ["막 사이", `${s.c_brine_m.toFixed(2)} M`], ["저장 에너지", `${s.energy_j.toFixed(0)} J (잠겨 있음)`], ["판정", "E1: 벽/칸 Cl 신호 10배 이상"]],
+      };
+      return s.process.map((p) => ({
+        id: p.id, t: p.title, d: p.action, h: p.hours, mode: p.mode, modeKo: p.mode_ko, hands: p.hands_min,
+        sec: Math.round(3 + 2.2 * Math.log2(1 + p.hours)) + (p.id === "dfreeze" ? 4 : 0),
+        n: () => nb([["구분", `<span class="mode ${p.mode}">${esc(p.mode_ko)}</span>`], ["손 작업", `${p.hands_min.toFixed(0)} 분`],
+                     ["걸리는 시간", p.hours >= 1 ? `${p.hours.toFixed(1)} h` : `${Math.round(p.hours * 60)} 분`], ["장비", esc(p.equipment.join(" · "))],
+                     ["할 일", esc(p.action)], ["넘어가는 조건", esc(p.check)], ...(extra[p.id] || [])]),
+      }));
     }
     if (s.r0) {
       const pva = s.fill_ml * 0.05, go = s.fill_ml * 0.5 / 4;
@@ -162,13 +159,41 @@
   };
   function hoursNow() { const { i, u } = where(t); return HOURS[i] + u * STEPS[i].h; }
 
+  // 통째 결정: 병이 있는 곳 (bench 실험대 · plate 냉각판 · bath 항온수조) 과 얼음 상태
+  function tisState() {
+    const fz = S.freezing.hours, th = (STEPS.find((x) => x.id === "thaw") || { h: 2 }).h, share = fz / (fz + th);
+    const ft = prog("ft"), N = S.freeze_thaw - 1;
+    if (prog("demold") > 0 || ft >= 1) return { at: "bench", ice: 0, gel: true, bath: false };
+    if (ft > 0) {
+      const c = (ft * N) % 1, n = Math.min(N, Math.floor(ft * N) + 1);
+      return c < share ? { at: "plate", ice: Math.sqrt(c / share), gel: true, cycle: n, phase: "동결" }
+                       : { at: "bench", ice: 1 - (c - share) / (1 - share), gel: true, bath: true, cycle: n, phase: "해동" };
+    }
+    const tw = prog("thaw");
+    if (tw > 0) return { at: "bench", ice: 1 - tw, gel: true, bath: true };
+    const df = prog("dfreeze");
+    if (df > 0) return { at: "plate", ice: Math.sqrt(df), gel: false };
+    const su = prog("setup");
+    return { at: su > 0.4 ? "plate" : "bench", move: clamp((su - 0.15) / 0.3), ice: 0, gel: false };
+  }
   function freezerTemp() {
+    if (S.tissue) { // 저온실 안 냉각판: 냉각기를 켠 뒤 약 45분에 판 온도 도달
+      const k = STEPS.findIndex((x) => x.id === "chill");
+      if (prog("chill") <= 0) return 4;
+      return lerp(4, S.plate_c, clamp((hoursNow() - HOURS[k]) / 0.75));
+    }
     const L = prog("layers"), F = prog("ft"), P1 = prog("pour1"), M = prog("mold");
     if (F > 0 && F < 1) { const n = S.tissue ? S.freeze_thaw - 1 : 3, c = (F * n) % 1; return c < 2 / 14 ? 4 : -20; }
     if (L > 0 || P1 > 0 || M > 0.5) return -20;
     return -20;
   }
   function hotTemp() {
+    if (S.tissue) {
+      const P = prog("stock"), C = prog("cool");
+      if (C > 0) return C >= 1 ? 22 : lerp(90, 38, C);
+      if (P <= 0) return 22;
+      return P < 0.2 ? lerp(22, 90, P / 0.2) : 90;
+    }
     const P = prog("stock");
     if (P <= 0) return 22;
     if (P < 0.25) return lerp(22, 90, P / 0.25);
@@ -218,7 +243,8 @@
     ctx.fillStyle = "#566270"; ctx.beginPath(); ctx.arc(160, 412, 8, 0, 6.29); ctx.fill();
     // 원액 비커
     const P = prog("stock"), D = prog("prep");
-    const level = S.r0 || S.tissue ? clamp(P * 1.2) * (1 - prog("mix")) : clamp(P * 1.2) * (1 - 0.92 * D);
+    const level = S.tissue ? clamp(prog("take") * 2) * (1 - clamp(prog("mix") * 2.5)) * (1 - 0.04 * prog("pretest"))
+      : S.r0 ? clamp(P * 1.2) * (1 - prog("mix")) : clamp(P * 1.2) * (1 - 0.92 * D);
     const goMix = clamp((P - 0.75) / 0.25);
     const c = goMix > 0 ? COL.stockGO : COL.stock;
     beaker(70, 290, 92, 96, level * 0.85, c, "", "");
@@ -246,9 +272,21 @@
   function beakers() {
     const D = prog("prep"), L = prog("layers");
     const x0 = 352, gap = 66;
-    if (S.tissue) {
-      const pr = prog("prep"), m = prog("mix");
-      beaker(x0 + 40, 340, 70, 86, clamp(pr * 1.4) * (1 - m) * 0.8, COL.CEM, "GO", "그래핀 폴리머 액정");
+    if (S.tissue) { // GO 분산액 · 예비 시험 바이알 · 1 L 섞는 비커
+      const pt = prog("pretest"), m = prog("mix"), dg = prog("degas"), rf = prog("refill");
+      beaker(x0, 360, 40, 66, 0.8 * (1 - 0.04 * clamp(pt * 3)) * (1 - clamp((m - 0.4) / 0.5)), COL.CEM, "GO", "4 mg/mL");
+      if (pt > 0) {
+        rr(x0 + 52, 384, 18, 42, 3, pt < 1 ? "#6e5c2c" : "#6e5c2cb0", "#7f93a6", 1.5);
+        text("예비", x0 + 61, 444, 10, "#eef3f8", "center", "600");
+        if (pt > 0.3 && pt < 1) text("30분 정치 · 응집?", x0 + 61, 376, 9.5, "#33404d");
+      }
+      const lv = m <= 0 ? 0 : (rf > 0 ? 1 - rf : 1) * lerp(0.55, 0.85, clamp((m - 0.1) / 0.8));
+      beaker(x0 + 84, 330, 76, 96, lv, m < 0.15 ? "#dfeaf2" : COL.mix, "1 L 비커", dg > 0 && dg < 1 ? "진공 · 기포 빼기" : "섞기");
+      if (dg > 0 && dg < 1) for (let k = 0; k < 8; k++) { // 기포
+        const ph = (performance.now() / 700 + k / 8) % 1;
+        ctx.fillStyle = `rgba(255,255,255,${0.7 * (1 - ph)})`; ctx.beginPath(); ctx.arc(x0 + 96 + k * 7, 420 - ph * 70 * lv, 2, 0, 6.29); ctx.fill();
+      }
+      if (m > 0 && m < 1) { ctx.strokeStyle = "#566270"; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x0 + 122, 418, 10 * Math.abs(Math.cos(performance.now() / 120)), 2.5, 0, 0, 6.29); ctx.stroke(); }
       return;
     }
     if (S.r0) {
@@ -269,14 +307,14 @@
   // 냉동실 · 틀 · 결정
   const FZ = { x: 640, y: 112, w: 250, h: 340 };
   function freezer() {
-    const T = freezerTemp(), active = prog("mold") > 0.3 || (S.r0 && prog("pour1") > 0) || (S.tissue && prog("dfreeze") > 0);
+    const T = freezerTemp(), active = prog("mold") > 0.3 || (S.r0 && prog("pour1") > 0) || (S.tissue && prog("chill") > 0);
     rr(FZ.x, FZ.y, FZ.w, FZ.h, 10, "#f2f5f8", "#9fb0c2", 2);
     rr(FZ.x + 12, FZ.y + 34, FZ.w - 24, FZ.h - 50, 6, "#2d3d4f");
     const g = ctx.createLinearGradient(0, FZ.y + 34, 0, FZ.y + FZ.h - 16);
     g.addColorStop(0, "#3c5068"); g.addColorStop(1, "#22303f");
     rr(FZ.x + 14, FZ.y + 36, FZ.w - 28, FZ.h - 54, 5, g);
     lcd(FZ.x + FZ.w - 92, FZ.y + 7, 80, 22, `${T > 0 ? "+" : ""}${T.toFixed(0)}°C`, T < 0 ? "#8fd0ff" : "#ffc36b", 15);
-    text("냉동실", FZ.x + 16, FZ.y + 24, 13, "#33404d", "left", "700");
+    text(S.tissue ? "저온실 +4 °C · 냉각판" : "냉동실", FZ.x + 16, FZ.y + 24, 13, "#33404d", "left", "700");
     // 서리
     if (active && T < 0) {
       ctx.fillStyle = "#e9f6ff"; ctx.globalAlpha = 0.55;
@@ -292,7 +330,7 @@
     const pg = ctx.createLinearGradient(0, plate, 0, plate + 12);
     pg.addColorStop(0, "#c7ced6"); pg.addColorStop(1, "#7e8994");
     ctx.fillStyle = pg; ctx.fillRect(FZ.x + 30, plate, FZ.w - 60, 12);
-    text("차가운 금속판 (도구)", FZ.x + FZ.w / 2, plate + 26, 10, "#c9d6e3");
+    text(S.tissue ? "냉각판 · 순환식 냉각기" : "차가운 금속판 (도구)", FZ.x + FZ.w / 2, plate + 26, 10, "#c9d6e3");
     return plate;
   }
   // 결정 블록을 그림: (cx, base) 아래 중심, 단면 층 표시
@@ -423,25 +461,37 @@
     tisTex.cv = cv2; tisTex.ice = ice;
     return cv2;
   }
-  function tissueCrystal(cx, base, h, frac, thaw, out) {
-    const r = (BOT.d / 2 - BOT.wall) * K, cv0 = tissueTexture();
-    // 액체 (위)
-    ctx.fillStyle = "#8f8676cc"; ctx.fillRect(cx - r, base - h, 2 * r, h * (1 - frac));
-    if (frac <= 0 || !cv0) return;
-    ctx.save();
-    ctx.beginPath();
-    const fz = base - h * frac;
-    ctx.moveTo(cx - r, base);
-    for (let k = 0; k <= 24; k++) { const x = cx - r + (2 * r * k) / 24; ctx.lineTo(x, fz + (frac < 1 ? 2.5 * Math.sin(k * 1.7 + frac * 40) : 0)); }
-    ctx.lineTo(cx + r, base); ctx.closePath(); ctx.clip();
-    const melted = out || thaw > 0;
-    ctx.drawImage(melted ? tisTex.cv : tisTex.ice, cx - r, base - h, 2 * r, h);
-    if (thaw > 0) { ctx.fillStyle = `rgba(245,247,250,${0.25 * thaw})`; ctx.fillRect(cx - r, base - h, 2 * r, h); }
-    const g = ctx.createLinearGradient(cx - r, 0, cx + r, 0);
-    g.addColorStop(0, "#00000040"); g.addColorStop(0.35, "#ffffff26"); g.addColorStop(1, "#00000048");
-    ctx.fillStyle = g; ctx.fillRect(cx - r, base - h, 2 * r, h);
-    ctx.restore();
-    if (frac < 1) { ctx.strokeStyle = "#dff3ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - r, fz); ctx.lineTo(cx + r, fz); ctx.stroke(); }
+  // o: level 액면 (0–1) · color 액체 색 · ice 얼음 (동결: 아래부터 높이 비율, 해동: 남은 부피 비율) · core 해동 중 · gel 세포 구조 있음
+  function tissueCrystal(cx, base, h, o) {
+    const r = (BOT.d / 2 - BOT.wall) * K, cv0 = tissueTexture(), hl = h * o.level;
+    if (hl <= 0) return;
+    const shadeIt = () => {
+      const g = ctx.createLinearGradient(cx - r, 0, cx + r, 0);
+      g.addColorStop(0, "#00000040"); g.addColorStop(0.35, "#ffffff26"); g.addColorStop(1, "#00000048");
+      ctx.fillStyle = g; ctx.fillRect(cx - r, base - hl, 2 * r, hl);
+    };
+    if (!o.gel || !cv0) { ctx.fillStyle = o.color + "cc"; ctx.fillRect(cx - r, base - hl, 2 * r, hl); }
+    else { ctx.drawImage(tisTex.cv, cx - r, base - h, 2 * r, h); ctx.fillStyle = "rgba(245,247,250,0.18)"; ctx.fillRect(cx - r, base - h, 2 * r, h); }
+    if (o.ice > 0 && cv0) {
+      ctx.save(); ctx.beginPath();
+      if (o.core) { const rc = r * Math.sqrt(o.ice); ctx.rect(cx - rc, base - hl, 2 * rc, hl); } // 수조: 바깥부터 녹음
+      else { // 냉각판: 아래부터 얾 (프랙탈 전선을 흉내 낸 물결)
+        const fz = base - hl * o.ice;
+        ctx.moveTo(cx - r, base);
+        for (let k = 0; k <= 24; k++) ctx.lineTo(cx - r + (2 * r * k) / 24, fz + (o.ice < 1 ? 2.5 * Math.sin(k * 1.7 + o.ice * 40) : 0));
+        ctx.lineTo(cx + r, base); ctx.closePath();
+      }
+      ctx.clip(); ctx.drawImage(tisTex.ice, cx - r, base - h, 2 * r, h); ctx.restore();
+      if (!o.core && o.ice < 1) { ctx.strokeStyle = "#dff3ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - r, base - hl * o.ice); ctx.lineTo(cx + r, base - hl * o.ice); ctx.stroke(); }
+    }
+    shadeIt();
+  }
+  function waterBath(cx, base) {
+    const ro = (BOT.d / 2) * K + 16, hw = (BOT.body - 5) * K;
+    rr(cx - ro, base - hw - 12, 2 * ro, hw + 12, 6, null, "#7f93a6", 2);
+    ctx.fillStyle = "#6fb3e655"; ctx.fillRect(cx - ro + 2, base - hw, 2 * ro - 4, hw);
+    lcd(cx - 34, base - hw - 40, 68, 20, "25°C", "#ffc36b", 13);
+    text("항온수조", cx, base - hw - 46, 11, "#33404d", "center", "700");
   }
   function insulation(cx, base) {
     const ro = (BOT.d / 2) * K, hb = (BOT.body + 10) * K;
@@ -464,21 +514,31 @@
     const ft = prog("ft"), dm = prog("demold"), me = prog("meas"), ld = prog("led");
     // 결정 위치: 냉동실 → 측정대
     const move = ease(clamp((dm - 0.35) / 0.65));
-    const bx = lerp(cx, ST.x + 54, move), bb = lerp(base, 398, move);
+    let bx = lerp(cx, ST.x + 54, move), bb = lerp(base, 398, move);
     // 내용물
     let layersDone = 0, frontMm = 0;
-    if (s.tissue) {
-      const df = prog("dfreeze"), mx = prog("mix");
-      frontMm = BOT.fill * Math.sqrt(clamp(df)); // 스테판: 얼음 두께 ∝ √t
-      const full = BOT.fill * K;
-      if (mx > 0 || df > 0) tissueCrystal(bx, bb, full, df >= 1 ? 1 : df > 0 ? frontMm / BOT.fill : 0, ft, dm > 0);
+    if (s.tissue) { // 병: 실험대 → 냉각판 ⇄ 항온수조 → 측정대
+      const st = tisState(), full = BOT.fill * K, BX = 575, BENCH = 430;
+      let px = st.at === "plate" ? cx : BX, pb = st.at === "plate" ? base : BENCH;
+      if (st.move > 0 && st.move < 1) { px = lerp(BX, cx, ease(st.move)); pb = lerp(BENCH, base, ease(st.move)); }
+      bx = lerp(px, ST.x + 54, move); bb = lerp(pb, 398, move);
+      const tk = prog("take"), mx = prog("mix"), rf = prog("refill");
+      const level = rf > 0 ? lerp(0.0, 1, clamp(rf * 1.2)) : mx > 0 ? 0.675 * (1 - clamp(mx * 3)) : 1 - 0.325 * clamp(tk * 1.5);
+      const color = rf > 0 || st.gel || st.ice > 0 ? COL.mix : "#cfe6f5";
+      tissueCrystal(bx, bb, full, { level: dm > 0 ? 1 : level, color, ice: st.ice, core: !!st.bath, gel: st.gel || dm > 0 });
+      frontMm = st.bath ? 0 : BOT.fill * st.ice;
       if (dm < 0.35) {
-        if (df > 0 && df < 1) insulation(cx, base);
-        mold(cx, base, true);
-      } else if (dm < 1) { ctx.globalAlpha = 1 - clamp((dm - 0.35) / 0.3); mold(cx + 90 * dm, base, true); ctx.globalAlpha = 1; }
-      if (mx > 0 && mx < 0.8) pourer(cx - 70, FZ.y + 70, COL.mix, 0.9, base - full);
-      if (df > 0 && df < 1) text(`얼음 전선 ${frontMm.toFixed(0)} mm ↑ 세포 생성`, cx, FZ.y + 58, 12, "#bfe6ff", "center", "700");
-      if (df > 0 && dm < 0.35) text("세포 무늬 ×20 확대 (같은 보로노이 규칙)", cx, FZ.y + 74, 9.5, "#c9d6e3");
+        if (st.at === "plate" && !(st.move < 1)) insulation(px, pb);
+        mold(px, pb, true);
+        if (st.bath) waterBath(px, pb);
+      } else if (dm < 1) { ctx.globalAlpha = 1 - clamp((dm - 0.35) / 0.3); mold(px + 90 * dm, pb, true); ctx.globalAlpha = 1; }
+      const lab = (msg, sub) => { text(msg, px, pb - 262, 12, st.at === "plate" ? "#bfe6ff" : "#263241", "center", "700"); if (sub) text(sub, px, pb - 248, 9.5, st.at === "plate" ? "#c9d6e3" : "#5d6673"); };
+      if (tk > 0 && tk < 1) lab("메스실린더로 덜어 냄", "100 mL + 62.5 mL");
+      if (mx > 0 && mx < 0.35) { lab("남은 식염수 → 1 L 비커"); pourer(BX - 60, 250, "#cfe6f5", -0.9, 330); }
+      if (rf > 0 && rf < 1) { lab("깔때기로 병에 다시 담기", "벽을 타고 천천히"); pourer(BX - 70, 230, COL.mix, 0.9, BENCH - full * level); }
+      if (prog("setup") > 0 && prog("setup") < 1) lab("접촉액 · 단열 · 열전대", "수작업");
+      if (st.at === "plate" && st.ice > 0 && st.ice < 1) lab(`얼음 전선 ${frontMm.toFixed(0)} mm ↑ 세포 생성`, st.cycle ? `재동결 ${st.cycle} / ${s.freeze_thaw - 1}` : "세포 무늬 ×20 확대 (같은 보로노이 규칙)");
+      if (st.bath && st.ice > 0) lab(`해동 — 얼음 심 ${(100 * st.ice).toFixed(0)} %`, st.cycle ? `회차 ${st.cycle} / ${s.freeze_thaw - 1}` : "바깥부터 녹음");
     } else if (s.r0) {
       const p1 = prog("pour1");
       const fillH = blockH * ease(clamp(p1 * 1.2));
@@ -506,7 +566,7 @@
         ctx.globalAlpha = 1 - m; text("✂ 어깨 아래 절단", cx, base - BOT.body * K - 10, 12, "#ffd479", "center", "700"); ctx.globalAlpha = 1;
       }
     }
-    if (ft > 0 && ft < 1) {
+    if (!s.tissue && ft > 0 && ft < 1) {
       const N = s.tissue ? s.freeze_thaw - 1 : 3, c = (ft * N) % 1, n = Math.min(N, Math.floor(ft * N) + 1);
       text(`동결-해동 ${n} / ${N} · ${c < 2 / 14 ? "해동 +4 °C" : "동결 −20 °C"}`, cx, FZ.y + 58, 12.5, "#bfe6ff", "center", "700");
     }
@@ -526,7 +586,8 @@
         const v = s.r0 ? 0.002 * Math.sin(performance.now() / 300) : s.ocv * ease(clamp((me - 0.5) / 0.4));
         reading = s.tissue ? `${(v * 1000).toFixed(1)}mV` : `${v.toFixed(2)} V`; on = true;
       }
-      const cd = prog("cond");
+      let cd = prog("cond");
+      if (s.tissue) cd = 0; // 통째 결정: 단면은 SEM-EDS (아래 상자)
       if (cd > 0) { // 국소 전도도: 탐침이 막(진한 소금물)과 내강(묽음)을 번갈아 지남
         mode = "전도도 mS/cm (탐침)";
         const wall = Math.sin(cd * 60) > 0.55;
@@ -544,14 +605,42 @@
       meter(MX, MY, reading, mode, on);
       if (ld > 0) ledBoard(1074, 154, s.led_level, glow);
     }
-    // 단계 제목
-    ctx.fillStyle = "#17202bd9"; ctx.beginPath(); ctx.roundRect(16, 168, 300, 54, 8); ctx.fill();
-    text(`${i + 1}. ${step.t}`, 30, 191, 15, "#ffffff", "left", "700");
-    text(step.d, 30, 211, 11.5, "#c9d6e3", "left");
+    if (s.tissue) { // 단면 채취 → 동결건조 → SEM-EDS (공용 장비)
+      const sc = prog("section"), ly = prog("lyo"), cd = prog("cond");
+      const box = (lines) => { rr(ST.x - 20, 96, 250, 20 + 16 * lines.length, 8, "#17202bd9");
+        lines.forEach((l, k) => text(l, ST.x - 8, 114 + 16 * k, k ? 11 : 12, k ? "#c9d6e3" : "#ffffff", "left", k ? "" : "700")); };
+      if (cd > 0) {
+        const wall = Math.sin(cd * 40) > 0.3;
+        box(["SEM-EDS · Cl 지도", `벽 근처 ${s.c_brine_m.toFixed(2)} M  /  칸 안 ${s.c_lumen_mM.toFixed(1)} mM`, wall ? "▶ 지금 벽 위를 훑는 중" : "▶ 지금 칸 안을 훑는 중", "E1: 벽/칸 10배 이상이면 충족"]);
+      } else if (ly > 0) box(["동결건조기", `조각 3개 · ${(24 * ly).toFixed(0)} / 24 h`, "얼린 채로 물만 뺌 → 소금 위치 보존"]);
+      else if (sc > 0) box(["단면 채취 · 급속 고정", "세로 절단 → 사진 (자 함께)", "위 · 가운데 · 아래 2 mm 조각", "액체질소 10초 → 소금 분포 고정"]);
+    }
+    // 단계 제목 (+ 수작업 / 기계작업)
+    const fit = (str, w, size) => { ctx.font = `${size}px ${FONT}`; let x = str; while (x.length > 4 && ctx.measureText(x).width > w) x = x.slice(0, -2); return x === str ? x : x + "…"; };
+    ctx.fillStyle = "#17202bd9"; ctx.beginPath(); ctx.roundRect(16, 168, 360, 54, 8); ctx.fill();
+    if (step.mode) {
+      const hand = step.mode === "hand";
+      rr(290, 176, 76, 20, 10, hand ? "#e07a1f" : "#3b7dd8");
+      text(`${hand ? "✋" : "⚙"} ${step.modeKo}`, 328, 190, 11, "#ffffff", "center", "700");
+    }
+    text(fit(`${i + 1}. ${step.t}`, step.mode ? 262 : 330, 15), 30, 191, 15, "#ffffff", "left", "700");
+    text(fit(step.d, 336, 11.5), 30, 211, 11.5, "#c9d6e3", "left");
     // 계기 패널 (HTML)
     const T = freezerTemp(), Th = hotTemp();
     const temp = step.id === "stock" || step.id === "weigh" ? `${Th.toFixed(0)} °C` : `${T > 0 ? "+" : ""}${T.toFixed(0)} °C`;
-    $("#labLcd").innerHTML = [
+    if (s.tissue) { // 지금 쓰는 장비의 온도 · 수작업 누계
+      const hot = ["weigh", "take", "disperse", "stock", "cool"].includes(step.id), st = tisState();
+      const handsDone = STEPS.slice(0, i).reduce((a, x) => a + x.hands, 0) + u * step.hands;
+      $("#labLcd").innerHTML = [
+        ["경과 시간", `${hoursNow().toFixed(1)} h`, ""],
+        ["지금", step.modeKo, step.mode === "hand" ? "warn" : ""],
+        st.bath ? ["항온수조", "25 °C", "warn"] : hot ? ["핫플레이트", `${Th.toFixed(0)} °C`, Th > 30 ? "warn" : ""]
+          : ["냉각판", `${T > 0 ? "+" : ""}${T.toFixed(0)} °C`, T < 0 ? "cold" : ""],
+        ["얼음 전선 (세포 형성)", `${frontMm.toFixed(0)} / ${BOT.fill.toFixed(0)} mm`, frontMm > 0 ? "cold" : ""],
+        ["손 작업 누계", `${(handsDone / 60).toFixed(1)} h`, ""],
+        ["멀티미터", reading, on ? "" : "cold"],
+      ].map(([k, v, c]) => `<div><small>${k}</small><b class="${c}">${esc(v)}</b></div>`).join("");
+    } else $("#labLcd").innerHTML = [
       ["경과 시간", `${hoursNow().toFixed(1)} h`, ""],
       [step.id === "stock" || step.id === "weigh" ? "핫플레이트" : "냉동실", temp, T < 0 && !(step.id === "stock" || step.id === "weigh") ? "cold" : Th > 30 ? "warn" : ""],
       s.tissue ? ["얼음 전선 (세포 형성)", `${frontMm.toFixed(0)} / ${BOT.fill.toFixed(0)} mm`, frontMm > 0 ? "cold" : ""]
@@ -569,7 +658,9 @@
     S = SAMPLES.find((x) => x.key === key) || SAMPLES[0];
     STEPS = steps(S); index();
     delete tisTex.cv;
-    $("#labSteps").innerHTML = STEPS.map((st, k) => `<li data-k="${k}">${esc(st.t)}<br><small>${esc(st.d)} · ${st.h >= 1 ? st.h.toFixed(0) + " h" : Math.round(st.h * 60) + " 분"}</small></li>`).join("");
+    const dur = (h) => (h >= 1 ? h.toFixed(h < 10 ? 1 : 0) + " h" : Math.round(h * 60) + " 분");
+    $("#labSteps").innerHTML = STEPS.map((st, k) => `<li data-k="${k}">${st.mode ? `<span class="mode ${st.mode}">${esc(st.modeKo)}</span> ` : ""}${esc(st.t)}`
+      + `<br><small>${st.mode ? `손 ${st.hands.toFixed(0)} 분 · 걸림 ${dur(st.h)}` : `${esc(st.d)} · ${dur(st.h)}`}</small></li>`).join("");
     $("#labSampleNote").textContent = S.note || "";
     render.lastStep = -1;
     t = 0; render();
