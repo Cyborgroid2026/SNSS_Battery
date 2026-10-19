@@ -31,7 +31,7 @@ def describe(r: dict | None = None) -> str:
         done = f"{c['t_all_h']:.1f} h" if c["t_all_h"] else f"40 h 안에 {100 * c['done_fraction']:.0f} % 만"
         line = f"  {c['name']}\n    전부 {'녹음' if 'side_lead_mid' not in c else '얾'}: {done}"
         if "side_lead_mid" in c:
-            line += (f" · 위 가운데 {c['t_top_center_h']:.1f} h · 가운데 높이에서 벽이 가운데보다 "
-                     f"{100 * c['side_lead_mid']:.0f} % 먼저 얾 (0 % = 완전 방향성)")
+            line += (f" · 아래→위로 언 비율 {100 * c.get('bottom_up_fraction', float('nan')):.0f} % · "
+                     f"가운데 높이에서 벽이 가운데보다 {100 * c['side_lead_mid']:+.0f} % 먼저 얾")
         lines.append(line)
     return "\n".join(lines)

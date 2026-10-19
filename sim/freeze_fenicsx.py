@@ -149,6 +149,9 @@ def run(name, t_plate, t_amb, h_out, ins_side, ins_top, t0_gel, *, thaw=False, t
     rs, zs = np.linspace(0, R_GEL - 0.001, 12), np.linspace(T_PE + 0.001, T_PE + H_GEL - 0.001, 32)
     out["grid"] = {"r_mm": (rs * 1000).round(2).tolist(), "z_mm": ((zs - T_PE) * 1000).round(2).tolist(),
                    "t_h": [[None if np.isnan(at(rr, zz)) else round(at(rr, zz), 3) for rr in rs] for zz in zs]}
+    if not thaw:
+        tg = np.array([[np.nan if v is None else v for v in row] for row in out["grid"]["t_h"]])
+        out["bottom_up_fraction"] = float(np.mean(tg[1:] >= tg[:-1] - 0.02))
     print(f"{name}: {nx}×{ny} 격자, {steps} 단계, {out['wall_s']:.0f} s · 끝 {out['t_all_h']} h · 위 가운데 {out['t_top_center_h']:.1f} h", flush=True)
     return out
 
@@ -162,6 +165,8 @@ if __name__ == "__main__":
         run("B · 이전 레시피: 냉동실 −20 °C, 금속판, 옆 단열 2 cm (위 없음)", -20.0, -20.0, 8.0, 0.02, 0.0, 20.0, cell=cell),
         run("C · 상온 22 °C, 냉각판 −20 °C, 단열 3 cm", -20.0, 22.0, 8.0, 0.03, 0.03, 20.0, cell=cell),
         run("D · 저가: 냉동실 −20 °C, 금속판, 단열 8 cm 옆·위", -20.0, -20.0, 8.0, 0.08, 0.08, 20.0, cell=cell),
+        # 쟁반은 냉각기가 아니라 냉동실 공기로만 식으므로, 얼음이 내놓는 열(약 3 W)에 몇 도 데워짐
+        run("E · 저가 (현실): 냉동실 −20 °C, 쟁반이 데워져 −15 °C, 단열 8 cm 옆·위", -15.0, -20.0, 8.0, 0.08, 0.08, 20.0, cell=cell),
         run("해동 · 25 °C 항온수조 (어깨까지 담금)", 0.0, 25.0, 300.0, 0.0, 0.0, -20.0, thaw=True, t_end_h=12.0, cell=cell),
     ]}
     (ROOT / "spec" / "fenicsx_freezing.json").write_text(json.dumps(res, ensure_ascii=False, indent=1))
