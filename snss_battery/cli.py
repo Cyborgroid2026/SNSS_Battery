@@ -168,6 +168,31 @@ def cmd_recipe(a: argparse.Namespace) -> None:
         print(f"  1:1 붓기 가이드: {out / f'pour_guide_{key}.pdf'}\n")
 
 
+def cmd_chem(a: argparse.Namespace) -> None:
+    from . import chem
+
+    if a.rebuild:  # PHREEQC 로 표 다시 계산 (phreeqpython 필요 → .venv)
+        chem.write_table()
+        print(f"표 저장: {chem.TABLE}")
+    print(chem.describe())
+
+
+def cmd_fem(a: argparse.Namespace) -> None:
+    from . import fem
+
+    if not a.summary:
+        fem.run(a.cell / 1000)
+    print(fem.describe())
+
+
+def cmd_pybamm(_: argparse.Namespace) -> None:
+    from . import pybamm_cell
+
+    r = pybamm_cell.write()
+    print(pybamm_cell.describe(r))
+    print(f"저장: {pybamm_cell.OUT}")
+
+
 def cmd_quantum(_: argparse.Namespace) -> None:
     from .quantum import QuantumModule
 
@@ -265,6 +290,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", default="cad_out")
     p.set_defaults(func=cmd_tissue)  # 층 쌓기 레시피는 뺐음 — 통째 결정 레시피
     sub.add_parser("quantum", help="SNSS-QB 양자 모듈 (유기 미세공진기 Dicke 형) 계산").set_defaults(func=cmd_quantum)
+    p = sub.add_parser("chem", help="용액 화학 — PHREEQC · pitzer.dat 활동도 · 어는점 · 막전위 보정")
+    p.add_argument("--rebuild", action="store_true", help="PHREEQC 로 표를 다시 계산 (phreeqpython 필요)")
+    p.set_defaults(func=cmd_chem)
+    p = sub.add_parser("fem", help="FEniCSx(Docker) 로 방향성 동결 · 해동 열전달 + 상변화 — 레시피 조건 비교")
+    p.add_argument("--cell", type=float, default=0.8, help="격자 크기 mm")
+    p.add_argument("--summary", action="store_true", help="계산하지 않고 저장된 결과만 요약")
+    p.set_defaults(func=cmd_fem)
+    sub.add_parser("pybamm", help="PyBaMM 으로 인공세포 스택 충방전 (확산 + 활동도) · 기존 모델과 비교").set_defaults(func=cmd_pybamm)
     p = sub.add_parser("cadcheck", help="Rust(truck)·C# 로 STEP 생성 + OpenCascade 검증")
     p.add_argument("--out", default="cad_out/step")
     p.add_argument("--ocp", help="OpenCascade(OCP) 파이썬 패키지 경로 (pip --target 으로 설치한 경우)")

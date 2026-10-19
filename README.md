@@ -141,6 +141,21 @@ python3 -m snss_battery crosscheck
 [EXPERIMENT_PROTOCOL.md](EXPERIMENT_PROTOCOL.md)에 측정 전에 정한 가설 H1~H7과 판정 기준이 있고,
 웹 뷰어의 **실험 기록**에 넣은 측정값을 C# 판정기가 **검증** 탭에서 자동으로 판정합니다.
 
+## 표준 시뮬레이션 도구 — PHREEQC · PyBaMM · FEniCSx · eLabFTW
+
+이 프로젝트 전체를 한 번에 다루는 공식 프로그램은 없으므로, 분야마다 표준 오픈소스 도구로 다시 계산해 자체 모델과 대조합니다.
+
+| 영역 | 도구 | 명령 | 결과 |
+|---|---|---|---|
+| 용액 화학 (활동도, 어는점, 공정점) | **PHREEQC** (USGS) · pitzer.dat | `python3 -m snss_battery chem` (`--rebuild` 는 `.venv` 필요) | [spec/phreeqc_nacl.json](spec/phreeqc_nacl.json) |
+| 배터리 (충방전, 확산, 농도 분극) | **PyBaMM** | `.venv/bin/python -m snss_battery pybamm` | [spec/pybamm_validation.json](spec/pybamm_validation.json) |
+| 방향성 동결 · 해동 (열전달 + 상변화) | **FEniCSx** (Docker `dolfinx/dolfinx:v0.9.0`) | `python3 -m snss_battery fem` (`--summary` 는 Docker 없이) | [spec/fenicsx_freezing.json](spec/fenicsx_freezing.json) |
+| 공정 · 시료 · 측정 기록 | **eLabFTW** (Docker, 로컬 https://localhost:3148) | `python3 -m snss_battery elab --setup` | [elab/](elab/) |
+
+- **설치:** `python3 -m venv --system-site-packages .venv && .venv/bin/pip install pybamm phreeqpython` (`.venv` 는 git 제외).
+- **PyBaMM 검증:** 같은 가정(농도 고름 · 이상 용액)으로 풀면 기존 모델과 방전 용량이 유효숫자 4자리까지 일치합니다. 확산 + 활동도를 넣으면 개방전압이 10.56 → 9.77 V 로 낮아집니다.
+- **PHREEQC 검증:** NaCl 활동도계수가 Robinson & Stokes 값과 0.01 안, 공정점 5.21 mol/kg (문헌 5.2).
+
 ## 양자 모듈 (SNSS-QB) — 별도로 만든 진짜 양자 배터리
 
 **생리식염수 결정 자체는 양자 배터리가 될 수 없습니다.** 에너지가 상온 물속 이온의 농도차로 저장되는데, 이 상태의 결맞음은 펨토초 안에 사라집니다.

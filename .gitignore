@@ -9,3 +9,4 @@ web_static.zip
 .ocplib/
 rust_cad/target/
 .venv/
+elab/.env

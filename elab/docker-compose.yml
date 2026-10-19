@@ -1,0 +1,41 @@
+# eLabFTW (오픈소스 전자 실험노트) — 이 프로젝트의 공정 · 시료 · 측정 기록을 로컬에서 관리
+# 실행: docker compose -f elab/docker-compose.yml --env-file elab/.env up -d   → https://localhost:3148
+# 비밀값(DB 비밀번호, SECRET_KEY)은 elab/.env 에만 둡니다 (git 제외). 처음 설정: python3 -m snss_battery elab --setup
+services:
+  web:
+    image: elabftw/elabimg:6.0.7
+    container_name: snss-elabftw
+    restart: unless-stopped
+    depends_on: [mysql]
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=elabftw
+      - DB_USER=elabftw
+      - DB_PASSWORD=${DB_PASSWORD}
+      - SITE_URL=https://localhost:3148
+      - SERVER_NAME=localhost
+      - DISABLE_HTTPS=false
+      - ENABLE_LETSENCRYPT=false
+      - PHP_TIMEZONE=Asia/Seoul
+      - TZ=Asia/Seoul
+    ports:
+      - "127.0.0.1:3148:443"
+    volumes:
+      - uploads:/elabftw/uploads
+  mysql:
+    image: mysql:8.0
+    container_name: snss-elabftw-db
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_DATABASE=elabftw
+      - MYSQL_USER=elabftw
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - TZ=Asia/Seoul
+    volumes:
+      - db:/var/lib/mysql
+volumes:
+  uploads:
+  db:
