@@ -1,0 +1,608 @@
+<!doctype html><html lang='ko'><head><meta charset='utf-8'><title>SNSS 실험대 기록지</title><style>
+@page { size: A4; margin: 14mm 13mm; }
+body { font-family: 'Noto Sans CJK KR', 'Noto Sans CJK JP', sans-serif; font-size: 10pt; line-height: 1.45; color: #000; }
+h1 { font-size: 17pt; margin: 0 0 6pt; }
+h2 { font-size: 13pt; border-bottom: 1.5px solid #000; padding-bottom: 2pt; margin-top: 16pt; break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 3pt; break-after: avoid; }
+table { border-collapse: collapse; width: 100%; margin: 4pt 0 8pt; break-inside: avoid; }
+th, td { border: 1px solid #555; padding: 4pt 5pt; vertical-align: top; } th { background: #eee; }
+tr { height: 20pt; }
+img { max-width: 100%; max-height: 88mm; display: block; margin: 4pt auto; }
+p:has(img) { break-inside: avoid; break-after: avoid; }
+blockquote { border-left: 3px solid #888; margin: 6pt 0; padding: 2pt 8pt; color: #333; }
+hr { border: none; border-top: 1px solid #999; margin: 10pt 0; }
+ul { margin: 2pt 0; padding-left: 16pt; } code { font-size: 9pt; }
+</style></head><body><h1>SNSS 통째 결정 (인공세포형) — 실험대 기록지</h1>
+<p>500 mL 식염수병 하나 기준 · 전체 약 106 h (4.4 일), 손이 드는 시간 약 5.8 h · 수작업 9단계 / 기계작업 10단계</p>
+<table>
+<thead>
+<tr>
+<th>날짜</th>
+<th>실험자</th>
+<th>시료 (하나에 ✔)</th>
+<th>eLabFTW 실험 번호</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>☐ 본 시료 1회 (S4) ☐ 본 시료 3회 ☐ 대조군 A ☐ 대조군 B ☐ 대조군 C</td>
+<td>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>원본: <code>RECIPE.md</code> 3절 · <code>snss_battery/process.py</code>. 판정 기준: <code>EXPERIMENT_PROTOCOL.md</code>. 동결 · 해동 시간은 FEniCSx 계산값입니다.</li>
+<li><strong>금속 무함유 원칙:</strong> 금속 도구를 겔에 직접 대지 않습니다. 전압은 흑연 막대로만 잽니다.</li>
+<li><strong>이번 단계에서는 전기가 나오지 않는 것이 정상입니다.</strong> 윗면–아랫면 전압 예측은 약 2 mV 이고, LED 는 켜지지 않습니다.</li>
+</ul>
+<hr />
+<h2>1. 재료표</h2>
+<table>
+<thead>
+<tr>
+<th>✔</th>
+<th>재료</th>
+<th>규격</th>
+<th>이번에 쓰는 양 (병 1개)</th>
+<th>로트 · 메모</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>☐</td>
+<td>멸균생리식염수</td>
+<td>0.9 %, 500 mL <strong>나사 마개</strong> 병</td>
+<td>1병 (병은 그릇으로도 씀)</td>
+<td></td>
+</tr>
+<tr>
+<td>☐</td>
+<td>그래핀 산화물(GO) 분산액</td>
+<td>4 mg/mL, 판 크기 10 µm 이상</td>
+<td>62.5 mL (병 안 0.5 mg/mL) + 예비 시험 2.5 mL</td>
+<td></td>
+</tr>
+<tr>
+<td>☐</td>
+<td>PVA (폴리비닐알코올)</td>
+<td>분자량 85,000–124,000, 가수분해 99 % 이상</td>
+<td>15.00 g (병 전체 3 wt%)</td>
+<td></td>
+</tr>
+<tr>
+<td>☐</td>
+<td>증류수</td>
+<td>—</td>
+<td>증발한 만큼 (보통 10–20 mL)</td>
+<td></td>
+</tr>
+<tr>
+<td>☐</td>
+<td>접촉액</td>
+<td>30 % 에탄올 (−20 °C 에서 얼지 않음)</td>
+<td>몇 mL (전지에 들어가지 않음)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>나눠 담는 양</strong></p>
+<table>
+<thead>
+<tr>
+<th>묶음</th>
+<th>양</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PVA 용액</td>
+<td>병에서 식염수 100 mL 를 덜어 PVA 15 g 을 녹임 (15 wt%)</td>
+</tr>
+<tr>
+<td>GO 자리 비우기</td>
+<td>식염수 62.5 mL 를 더 덜어 냄 → 병에 337.5 mL 남음</td>
+</tr>
+<tr>
+<td>최종</td>
+<td>남은 식염수 337.5 + PVA 용액 100 + GO 62.5 = <strong>500 mL</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>대조군 A · C 는 같은 배합이라 한 번에 만들어 나눠 담습니다. 대조군 B 는 <strong>GO 없이</strong> 따로 만듭니다 (GO 대신 식염수 62.5 mL).</p>
+</blockquote>
+<h2>2. 장비 확인</h2>
+<table>
+<thead>
+<tr>
+<th>✔</th>
+<th>장비</th>
+<th>단계</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>☐</td>
+<td>전자저울 0.01 g · 칭량 접시</td>
+<td>2, 4, 6, 10</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>핫플레이트 교반기 + 온도 프로브 · 교반 막대 · 알루미늄 호일</td>
+<td>4–8</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>비커 250 mL · 1 L, 메스실린더 100 mL, 깔때기, 20 mL 바이알, 피펫</td>
+<td>3, 7, 8, 10</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>진공 데시케이터 + 펌프</td>
+<td>9</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>순환식 냉각기 + 알루미늄 냉각판 (−20 °C), 저온실 +4 °C</td>
+<td>1, 11–14</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>스티로폼 3 cm, 열전대 2개 + 기록계</td>
+<td>11–14</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>항온수조 25 °C</td>
+<td>13, 14</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>커터 · 면도칼 · 절단 가이드 띠 (<code>cad_out/template_1to1.pdf</code>, <strong>배율 100 %</strong> 인쇄)</td>
+<td>15, 17</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>흑연 막대 2개 · 멀티미터 (입력 저항 10 MΩ 이상)</td>
+<td>16</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>실체현미경 (자 함께) · 액체질소 · 동결건조기 · SEM-EDS (공용 장비실 예약)</td>
+<td>17–19</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>장갑 · 마스크 · 보안경 · 저온 장갑</td>
+<td>전체</td>
+</tr>
+</tbody>
+</table>
+<h2>3. 안전</h2>
+<ul>
+<li>GO 가루나 분무는 들이마시지 않습니다 (마스크 · 장갑). 분산액이면 위험이 작습니다.</li>
+<li>90 °C 핫플레이트에 데지 않게 주의합니다. 병을 자를 때는 겔을 받친 채 자릅니다.</li>
+<li>액체질소: 보안경 · 저온 장갑, 환기되는 곳, <strong>밀폐 용기에 담지 않음</strong>.</li>
+<li>금이 간 진공 데시케이터는 쓰지 않습니다.</li>
+</ul>
+<h2>4. 일정</h2>
+<table>
+<thead>
+<tr>
+<th>날</th>
+<th>할 일</th>
+<th>실제 시작 시각</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1일</td>
+<td>오전 1–11 (준비 약 5 h) → 오후 2시쯤 동결 세팅</td>
+<td></td>
+</tr>
+<tr>
+<td>2일</td>
+<td>12 동결 끝 (약 22 h) → 13 해동 (약 2.4 h) → <strong>S4 1회 시료는 바로 15–17</strong> → 오후 2회차 동결</td>
+<td></td>
+</tr>
+<tr>
+<td>3일</td>
+<td>2회차 동결 끝 → 해동 → 3회차 동결 세팅</td>
+<td></td>
+</tr>
+<tr>
+<td>4일</td>
+<td>3회차 동결 끝 → 해동 → 15–17 (꺼내기 · 전압 · 단면 고정) → 18 동결건조 시작</td>
+<td></td>
+</tr>
+<tr>
+<td>5–6일</td>
+<td>19 SEM-EDS. E3 용 조각은 3일 뒤 같은 방법으로 고정</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>5. 공정 — 단계마다 체크</h2>
+<p><strong>수작업</strong> = 자리를 지킴 · <strong>기계작업</strong> = 장비가 혼자 함, '넘어가는 조건'만 확인</p>
+<h3>☐ 1. 냉각판 예냉 — 기계작업 · 손 5 분</h3>
+<ul>
+<li>냉각기를 −20 °C 로 켭니다. 판이 식는 30–60분 동안 다음 단계를 진행합니다.</li>
+<li><strong>넘어가는 조건:</strong> 판 표면 −20 ± 1 °C (동결 세팅 전까지)</li>
+<li>기록: 켠 시각 ______ 판 온도 ______ °C</li>
+</ul>
+<h3>☐ 2. 계량 — 수작업 · 10 분</h3>
+<ul>
+<li>PVA 가루 15.00 g 을 잽니다.</li>
+<li><strong>조건:</strong> 15.00 ± 0.05 g  · 기록: ______ g</li>
+</ul>
+<h3>☐ 3. 식염수 덜어 내기 — 수작업 · 5 분</h3>
+<ul>
+<li>병에서 식염수 100 mL 를 250 mL 비커에 덜고, 62.5 mL 를 더 덜어 따로 둡니다. 병은 마개를 닫아 둡니다.</li>
+<li><strong>조건:</strong> 병에 337.5 mL 남음</li>
+</ul>
+<h3>☐ 4. PVA 분산 — 수작업 · 10 분</h3>
+<ul>
+<li>상온에서 300 rpm 으로 저으며 PVA 를 조금씩 뿌립니다. 호일로 덮고 <strong>비커째 무게</strong>를 적습니다.</li>
+<li><strong>조건:</strong> 덩어리 없이 뿌옇게 퍼짐 · 기록: 비커째 무게 ______ g</li>
+</ul>
+<h3>☐ 5. PVA 용해 — 기계작업 · 약 2 h</h3>
+<ul>
+<li>용액 온도 90 °C, 300 rpm 으로 약 2 h 녹입니다. 30분마다 봅니다.</li>
+<li><strong>조건:</strong> 투명하고 덩어리 없음 (15 wt%, 꿀처럼 진함)</li>
+<li>기록: 시작 ______ 끝 ______</li>
+</ul>
+<h3>☐ 6. 증발 보정 · 식히기 — 기계작업 · 약 40 분</h3>
+<ul>
+<li>비커째 무게를 재서 줄어든 만큼 증류수를 보충합니다. 가열을 끄고 저으며 식힙니다.</li>
+<li><strong>조건:</strong> 무게 복원 · 40 °C 이하 · 기록: 보충한 증류수 ______ g</li>
+</ul>
+<h3>☐ 7. 예비 시험 — GO 응집 — 수작업 · 30 분</h3>
+<ul>
+<li>20 mL 바이알에 식염수 13.5 mL + PVA 용액 4 mL + GO 2.5 mL 를 섞어 30분 둡니다.</li>
+<li><strong>조건:</strong> 빛에 비춰 고른 갈색이면 진행. <strong>알갱이나 가라앉은 층이 보이면 중단합니다.</strong></li>
+<li>결과: ☐ 고른 갈색 → 진행  ☐ 응집 → 중단 (메모: ____________________)</li>
+</ul>
+<h3>☐ 8. 비커에서 섞기 — 기계작업 · 약 35 분</h3>
+<ul>
+<li>병의 남은 식염수 337.5 mL 를 1 L 비커에 붓고, 300 rpm 으로 저으며 <strong>PVA 용액 → GO 62.5 mL</strong> 순서로 천천히 넣습니다. 30분 젓습니다.</li>
+<li><strong>조건:</strong> 줄무늬 없이 고른 갈색</li>
+</ul>
+<h3>☐ 9. 기포 빼기 — 기계작업 · 약 20 분</h3>
+<ul>
+<li>15분 감압합니다. 거품이 끓어오르면 잠깐 진공을 풉니다.</li>
+<li><strong>조건:</strong> 표면에 기포 없음</li>
+</ul>
+<h3>☐ 10. 병에 다시 담기 — 수작업 · 10 분</h3>
+<ul>
+<li>벽을 타고 흐르게 천천히 병에 붓습니다. <strong>뚜껑은 반 바퀴 풀어 얹습니다</strong> (얼면 부피가 9 % 늘어남).</li>
+<li><strong>조건:</strong> 500 mL · 액면이 어깨 아래 · 기록: 담은 무게 ______ g</li>
+</ul>
+<h3>☐ 11. 동결 세팅 — 수작업 · 15 분</h3>
+<p><img alt="그림 1. 방향성 동결 세팅" src="img/setup.png" /></p>
+<ul>
+<li>병 바닥이 평평한지 봅니다. 냉각판에 접촉액을 몇 mL 떨어뜨리고 병을 세웁니다.</li>
+<li>옆면 · 윗면을 스티로폼 3 cm 로 감싸고, 병 벽 아래 · 위에 열전대를 붙입니다.</li>
+<li><strong>조건:</strong> 바닥 열전대가 내려가기 시작 · 기록: 세팅 시각 ______</li>
+</ul>
+<h3>☐ 12. 방향성 동결 — 기계작업 · 약 22 h</h3>
+<p><img alt="그림 2. 동결 진행 (FEniCSx 계산)" src="img/freeze.png" /></p>
+<ul>
+<li><strong>손대지 않습니다.</strong> 얼음이 아래에서 위로 자라며 세포가 생깁니다. 저온실 문을 자주 열지 않습니다.</li>
+<li><strong>조건:</strong> 위쪽 열전대 &lt; −3 °C (판 접촉이 나쁘면 더 걸림) → 아래 6절 온도 기록표에 적기</li>
+</ul>
+<h3>☐ 13. 해동 — 기계작업 · 약 2.4 h</h3>
+<ul>
+<li>병을 어깨까지 25 °C 항온수조에 담급니다.</li>
+<li><strong>조건:</strong> 병을 눌러 단단한 심이 없음</li>
+<li><strong>S4 용 1회 시료는 여기서 바로 15–17 로 갑니다.</strong></li>
+</ul>
+<h3>☐ 14. 재동결 · 해동 × 2 — 기계작업 · 약 49 h</h3>
+<ul>
+<li>11과 같은 방법으로 다시 방향성 동결 → 수조 해동을 2번 합니다. PVA 골격이 단단해집니다.</li>
+<li><strong>조건:</strong> 회차마다 열전대 기록 (6절)</li>
+</ul>
+<h3>☐ 15. 병 절단 · 꺼내기 — 수작업 · 15 분</h3>
+<p><img alt="그림 5. 절단 가이드 띠 (실제 인쇄는 cad_out/template_1to1.pdf 를 배율 100 % 로)" src="img/cut_guide.png" /></p>
+<ul>
+<li>가이드 띠 아래 변을 병 바닥에 맞춰 감고, 절단선 A (바닥에서 134.3 mm) 와 절개선 B 2줄을 따라 자릅니다. 겔을 받친 채 꺼냅니다.</li>
+<li><strong>조건:</strong> <strong>10분 안에</strong> 16 측정 시작 (표면이 마르면 저항이 커짐) · 기록: 꺼낸 시각 ______</li>
+</ul>
+<h3>☐ 16. 윗면–아랫면 전압 (E2) — 수작업 · 15 분</h3>
+<p><img alt="그림 3 · 4. 전압 측정과 단면 채취" src="img/measure.png" /></p>
+<ul>
+<li>윗면 · 아랫면에 흑연 막대를 <strong>같은 힘으로</strong> 대고 DC mV 를 잽니다. 정 3번, 막대를 바꿔 역 3번. → 6절 표에 적기</li>
+<li>수십 mV 이상이 나오면 먼저 접촉 전위 · 오염을 의심합니다 (8절).</li>
+</ul>
+<h3>☐ 17. 단면 채취 · 급속 고정 — 수작업 · 30 분</h3>
+<ul>
+<li>세로로 잘라 단면 사진을 찍습니다 (자 함께). 위 · 가운데 · 아래에서 2 mm 조각을 떼어 <strong>액체질소에 10초</strong> 담급니다.</li>
+<li><strong>조건:</strong> S1–S3 사진 · 조각 3개 고정 · 기록: 사진 파일 이름 ____________________</li>
+</ul>
+<h3>☐ 18. 동결건조 — 기계작업 · 약 24 h</h3>
+<ul>
+<li>고정한 조각을 얼린 채로 말립니다.</li>
+<li><strong>조건:</strong> 무게 변화 없음 · 기록: 시작 ______ 끝 ______</li>
+</ul>
+<h3>☐ 19. 단면 분석 — SEM-EDS — 기계작업 · 약 2 h</h3>
+<ul>
+<li>Cl 지도로 벽 근처와 칸 안의 소금 신호를 비교하고, 칸 폭을 잽니다.</li>
+<li><strong>조건:</strong> E1 · S1 · S2 기록 (6절)</li>
+</ul>
+<hr />
+<h2>6. 측정 기록</h2>
+<p><strong>동결 온도 기록 (열전대)</strong></p>
+<table>
+<thead>
+<tr>
+<th>회차</th>
+<th>세팅 시각</th>
+<th>위쪽 &lt; −3 °C 된 시각</th>
+<th>걸린 시간 (예측 22.3 h)</th>
+<th>해동 끝 시각 (예측 +2.4 h)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>2</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>3</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>E2 윗면–아랫면 전압 (mV)</strong> — 판정: |V| &lt; 50 mV, 정 · 역 부호만 반대 (예측 약 2 mV)</p>
+<table>
+<thead>
+<tr>
+<th>시료</th>
+<th>정 1</th>
+<th>정 2</th>
+<th>정 3</th>
+<th>역 1</th>
+<th>역 2</th>
+<th>역 3</th>
+<th>정 평균</th>
+<th>역 평균</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>본 시료 1회</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>본 시료 3회</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>대조군 A</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>대조군 B</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>대조군 C</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>단면 · SEM-EDS</strong></p>
+<table>
+<thead>
+<tr>
+<th>시료</th>
+<th>위치</th>
+<th>칸 폭 (µm) S1</th>
+<th>닫힌 칸 보임? S1</th>
+<th>Cl 신호 벽 / 칸 비 E1</th>
+<th>메모</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>본 시료 1회</td>
+<td>위</td>
+<td></td>
+<td>☐ 예 ☐ 아니오</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>가운데</td>
+<td></td>
+<td>☐ 예 ☐ 아니오</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>아래</td>
+<td></td>
+<td>☐ 예 ☐ 아니오</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>본 시료 3회</td>
+<td>위</td>
+<td></td>
+<td>☐ 예 ☐ 아니오</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>가운데</td>
+<td></td>
+<td>☐ 예 ☐ 아니오</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>아래</td>
+<td></td>
+<td>☐ 예 ☐ 아니오</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>대조군 C</td>
+<td>가운데</td>
+<td></td>
+<td>☐ 예 ☐ 아니오</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>E3 (3일 뒤 · 4 °C 밀봉 보관한 3회 시료): 벽 / 칸 비 ______ (처음 값의 절반 이상이면 충족)</li>
+<li>측정값은 웹 뷰어 <strong>실험 기록</strong> 탭과 eLabFTW 실험에도 옮겨 적습니다.</li>
+</ul>
+<h2>7. 판정 기준 (측정 전에 정해 둔 것 — 바꾸지 않음)</h2>
+<table>
+<thead>
+<tr>
+<th>가설</th>
+<th>충족 기준</th>
+<th>모델 예측</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>E1</strong> 빈 세포에 에너지</td>
+<td>벽 / 칸 Cl 비 ≥ 10배, 대조군 C 는 2배 미만</td>
+<td>수백 배</td>
+<td>☐ 충족 ☐ 불충족</td>
+</tr>
+<tr>
+<td><strong>E2</strong> 위아래 대칭</td>
+<td>|V| &lt; 50 mV, 정 · 역 부호만 반대</td>
+<td>약 2 mV</td>
+<td>☐ 충족 ☐ 불충족</td>
+</tr>
+<tr>
+<td><strong>E3</strong> 에너지 유지</td>
+<td>3일 뒤에도 E1 비가 절반 이상</td>
+<td>서서히 줄어듦</td>
+<td>☐ 충족 ☐ 불충족</td>
+</tr>
+<tr>
+<td><strong>S1</strong> 세포와 막</td>
+<td>닫힌 칸, 칸 폭 50–500 µm</td>
+<td>140–280 µm</td>
+<td>☐ 충족 ☐ 불충족</td>
+</tr>
+<tr>
+<td><strong>S2</strong> 아래 → 위 성장</td>
+<td>아래쪽 칸이 위쪽보다 작음</td>
+<td>아래 작고 위 큼</td>
+<td>☐ 충족 ☐ 불충족</td>
+</tr>
+<tr>
+<td><strong>S3</strong> 프랙탈 연속성</td>
+<td>벽 프랙탈 차원 1.1–1.7</td>
+<td>약 1.25–1.4</td>
+<td>☐ 충족 ☐ 불충족</td>
+</tr>
+<tr>
+<td><strong>S4</strong> 동결이 막을 안 깸</td>
+<td>1회 → 3회 사이 E1 비가 절반 아래로 안 떨어짐</td>
+<td>미지수</td>
+<td>☐ 충족 ☐ 불충족</td>
+</tr>
+</tbody>
+</table>
+<h2>8. 흔한 착오 (가짜 양성)</h2>
+<ul>
+<li><strong>금속 프로브:</strong> 금속이 식염수에 닿으면 수십–수백 mV 가 저절로 생깁니다. 같은 재질 흑연 막대만 쓰고, 대조군도 함께 잽니다.</li>
+<li><strong>누르는 힘 · 접촉 면적:</strong> 바뀌면 값이 흔들립니다. 같은 힘으로 3번 재서 평균을 냅니다.</li>
+<li><strong>표면 건조:</strong> 꺼낸 뒤 10분 안에 잽니다.</li>
+<li><strong>멀티미터 입력 저항:</strong> 10 MΩ 미만이면 재는 동안 결정이 방전됩니다.</li>
+</ul>
+<h2>9. 대조군</h2>
+<table>
+<thead>
+<tr>
+<th>시료</th>
+<th>만드는 법</th>
+<th>보려는 것</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A</strong> 방향 없이 빨리 얼림</td>
+<td>같은 배합 병을 −20 °C 냉동실에 그냥 (냉각판 · 단열 없음), 해동 횟수 같게</td>
+<td>세포가 작고 고름 · 위아래 차이 없음</td>
+</tr>
+<tr>
+<td><strong>B</strong> 식염수 + PVA 만</td>
+<td>GO 없이 같은 방향성 동결</td>
+<td>막이 없으면 벽 / 칸 Cl 대비가 약함</td>
+</tr>
+<tr>
+<td><strong>C</strong> 얼리지 않음</td>
+<td>같은 배합을 상온에</td>
+<td>세포 · 막이 생기지 않음</td>
+</tr>
+</tbody>
+</table>
+<p style="font-size:9pt;color:#666">그림 1 · 3 · 4 와 그림 2 는 report/make_figs.py 가 만듭니다 (그림 2 는 ./tools.sh fem-movie 결과). 그림 5 는 cad_out 의 1:1 템플릿입니다.</p></body></html>
