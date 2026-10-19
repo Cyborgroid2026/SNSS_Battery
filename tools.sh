@@ -9,6 +9,8 @@
 #   ./tools.sh elab-push     공정을 eLabFTW 템플릿·실험으로 올림 (실행할 때마다 새로 만들어짐)
 #   ./tools.sh elab-down     eLabFTW 서버 끄기
 #   ./tools.sh all           chem → pybamm → fem 계산 (eLabFTW 는 건드리지 않음)
+#   ./tools.sh view-freeze   ParaView 로 동결 애니메이션 보기 (새 레시피 · 저가 나란히)
+#   ./tools.sh view-battery  PyBaMM 그래프 창으로 충방전 보기 (시간 슬라이더)
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -21,6 +23,7 @@ need_venv() {
         echo "가상환경(.venv)이 없어 만듭니다: PyBaMM · phreeqpython 설치…"
         "$PY" -m venv --system-site-packages .venv
         "$VPY" -m pip install --quiet pybamm phreeqpython
+        "$VPY" -m pip install --quiet --ignore-installed matplotlib  # 시스템 matplotlib 은 NumPy 1 용이라 venv 안에 따로
     fi
 }
 
@@ -48,6 +51,25 @@ cmd_elab_up() {
     echo "→ https://localhost:3148 (자체 서명 인증서라 경고가 뜨면 '계속')"
     echo "→ 로그인 ID: $(grep '^ELAB_ADMIN_EMAIL=' elab/.env | cut -d= -f2) / 비밀번호: elab/.env 의 ELAB_ADMIN_PASSWORD"
 }
+# ParaView: PATH 에 있으면 그것, 없으면 ~/Applications 에 공식 배포판을 받아 씀 (sudo 불필요)
+PV_VER=5.13.3
+paraview_bin() {
+    if command -v paraview >/dev/null; then command -v paraview; return; fi
+    local d=~/Applications/ParaView-$PV_VER-MPI-Linux-Python3.10-x86_64
+    if [[ ! -x $d/bin/paraview ]]; then
+        echo "ParaView $PV_VER 을(를) ~/Applications 에 내려받습니다 (약 600 MB)…" >&2
+        mkdir -p ~/Applications
+        curl -L "https://www.paraview.org/files/v${PV_VER%.*}/ParaView-$PV_VER-MPI-Linux-Python3.10-x86_64.tar.gz" | tar xz -C ~/Applications
+    fi
+    echo "$d/bin/paraview"
+}
+cmd_view_freeze() {
+    [[ -f results/freeze_A_new_recipe.xdmf && -f results/freeze_E_low_cost.xdmf ]] || cmd_fem_movie
+    "$(paraview_bin)" --script=sim/view_freeze.py >/dev/null 2>&1 &
+    echo "ParaView 를 열었습니다. 위쪽 ▶ 단추로 재생 (파랑 = 얼음, 빨간 선 = 얼음 전선)."
+}
+cmd_fem_movie() { "$PY" -c "from snss_battery import fem; fem.run(xdmf=True)"; }
+cmd_view_battery() { need_venv; "$VPY" -c "from snss_battery import pybamm_cell; pybamm_cell.view()"; }
 cmd_elab_push() { need_elab_env; "$PY" -m snss_battery elab; }
 cmd_elab_down() { need_elab_env; "${COMPOSE[@]}" down; }
 
@@ -60,5 +82,8 @@ case "${1:-}" in
     elab-push) cmd_elab_push ;;
     elab-down) cmd_elab_down ;;
     all) cmd_chem; echo; cmd_pybamm; echo; cmd_fem ;;
-    *) sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+    view-freeze) cmd_view_freeze ;;
+    fem-movie) cmd_fem_movie ;;
+    view-battery) cmd_view_battery ;;
+    *) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
