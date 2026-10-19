@@ -185,9 +185,12 @@ def cmd_fem(a: argparse.Namespace) -> None:
     print(fem.describe())
 
 
-def cmd_elab(_: argparse.Namespace) -> None:
+def cmd_elab(a: argparse.Namespace) -> None:
     from . import elab
 
+    if a.setup:
+        print(elab.setup())
+        return
     r = elab.push()
     print(f"eLabFTW: 템플릿 {r['template']}, 실험 {r['experiments']} → {r['url']}")
 
@@ -306,7 +309,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--cell", type=float, default=0.8, help="격자 크기 mm")
     p.add_argument("--summary", action="store_true", help="계산하지 않고 저장된 결과만 요약")
     p.set_defaults(func=cmd_fem)
-    sub.add_parser("elab", help="eLabFTW(로컬 Docker) 에 공정 19단계를 실험 템플릿 · 실험으로 올림").set_defaults(func=cmd_elab)
+    p = sub.add_parser("elab", help="eLabFTW(로컬 Docker) 에 공정 19단계를 실험 템플릿 · 실험으로 올림")
+    p.add_argument("--setup", action="store_true", help="처음 한 번: elab/.env 비밀값 + elab/data 폴더 만들기")
+    p.set_defaults(func=cmd_elab)
     sub.add_parser("pybamm", help="PyBaMM 으로 인공세포 스택 충방전 (확산 + 활동도) · 기존 모델과 비교").set_defaults(func=cmd_pybamm)
     p = sub.add_parser("cadcheck", help="Rust(truck)·C# 로 STEP 생성 + OpenCascade 검증")
     p.add_argument("--out", default="cad_out/step")

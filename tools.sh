@@ -29,21 +29,37 @@ need_venv() {
     fi
 }
 
+need_docker() {
+    if ! command -v docker >/dev/null; then
+        echo "docker 가 없습니다. 설치: https://docs.docker.com/engine/install/ubuntu/ → sudo usermod -aG docker \$USER → 다시 로그인" >&2
+        exit 1
+    fi
+}
+
 need_elab_env() {
     if [[ ! -f elab/.env ]]; then
-        echo "elab/.env 가 없습니다. 비밀값(DB 비밀번호, SECRET_KEY, API 키)이 있어야 eLabFTW 를 켤 수 있습니다." >&2
-        exit 1
+        echo "elab/.env 가 없어 새로 만듭니다 (비밀값 무작위 생성)."
+        "$PY" -m snss_battery elab --setup
     fi
 }
 
 cmd_chem() { "$PY" -m snss_battery chem; }
 cmd_pybamm() { need_venv; "$VPY" -m snss_battery pybamm; }
-cmd_fem() { "$PY" -m snss_battery fem; }
+cmd_fem() { need_docker; "$PY" -m snss_battery fem; }
 cmd_fem_summary() { "$PY" -m snss_battery fem --summary; }
 
 cmd_elab_up() {
+    need_docker
     need_elab_env
     "${COMPOSE[@]}" up -d
+    # 처음 한 번: DB 표 만들기 (MySQL 이 뜰 때까지 기다림). 끝나면 표시 파일을 남김
+    if [[ ! -f elab/data/.installed ]]; then
+        echo -n "DB 준비 중"
+        until docker exec snss-elabftw-db mysqladmin ping -s >/dev/null 2>&1; do echo -n "."; sleep 2; done
+        echo
+        docker exec snss-elabftw bin/init db:install && touch elab/data/.installed
+        echo "→ 처음이면 http://localhost:3148 에서 계정을 만드세요 (첫 가입자 = 관리자), 그다음 API 키를 elab/.env 에."
+    fi
     echo -n "eLabFTW 준비 중"
     for _ in $(seq 1 60); do
         [[ "$(curl -sk -o /dev/null -w '%{http_code}' http://localhost:3148/login.php)" == 200 ]] && break
@@ -51,7 +67,8 @@ cmd_elab_up() {
     done
     echo
     echo "→ http://localhost:3148"
-    echo "→ 로그인 ID: $(grep '^ELAB_ADMIN_EMAIL=' elab/.env | cut -d= -f2) / 비밀번호: elab/.env 의 ELAB_ADMIN_PASSWORD"
+    local id; id=$(grep '^ELAB_ADMIN_EMAIL=' elab/.env | cut -d= -f2)
+    [[ -n "$id" ]] && echo "→ 로그인 ID: $id"
 }
 # ParaView: PATH 에 있으면 그것, 없으면 ~/Applications 에 공식 배포판을 받아 씀 (sudo 불필요)
 PV_VER=5.13.3
@@ -80,7 +97,7 @@ cmd_web() {
     "$PY" -m snss_battery web --port 8765
 }
 cmd_elab_push() { need_elab_env; "$PY" -m snss_battery elab; }
-cmd_elab_down() { need_elab_env; "${COMPOSE[@]}" down; }
+cmd_elab_down() { need_docker; need_elab_env; "${COMPOSE[@]}" down; }
 
 case "${1:-}" in
     web) cmd_web ;;
