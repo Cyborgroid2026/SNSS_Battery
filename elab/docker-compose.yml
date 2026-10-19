@@ -15,15 +15,13 @@ services:
       - DB_USER=elabftw
       - DB_PASSWORD=${DB_PASSWORD}
       - SITE_URL=https://localhost:3148
-      - SERVER_NAME=localhost
       - DISABLE_HTTPS=false
-      - ENABLE_LETSENCRYPT=false
       - TLS_CERT_PATH=/certs/cert.pem
       - TLS_KEY_PATH=/certs/key.pem
       - PHP_TIMEZONE=Asia/Seoul
       - TZ=Asia/Seoul
     ports:
-      - "127.0.0.1:3148:443"
+      - "127.0.0.1:3148:8080"  # eLabFTW 6 은 컨테이너 안 8080 에서 HTTPS
     volumes:
       - uploads:/elabftw/uploads
       - ./certs:/certs:ro  # 자체 서명 인증서 (python3 -m snss_battery elab --setup 이 만듦, git 제외)
