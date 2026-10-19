@@ -490,8 +490,7 @@
     const ro = (BOT.d / 2) * K + 16, hw = (BOT.body - 5) * K;
     rr(cx - ro, base - hw - 12, 2 * ro, hw + 12, 6, null, "#7f93a6", 2);
     ctx.fillStyle = "#6fb3e655"; ctx.fillRect(cx - ro + 2, base - hw, 2 * ro - 4, hw);
-    lcd(cx - 34, base - hw - 40, 68, 20, "25°C", "#ffc36b", 13);
-    text("항온수조", cx, base - hw - 46, 11, "#33404d", "center", "700");
+    text("항온수조 25 °C", cx, 462, 11, "#ffc36b", "center", "700");
   }
   function insulation(cx, base) {
     const ro = (BOT.d / 2) * K, hb = (BOT.body + 10) * K;
@@ -532,7 +531,8 @@
         mold(px, pb, true);
         if (st.bath) waterBath(px, pb);
       } else if (dm < 1) { ctx.globalAlpha = 1 - clamp((dm - 0.35) / 0.3); mold(px + 90 * dm, pb, true); ctx.globalAlpha = 1; }
-      const lab = (msg, sub) => { text(msg, px, pb - 262, 12, st.at === "plate" ? "#bfe6ff" : "#263241", "center", "700"); if (sub) text(sub, px, pb - 248, 9.5, st.at === "plate" ? "#c9d6e3" : "#5d6673"); };
+      const cold = st.at === "plate", ly = cold ? FZ.y + 58 : pb - 262;
+      const lab = (msg, sub) => { text(msg, px, ly, 12, cold ? "#bfe6ff" : "#263241", "center", "700"); if (sub) text(sub, px, ly + 14, 9.5, cold ? "#c9d6e3" : "#5d6673"); };
       if (tk > 0 && tk < 1) lab("메스실린더로 덜어 냄", "100 mL + 62.5 mL");
       if (mx > 0 && mx < 0.35) { lab("남은 식염수 → 1 L 비커"); pourer(BX - 60, 250, "#cfe6f5", -0.9, 330); }
       if (rf > 0 && rf < 1) { lab("깔때기로 병에 다시 담기", "벽을 타고 천천히"); pourer(BX - 70, 230, COL.mix, 0.9, BENCH - full * level); }
