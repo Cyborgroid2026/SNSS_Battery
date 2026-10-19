@@ -38,7 +38,7 @@ class ProcessTest(unittest.TestCase):
             self.assertTrue(stefan < fem[0] < 2 * stefan)
         else:
             self.assertAlmostEqual(by["dfreeze"].hours, stefan)
-        self.assertAlmostEqual(by["ft"].hours, (rc.freeze_thaw - 1) * (fz + by["thaw"].hours))
+        self.assertAlmostEqual(by["ft"].hours, (rc.freeze_thaw - 1) * (by["dfreeze"].hours + by["thaw"].hours))
         s = summary(self.steps)
         self.assertGreater(s["days"], 3)  # 이틀로는 안 됨
         self.assertGreater(s["machine_hours"], s["hand_hours"])
