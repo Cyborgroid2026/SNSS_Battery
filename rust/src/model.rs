@@ -137,7 +137,6 @@ pub struct Battery {
     pub gel_d: f64,
     pub gel_h: f64,
     pub layer_mm: f64,
-    pub go_mg: f64,
 }
 
 pub struct Case {
@@ -169,5 +168,5 @@ pub fn build(c: &Case) -> Battery {
         contact_mg: surf * ag, x: 0.0, q: 0.0, faradaic: false, contact_asr: 0.0, extra_emf: 0.0,
     };
     s.x = (c0 * (c.ratio - 1.0) / (c.ratio + 1.0)).min(s.max_shift());
-    Battery { stack: s, gel_d, gel_h, layer_mm: c.layer, go_mg }
+    Battery { stack: s, gel_d, gel_h, layer_mm: c.layer }
 }
