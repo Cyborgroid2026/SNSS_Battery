@@ -150,7 +150,7 @@ python3 -m snss_battery crosscheck
 | 용액 화학 (활동도, 어는점, 공정점) | **PHREEQC** (USGS) · pitzer.dat | `python3 -m snss_battery chem` (`--rebuild` 는 `.venv` 필요) | [spec/phreeqc_nacl.json](spec/phreeqc_nacl.json) |
 | 배터리 (충방전, 확산, 농도 분극) | **PyBaMM** | `.venv/bin/python -m snss_battery pybamm` | [spec/pybamm_validation.json](spec/pybamm_validation.json) |
 | 방향성 동결 · 해동 (열전달 + 상변화) | **FEniCSx** (Docker `dolfinx/dolfinx:v0.9.0`) | `python3 -m snss_battery fem` (`--summary` 는 Docker 없이) | [spec/fenicsx_freezing.json](spec/fenicsx_freezing.json) |
-| 공정 · 시료 · 측정 기록 | **eLabFTW** (Docker, 로컬 https://localhost:3148) | `python3 -m snss_battery elab --setup` | [elab/](elab/) |
+| 공정 · 시료 · 측정 기록 | **eLabFTW** (Docker, 로컬 http://localhost:3148) | `python3 -m snss_battery elab --setup` | [elab/](elab/) |
 
 - **설치:** `python3 -m venv --system-site-packages .venv && .venv/bin/pip install pybamm phreeqpython` (`.venv` 는 git 제외).
 - **PyBaMM 검증:** 같은 가정(농도 고름 · 이상 용액)으로 풀면 기존 모델과 방전 용량이 유효숫자 4자리까지 일치합니다. 확산 + 활동도를 넣으면 개방전압이 10.56 → 9.77 V 로 낮아집니다.

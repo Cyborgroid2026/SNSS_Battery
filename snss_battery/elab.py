@@ -1,6 +1,6 @@
 """eLabFTW (오픈소스 전자 실험노트) 연동 — 공정 19단계를 실험 템플릿과 실험으로 올림.
 
-로컬 서버: elab/docker-compose.yml (https://localhost:3148, 자체 서명 인증서).
+로컬 서버: elab/docker-compose.yml (http://localhost:3148).
 비밀값(API 키 등)은 elab/.env 에만 있습니다 (git 제외).
 
     python3 -m snss_battery elab              # 템플릿 + 실험 만들기 (서버가 떠 있어야 함)
@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import html
 import json
-import ssl
 import urllib.request
 from pathlib import Path
 
@@ -19,7 +18,7 @@ from .process import MODE_KO, process, summary
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV = ROOT / "elab" / ".env"
-URL = "https://localhost:3148/api/v2"
+URL = "http://localhost:3148/api/v2"
 
 
 def _env() -> dict[str, str]:
@@ -27,11 +26,9 @@ def _env() -> dict[str, str]:
 
 
 def _call(method: str, path: str, body: dict | None = None) -> tuple[int, dict | None, str]:
-    ctx = ssl.create_default_context()
-    ctx.check_hostname, ctx.verify_mode = False, ssl.CERT_NONE  # localhost 자체 서명 인증서
     req = urllib.request.Request(URL + path, method=method, data=json.dumps(body).encode() if body is not None else None,
                                  headers={"Authorization": _env()["ELAB_API_KEY"], "Content-Type": "application/json"})
-    with urllib.request.urlopen(req, context=ctx) as r:
+    with urllib.request.urlopen(req) as r:
         raw = r.read().decode() or "null"
         return r.status, json.loads(raw) if raw.strip().startswith(("{", "[")) else None, r.headers.get("Location", "")
 

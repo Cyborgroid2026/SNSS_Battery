@@ -5,7 +5,7 @@
 #   ./tools.sh pybamm        배터리 (PyBaMM): 충방전, 기존 모델과 비교
 #   ./tools.sh fem           동결·해동 (FEniCSx, Docker) 다시 계산 — 약 2분
 #   ./tools.sh fem-summary   저장된 동결·해동 결과만 보기 (Docker 없이)
-#   ./tools.sh elab-up       eLabFTW 서버 켜기 → https://localhost:3148
+#   ./tools.sh elab-up       eLabFTW 서버 켜기 → http://localhost:3148
 #   ./tools.sh elab-push     공정을 eLabFTW 템플릿·실험으로 올림 (실행할 때마다 새로 만들어짐)
 #   ./tools.sh elab-down     eLabFTW 서버 끄기
 #   ./tools.sh all           chem → pybamm → fem 계산 (eLabFTW 는 건드리지 않음)
@@ -44,11 +44,11 @@ cmd_elab_up() {
     "${COMPOSE[@]}" up -d
     echo -n "eLabFTW 준비 중"
     for _ in $(seq 1 60); do
-        [[ "$(curl -sk -o /dev/null -w '%{http_code}' https://localhost:3148/login.php)" == 200 ]] && break
+        [[ "$(curl -sk -o /dev/null -w '%{http_code}' http://localhost:3148/login.php)" == 200 ]] && break
         echo -n "."; sleep 2
     done
     echo
-    echo "→ https://localhost:3148 (자체 서명 인증서라 경고가 뜨면 '계속')"
+    echo "→ http://localhost:3148"
     echo "→ 로그인 ID: $(grep '^ELAB_ADMIN_EMAIL=' elab/.env | cut -d= -f2) / 비밀번호: elab/.env 의 ELAB_ADMIN_PASSWORD"
 }
 # ParaView: PATH 에 있으면 그것, 없으면 ~/Applications 에 공식 배포판을 받아 씀 (sudo 불필요)
@@ -65,7 +65,7 @@ paraview_bin() {
 }
 cmd_view_freeze() {
     [[ -f results/freeze_A_new_recipe.xdmf && -f results/freeze_E_low_cost.xdmf ]] || cmd_fem_movie
-    "$(paraview_bin)" --script=sim/view_freeze.py >/dev/null 2>&1 &
+    SNSS_ROOT="$PWD" "$(paraview_bin)" --script="$PWD/sim/view_freeze.py" >/dev/null 2>&1 &
     echo "ParaView 를 열었습니다. 위쪽 ▶ 단추로 재생 (파랑 = 얼음, 빨간 선 = 얼음 전선)."
 }
 cmd_fem_movie() { "$PY" -c "from snss_battery import fem; fem.run(xdmf=True)"; }

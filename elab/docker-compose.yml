@@ -1,5 +1,6 @@
 # eLabFTW (오픈소스 전자 실험노트) — 이 프로젝트의 공정 · 시료 · 측정 기록을 로컬에서 관리
-# 실행: docker compose -f elab/docker-compose.yml --env-file elab/.env up -d   → https://localhost:3148
+# 실행: ./tools.sh elab-up   → http://localhost:3148 (VS Code 통합 브라우저에서 열림)
+# 이 컴퓨터(127.0.0.1)에서만 열리므로 http 로 둡니다 — 자체 서명 인증서 경고 없이 통합 브라우저에서 바로 열림.
 # 비밀값(DB 비밀번호, SECRET_KEY)은 elab/.env 에만 둡니다 (git 제외). 처음 설정: python3 -m snss_battery elab --setup
 services:
   web:
@@ -21,20 +22,17 @@ services:
       - DB_NAME=elabftw
       - DB_USER=elabftw
       - DB_PASSWORD=${DB_PASSWORD}
-      - SITE_URL=https://localhost:3148
-      - DISABLE_HTTPS=false
-      - TLS_CERT_PATH=/certs/cert.pem
-      - TLS_KEY_PATH=/certs/key.pem
+      - SITE_URL=http://localhost:3148
+      - DISABLE_HTTPS=true
       - PHP_TIMEZONE=Asia/Seoul
       - TZ=Asia/Seoul
     ports:
-      - "127.0.0.1:3148:8080"  # eLabFTW 6 은 컨테이너 안 8080 에서 HTTPS
+      - "127.0.0.1:3148:8080"  # eLabFTW 6 은 컨테이너 안 8080
     volumes:
       # 쓰기 가능한 폴더 (읽기 전용 컨테이너라 따로 연결, git 제외)
       - ./data/cache:/var/cache/elabftw
       - ./data/uploads:/var/lib/elabftw/uploads
       - ./data/exports:/var/lib/elabftw/exports
-      - ./certs:/certs:ro  # 자체 서명 인증서 (python3 -m snss_battery elab --setup 이 만듦, git 제외)
   mysql:
     image: mysql:8.0
     container_name: snss-elabftw-db

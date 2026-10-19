@@ -6,7 +6,8 @@ import os
 
 from paraview.simple import *  # noqa: F401,F403
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# paraview --script 로 실행하면 __file__ 이 없음 → tools.sh 가 넘기는 SNSS_ROOT, 없으면 현재 폴더
+ROOT = os.environ.get("SNSS_ROOT") or os.getcwd()
 CASES = [("freeze_A_new_recipe.xdmf", "A · 새 레시피: 저온실 +4 °C, 냉각판 −20 °C, 단열 3 cm"),
          ("freeze_E_low_cost.xdmf", "E · 저가: 냉동실 −20 °C, 쟁반 −15 °C, 단열 8 cm")]
 
