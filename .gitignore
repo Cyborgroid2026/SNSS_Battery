@@ -8,3 +8,4 @@ web_static.zip
 .vscode/browse.vc.db*
 .ocplib/
 rust_cad/target/
+.venv/
