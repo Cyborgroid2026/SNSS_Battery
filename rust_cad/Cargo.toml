@@ -1,0 +1,10 @@
+[package]
+name = "snss-cad"
+version = "0.1.0"
+edition = "2021"
+description = "SNSS 양자 모듈 · 결정 블록 B-rep CAD (truck 커널) → STEP (ISO 10303-21)"
+
+[dependencies]
+truck-modeling = "0.6.0"
+truck-stepio = "0.3.0"
+truck-topology = "0.6.0"

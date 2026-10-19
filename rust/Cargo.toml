@@ -1,0 +1,10 @@
+[package]
+name = "snss"
+version = "0.1.0"
+edition = "2021"
+description = "SNSS 생리식염수 결정 배터리 — 독립 구현 (spec/SPEC.md), 교차 검증·SVG 렌더링"
+
+[dependencies]
+
+[profile.release]
+opt-level = 3

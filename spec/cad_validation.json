@@ -1,0 +1,57 @@
+{
+ "tool": "OpenCascade (OCP) STEPControl_Reader + BRepCheck_Analyzer + BRepGProp",
+ "date": "2026-10-19T12:17:21",
+ "files": {
+  "qmodule_rust.step": {
+   "solids": 35,
+   "expected": 35,
+   "valid": 35,
+   "faces_per_solid": [
+    5
+   ],
+   "volume_mm3": 737.6654235665014,
+   "analytic_mm3": 737.6654241107225,
+   "max_layer_rel_err": 7.392187838847573e-10,
+   "ok": true
+  },
+  "qmodule_csharp.step": {
+   "solids": 35,
+   "expected": 35,
+   "valid": 35,
+   "faces_per_solid": [
+    3
+   ],
+   "volume_mm3": 737.6654241107246,
+   "analytic_mm3": 737.6654241107225,
+   "max_layer_rel_err": 1.3375662487211717e-10,
+   "ok": true
+  },
+  "crystal_block_rust.step": {
+   "solids": 504,
+   "expected": 504,
+   "valid": 504,
+   "faces_per_solid": [
+    5
+   ],
+   "volume_mm3": 496838.44036188466,
+   "analytic_mm3": 496838.44072843454,
+   "max_layer_rel_err": 7.399890450798459e-10,
+   "ok": true
+  },
+  "crystal_block_csharp.step": {
+   "solids": 504,
+   "expected": 504,
+   "valid": 504,
+   "faces_per_solid": [
+    3
+   ],
+   "volume_mm3": 496838.4407284344,
+   "analytic_mm3": 496838.44072843454,
+   "max_layer_rel_err": 2.0406551280122294e-11,
+   "ok": true
+  }
+ },
+ "qmodule_rust_vs_csharp_max_rel": 8.722936591734022e-10,
+ "crystal_block_rust_vs_csharp_max_rel": 7.569944664355999e-10,
+ "ok": true
+}

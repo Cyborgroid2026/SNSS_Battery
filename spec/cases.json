@@ -1,0 +1,25 @@
+{
+  "description": "교차 검증 기준 사례 — Python·Rust·C# 가 같은 입력으로 같은 출력을 내야 함 (spec/SPEC.md)",
+  "cases": [
+    {"name": "기본 배합", "bottle_ml": 500, "bottle_d_mm": 72, "nacl_wt": 0.9, "temp_c": 25, "go_mg_ml": 5,
+     "layer_mm": 0.5, "ratio": 20, "shrink": 0, "surface_go": 0,
+     "fractal": {"D": 1.25, "roughness": 0.35, "correlation": 0.85, "Ds": 2.0, "grains": 3.0,
+                 "window_layers": 8, "window_mm": 3.0, "seed": 1},
+     "lighting": true},
+    {"name": "거친 경계 (결함 많음)", "bottle_ml": 500, "bottle_d_mm": 72, "nacl_wt": 0.9, "temp_c": 25, "go_mg_ml": 5,
+     "layer_mm": 0.5, "ratio": 20, "shrink": 0, "surface_go": 0,
+     "fractal": {"D": 1.6, "roughness": 1.0, "correlation": 0.0, "Ds": 2.0, "grains": 3.0,
+                 "window_layers": 8, "window_mm": 3.0, "seed": 2},
+     "lighting": false},
+    {"name": "뭉친 결정핵 (프랙탈 점집합)", "bottle_ml": 500, "bottle_d_mm": 72, "nacl_wt": 0.9, "temp_c": 25, "go_mg_ml": 5,
+     "layer_mm": 0.5, "ratio": 20, "shrink": 0, "surface_go": 0,
+     "fractal": {"D": 1.25, "roughness": 0.35, "correlation": 0.85, "Ds": 1.6, "grains": 3.0,
+                 "window_layers": 8, "window_mm": 3.0, "seed": 3},
+     "lighting": false},
+    {"name": "평평한 층 · 다른 병", "bottle_ml": 1000, "bottle_d_mm": 90, "nacl_wt": 0.9, "temp_c": 30, "go_mg_ml": 3,
+     "layer_mm": 0.8, "ratio": 10, "shrink": 0.05, "surface_go": 2.0,
+     "fractal": {"D": 1.0, "roughness": 0.0, "correlation": 0.85, "Ds": 2.0, "grains": 2.5,
+                 "window_layers": 6, "window_mm": 4.0, "seed": 4},
+     "lighting": true}
+  ]
+}

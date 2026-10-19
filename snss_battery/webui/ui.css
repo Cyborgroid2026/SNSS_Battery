@@ -1,0 +1,117 @@
+/* SNSS 웹 뷰어 — 앱 틀 · CAD 작업대 · 실험대 (web.py 템플릿의 기본 스타일 위에 덧씌움) */
+
+/* ---------- 앱 상단 막대 ---------- */
+header.app { display: flex; align-items: center; gap: 14px; padding: 12px 24px; background: #17202b; color: #e8eef5; }
+header.app .logo { width: 38px; height: 38px; flex: none; }
+header.app h1 { font-size: 19px; color: #fff; margin: 0; letter-spacing: -0.2px; }
+header.app .sub { color: #9fb0c3; margin: 2px 0 0; font-size: 12.5px; }
+header.app .badge.ok { background: #2f8a4f33; color: #7fdc9f; }
+header.app .badge.bad { background: #b3261e33; color: #ff9d95; }
+nav#tabs { background: var(--panel); position: sticky; top: 0; z-index: 20; gap: 0; padding: 0 16px; align-items: stretch; }
+nav#tabs .grp { display: flex; align-items: stretch; padding: 0 6px; border-right: 1px solid var(--line); }
+nav#tabs .grp:last-child { border-right: 0; }
+nav#tabs .grp > span { align-self: center; font-size: 10.5px; color: var(--muted); letter-spacing: 0.6px; padding: 0 6px 0 2px;
+                       writing-mode: horizontal-tb; text-transform: uppercase; opacity: 0.8; }
+nav#tabs button { padding: 11px 8px 9px; white-space: nowrap; font-size: 13.5px; }
+nav#tabs button i { font-style: normal; margin-right: 5px; opacity: 0.75; }
+nav#tabs button.new::after { content: "NEW"; font-size: 9px; font-weight: 700; color: #fff; background: #e07a1f; border-radius: 4px;
+                             padding: 1px 4px; margin-left: 5px; vertical-align: 2px; }
+@media (max-width: 760px) { nav#tabs .grp > span { display: none; } nav#tabs { overflow-x: auto; flex-wrap: nowrap; } }
+.samplebar { display: flex; align-items: center; gap: 8px; }
+.samplebar select { background: #0f1620; color: #e8eef5; border: 1px solid #3a4655; border-radius: 6px; padding: 5px 8px; }
+.note-line { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+
+/* ---------- CAD 작업대 (항상 어두운 CAD 테마) ---------- */
+.wb { --wb-bg: #1d232b; --wb-panel: #232a33; --wb-line: #333d49; --wb-ink: #dfe6ee; --wb-muted: #8c99a8; --wb-acc: #4aa3ff;
+      display: grid; grid-template-rows: auto 1fr auto auto; height: min(82vh, 860px); min-height: 560px; background: var(--wb-bg);
+      color: var(--wb-ink); border: 1px solid #10151b; border-radius: 10px; overflow: hidden; font-size: 13px; }
+.wb button, .wb select { font: inherit; }
+.wb-bar { display: flex; align-items: center; gap: 4px; padding: 6px 8px; background: linear-gradient(#2b333d, #252c35);
+          border-bottom: 1px solid #10151b; flex-wrap: wrap; }
+.wb-bar .sep { width: 1px; height: 24px; background: var(--wb-line); margin: 0 3px; }
+.wb-bar .lbl { color: var(--wb-muted); font-size: 11px; margin: 0 2px 0 4px; }
+.tb { display: inline-flex; align-items: center; gap: 4px; background: transparent; color: var(--wb-ink); border: 1px solid transparent;
+      border-radius: 6px; padding: 4px 6px; cursor: pointer; line-height: 1.2; font-size: 12px; }
+.tb svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.tb:hover { background: #ffffff12; border-color: #ffffff18; }
+.tb.on { background: #4aa3ff26; border-color: #4aa3ff80; color: #fff; }
+.wb-body { display: grid; grid-template-columns: 258px minmax(0, 1fr) 270px; min-height: 0; }
+@media (max-width: 1000px) { .wb-body { grid-template-columns: 0 minmax(0, 1fr) 0; } .wb-tree, .wb-prop { display: none; } }
+.wb-tree, .wb-prop { background: var(--wb-panel); overflow: auto; min-height: 0; }
+.wb-tree { border-right: 1px solid #10151b; } .wb-prop { border-left: 1px solid #10151b; }
+.wb-h { font-size: 11px; letter-spacing: 0.6px; color: var(--wb-muted); padding: 8px 10px 6px; border-bottom: 1px solid var(--wb-line);
+        background: #20262e; position: sticky; top: 0; z-index: 1; }
+.wb-tree ul { list-style: none; margin: 0; padding: 0; }
+.wb-tree li > .node { display: flex; align-items: center; gap: 6px; padding: 4px 8px; cursor: pointer; white-space: nowrap; }
+.wb-tree li > .node:hover { background: #ffffff0d; }
+.wb-tree li > .node.sel { background: #4aa3ff33; color: #fff; }
+.wb-tree li ul { padding-left: 16px; }
+.wb-tree .sw { width: 11px; height: 11px; border-radius: 2px; flex: none; border: 1px solid #0006; }
+.wb-tree .cnt { color: var(--wb-muted); font-size: 11px; margin-left: auto; padding-left: 6px; }
+.wb-tree .eye { background: none; border: 0; color: var(--wb-muted); cursor: pointer; padding: 0 2px; font-size: 12px; width: 18px; }
+.wb-tree .eye.off { opacity: 0.35; }
+.wb-tree .tw { width: 10px; color: var(--wb-muted); font-size: 9px; flex: none; text-align: center; }
+.wb-prop table { width: 100%; background: none; border-radius: 0; margin: 0; font-size: 12px; }
+.wb-prop th, .wb-prop td { border-bottom: 1px solid var(--wb-line); padding: 5px 10px; background: none; color: var(--wb-ink); font-weight: 400; }
+.wb-prop th { color: var(--wb-muted); width: 42%; }
+.wb-prop td { font-variant-numeric: tabular-nums; }
+.wb-prop .big { font-size: 20px; font-weight: 700; color: #fff; }
+.wb-prop .pill { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; background: #2f8a4f40; color: #8fe3ac; }
+.wb-prop .pill.off { background: #ffffff14; color: var(--wb-muted); }
+.wb-view { position: relative; min-height: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 35%, #3a4553 0%, #262e38 55%, #1b2129 100%); }
+.wb-view canvas { display: block; outline: none; }
+.wb-view .ovl { position: absolute; pointer-events: none; }
+#wbTip { background: #0d1117e6; color: #fff; border: 1px solid #4aa3ff80; border-radius: 6px; padding: 4px 8px; font-size: 12px;
+         white-space: nowrap; transform: translate(14px, 10px); display: none; }
+.wb-dim { color: #ffd479; font: 600 12px/1 ui-monospace, "NanumGothicCoding", monospace; background: #1b2129cc; padding: 2px 5px;
+          border-radius: 4px; transform: translate(-50%, -50%); white-space: nowrap; }
+.wb-axis { font: 700 11px/1 sans-serif; transform: translate(-50%, -50%); }
+#wbMsg { inset: 0; display: grid; place-items: center; color: var(--wb-muted); }
+.wb-corner { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+.wb-title { position: absolute; left: 12px; top: 10px; font-size: 12px; color: #c9d4e0; text-shadow: 0 1px 2px #000; pointer-events: none; }
+.wb-title b { color: #fff; font-size: 14px; display: block; }
+.wb-tl { display: flex; align-items: center; gap: 14px; padding: 7px 12px; background: #20262e; border-top: 1px solid #10151b; flex-wrap: wrap; }
+.wb-tl label { color: var(--wb-muted); display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.wb-tl input[type=range] { width: 170px; accent-color: var(--wb-acc); }
+.wb-tl .stage { color: #fff; font-weight: 600; min-width: 130px; }
+.wb-status { display: flex; gap: 18px; padding: 4px 12px; background: #161b21; color: var(--wb-muted); font: 11.5px/1.5 ui-monospace, monospace;
+             border-top: 1px solid #10151b; white-space: nowrap; overflow: hidden; }
+.wb-status b { color: var(--wb-ink); font-weight: 600; }
+
+/* ---------- 실험대 ---------- */
+.lab { display: grid; grid-template-rows: auto 1fr; gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
+.lab-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #17202b; color: #e8eef5; flex-wrap: wrap; }
+.lab-bar button { background: #2a3644; color: #fff; border: 1px solid #3a4655; border-radius: 6px; padding: 5px 11px; cursor: pointer; font: inherit; }
+.lab-bar button:hover { background: #34445a; }
+.lab-bar button.primary { background: #e07a1f; border-color: #e07a1f; font-weight: 600; }
+.lab-bar .prog { flex: 1; min-width: 160px; height: 8px; background: #2a3644; border-radius: 99px; overflow: hidden; cursor: pointer; }
+.lab-bar .prog i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #e07a1f, #ffc36b); }
+.lab-bar .clock { font: 600 13px ui-monospace, monospace; color: #ffc36b; min-width: 120px; text-align: right; }
+.lab-body { display: grid; grid-template-columns: minmax(0, 1fr) 330px; min-height: 0; }
+@media (max-width: 1000px) { .lab-body { grid-template-columns: 1fr; } }
+.lab-stage { position: relative; background: #e9edf1; }
+#labC { display: block; width: 100%; aspect-ratio: 1200 / 560; }
+.lab-side { border-left: 1px solid var(--line); padding: 10px; display: flex; flex-direction: column; gap: 10px; max-height: 760px; overflow: auto; }
+.lab-card { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--bg); }
+.lab-card h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
+.lcd { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.lcd div { background: #10181a; border-radius: 6px; padding: 5px 8px; border: 1px solid #000; }
+.lcd small { display: block; color: #6f8a86; font-size: 10.5px; }
+.lcd b { color: #9cf0c5; font: 600 17px/1.2 ui-monospace, "NanumGothicCoding", monospace; }
+.lcd b.warn { color: #ffc36b; } .lcd b.cold { color: #8fd0ff; }
+ol.lab-steps { margin: 0; padding: 0; list-style: none; counter-reset: s; }
+ol.lab-steps li { counter-increment: s; padding: 5px 6px 5px 30px; position: relative; border-radius: 6px; cursor: pointer; color: var(--muted); font-size: 12.5px; }
+ol.lab-steps li::before { content: counter(s); position: absolute; left: 6px; top: 5px; width: 18px; height: 18px; border-radius: 50%;
+                           background: var(--line); color: var(--ink); font-size: 11px; display: grid; place-items: center; }
+ol.lab-steps li.done { color: var(--ink); } ol.lab-steps li.done::before { content: "✓"; background: #2f8a4f; color: #fff; }
+ol.lab-steps li.on { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+ol.lab-steps li.on::before { background: #e07a1f; color: #fff; }
+.notebook { background: repeating-linear-gradient(#fffef6, #fffef6 23px, #c9dbe8 24px); color: #263241; border-radius: 6px; padding: 4px 10px 6px 34px;
+            position: relative; font: 13px/24px "NanumPen", "NanumGothic", sans-serif; min-height: 120px; }
+.notebook::before { content: ""; position: absolute; left: 24px; top: 0; bottom: 0; border-left: 2px solid #e8a0a0; }
+.notebook b { color: #b3261e; }
+.notebook table { background: none; margin: 0; font-size: 12.5px; }
+.notebook td { border: 0; padding: 0 4px; line-height: 24px; }
+#wbMeter small { display: block; font-size: 10.5px; color: #6f8a86; }
+#wbMeter b { display: block; font: 600 24px/1.2 ui-monospace, "NanumGothicCoding", monospace; color: #9cf0c5; }
+.samplebar select { max-width: 260px; }

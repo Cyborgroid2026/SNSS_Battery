@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "snss-battery"
+version = "0.2.0"
+description = "멸균생리식염수 기반 인공세포형 금속 무함유 2차 전지 모델링/시뮬레이션"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+gui = ["matplotlib>=3.5"]
+fractal = ["numpy>=1.21", "scipy>=1.7"]
+
+[project.scripts]
+snss-battery = "snss_battery.cli:main"
+
+[project.gui-scripts]
+snss-battery-gui = "snss_battery.gui:main"
+
+[tool.setuptools]
+packages = ["snss_battery"]
