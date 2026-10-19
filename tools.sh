@@ -15,17 +15,25 @@
 #   ./tools.sh view-battery  (데스크톱 창) PyBaMM 그래프 창
 set -euo pipefail
 cd "$(dirname "$0")"
+ARGS=("$@")
 
 PY=python3
 VPY=.venv/bin/python
 COMPOSE=(docker compose -f elab/docker-compose.yml --env-file elab/.env)
 
 need_venv() {
-    if [[ ! -x "$VPY" ]]; then
+    # 설치까지 끝나면 .venv/.ok 를 남김 — 중간에 실패한 반쪽 .venv 는 지우고 다시 만듦
+    if [[ ! -f .venv/.ok ]]; then
+        rm -rf .venv
         echo "가상환경(.venv)이 없어 만듭니다: PyBaMM · phreeqpython 설치…"
-        "$PY" -m venv --system-site-packages .venv
+        if ! "$PY" -m venv --system-site-packages .venv; then
+            rm -rf .venv
+            echo "python3-venv 가 없습니다: sudo apt install python3-venv 뒤 다시 실행하세요." >&2
+            exit 1
+        fi
         "$VPY" -m pip install --quiet pybamm phreeqpython
         "$VPY" -m pip install --quiet --ignore-installed matplotlib  # 시스템 matplotlib 은 NumPy 1 용이라 venv 안에 따로
+        touch .venv/.ok
     fi
 }
 
@@ -33,6 +41,10 @@ need_docker() {
     if ! command -v docker >/dev/null; then
         echo "docker 가 없습니다. 설치: https://docs.docker.com/engine/install/ubuntu/ → sudo usermod -aG docker \$USER → 다시 로그인" >&2
         exit 1
+    fi
+    # docker 그룹에 막 들어가 아직 다시 로그인 전이면, 그룹을 붙여 이 명령을 다시 실행
+    if ! docker info >/dev/null 2>&1 && ! id -nG | grep -qw docker && id -nG "$USER" | grep -qw docker; then
+        exec sg docker -c "$(printf '%q ' "$PWD/tools.sh" "${ARGS[@]}")"
     fi
 }
 
@@ -88,6 +100,7 @@ cmd_view_freeze() {
     echo "ParaView 를 열었습니다. 위쪽 ▶ 단추로 재생 (파랑 = 얼음, 빨간 선 = 얼음 전선)."
 }
 cmd_fem_movie() {  # FEniCSx 로 애니메이션 데이터 → ParaView(pvbatch) 로 웹용 프레임
+    need_docker
     "$PY" -c "from snss_battery import fem; fem.run(xdmf=True)"
     SNSS_ROOT="$PWD" "$(dirname "$(paraview_bin)")/pvbatch" sim/render_frames.py 2>&1 | grep -v "hwloc\|^\*\|^$" || true
 }
@@ -108,7 +121,7 @@ case "${1:-}" in
     elab-up) cmd_elab_up ;;
     elab-push) cmd_elab_push ;;
     elab-down) cmd_elab_down ;;
-    all) cmd_chem; echo; cmd_pybamm; echo; cmd_fem ;;
+    all) need_docker; cmd_chem; echo; cmd_pybamm; echo; cmd_fem ;;
     view-freeze) cmd_view_freeze ;;
     fem-movie) cmd_fem_movie ;;
     view-battery) cmd_view_battery ;;
