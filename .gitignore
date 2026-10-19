@@ -10,3 +10,4 @@ web_static.zip
 rust_cad/target/
 .venv/
 elab/.env
+elab/certs/
