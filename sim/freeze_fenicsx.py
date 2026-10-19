@@ -7,7 +7,7 @@ Docker 안에서 실행합니다 (`python3 -m snss_battery fem` 이 대신 실�
 영역 (r, z) [m]: 겔 | PE 병 벽·바닥 (+ 접촉액) | 병 안 윗공기 | 스티로폼 (옆·위).
 아래 z=0 은 냉각판 (고정 온도), 바깥 옆·위는 공기와 대류 (h, T_amb).
 겔 = 물 + 3 % PVA 로 봄. 어는점은 PHREEQC 로 계산한 생리식염수 값 (spec/phreeqc_nacl.json).
-엔탈피 H(T) = ρc·T + ρL·φ(T),  φ = 액체 비율 (어는점 둘레 ±2 K 에서 매끄럽게) → 에너지 보존형 내연법.
+엔탈피 H(T) = ρc·T + ρL·φ(T),  φ = 액체 비율 (어는점 둘레 ±1 K 에서 매끄럽게) → 에너지 보존형 내연법.
 """
 
 import json
@@ -30,7 +30,7 @@ R_GEL, H_GEL = 0.0352, 0.12845
 T_PE = 0.0008  # 병 벽 · 바닥 두께
 GAP = 0.0215  # 겔 윗면 ~ 어깨 (병 안 공기)
 L_FUS = 334e3 * 0.917  # 부피당 녹음열 J/m³ ÷ ρ_물 (tissue.py 와 같은 ρL)
-DT_PC = 2.0  # 상변화 폭 K (어는점 ± 이 값 안에서 녹음열이 나옴 — 좁으면 Newton 이 진동)
+DT_PC = 1.0  # 상변화 폭 K (어는점 ± 이 값 안에서 녹음열이 나옴)
 
 
 def melt_c():
@@ -75,8 +75,11 @@ def run(name, t_plate, t_amb, h_out, ins_side, ins_top, t0_gel, *, thaw=False, t
     tags = np.concatenate([np.full(len(side), 1), np.full(len(top), 2), np.full(len(bot), 3)]).astype(np.int32)
     order = np.argsort(facets)
     mt = mesh.meshtags(msh, fdim, facets[order], tags[order])
-    ds = ufl.Measure("ds", domain=msh, subdomain_data=mt)
-    F = (H(T) - H(Tn)) / dt * v * r * ufl.dx + k(T) * ufl.dot(ufl.grad(T), ufl.grad(v)) * r * ufl.dx
+    # 적분 차수 고정: tanh 같은 비다항식이면 F 와 J 의 차수 추정이 달라져 Newton 이 1차 수렴으로 떨어짐
+    q = {"quadrature_degree": 4}
+    dx = ufl.Measure("dx", domain=msh, metadata=q)
+    ds = ufl.Measure("ds", domain=msh, subdomain_data=mt, metadata=q)
+    F = (H(T) - H(Tn)) / dt * v * r * dx + k(T) * ufl.dot(ufl.grad(T), ufl.grad(v)) * r * dx
     if thaw:  # 수조: 옆 · 바닥 h_out, 위(병 안 공기 쪽)는 약한 대류
         F += h_out * (T - t_amb) * v * r * (ds(1) + ds(3)) + 5.0 * (T - t_amb) * v * r * ds(2)
         bcs = []
@@ -94,7 +97,7 @@ def run(name, t_plate, t_amb, h_out, ins_side, ins_top, t0_gel, *, thaw=False, t
     solver = NewtonSolver(MPI.COMM_WORLD, problem)
     solver.convergence_criterion, solver.rtol, solver.atol, solver.max_it = "incremental", 1e-6, 1e-6, 40
     ksp = solver.krylov_solver
-    ksp.setType("preonly"); ksp.getPC().setType("lu")
+    ksp.setType("preonly"); ksp.getPC().setType("lu"); ksp.getPC().setFactorSolverType("mumps")
 
     gel_dofs = np.where(in_gel)[0]
     t_f = np.full(len(xs), np.nan)  # 얼음 전선(동결) / 다 녹음(해동) 시각
