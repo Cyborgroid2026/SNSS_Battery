@@ -7,7 +7,7 @@ Docker 안에서 실행합니다 (`python3 -m snss_battery fem` 이 대신 실�
 영역 (r, z) [m]: 겔 | PE 병 벽·바닥 (+ 접촉액) | 병 안 윗공기 | 스티로폼 (옆·위).
 아래 z=0 은 냉각판 (고정 온도), 바깥 옆·위는 공기와 대류 (h, T_amb).
 겔 = 물 + 3 % PVA 로 봄. 어는점은 PHREEQC 로 계산한 생리식염수 값 (spec/phreeqc_nacl.json).
-엔탈피 H(T) = ρc·T + ρL·φ(T),  φ = 액체 비율 (어는점 둘레 ±0.4 K 에서 매끄럽게) → 에너지 보존형 내연법.
+엔탈피 H(T) = ρc·T + ρL·φ(T),  φ = 액체 비율 (어는점 둘레 ±2 K 에서 매끄럽게) → 에너지 보존형 내연법.
 """
 
 import json
@@ -30,7 +30,7 @@ R_GEL, H_GEL = 0.0352, 0.12845
 T_PE = 0.0008  # 병 벽 · 바닥 두께
 GAP = 0.0215  # 겔 윗면 ~ 어깨 (병 안 공기)
 L_FUS = 334e3 * 0.917  # 부피당 녹음열 J/m³ ÷ ρ_물 (tissue.py 와 같은 ρL)
-DT_PC = 0.4  # 상변화 폭 K
+DT_PC = 2.0  # 상변화 폭 K (어는점 ± 이 값 안에서 녹음열이 나옴 — 좁으면 Newton 이 진동)
 
 
 def melt_c():
@@ -58,7 +58,7 @@ def run(name, t_plate, t_amb, h_out, ins_side, ins_top, t0_gel, *, thaw=False, t
     pe = ufl.Or(ufl.And(ufl.lt(r, R_GEL + T_PE), ufl.lt(z, T_PE)),
                 ufl.And(ufl.And(ufl.ge(r, R_GEL), ufl.lt(r, R_GEL + T_PE)), ufl.lt(z, T_PE + H_GEL + GAP)))
     air = ufl.And(ufl.lt(r, R_GEL), ufl.And(ufl.ge(z, T_PE + H_GEL), ufl.lt(z, T_PE + H_GEL + GAP)))
-    phi = lambda u: 0.5 * (1 + ufl.tanh((u - TM) / (DT_PC / 3)))  # 액체 비율
+    phi = lambda u: 0.5 * (1 + ufl.tanh((u - TM) / (DT_PC / 2)))  # 액체 비율
     k_gel = lambda u: 2.2 + (0.56 - 2.2) * phi(u)
     c_gel = lambda u: 1.0e6 * (2.05 + (4.18 - 2.05) * phi(u))  # ρc J/(m³K)
     sel = lambda a, b, c, d: ufl.conditional(gel, a, ufl.conditional(pe, b, ufl.conditional(air, c, d)))
@@ -92,7 +92,7 @@ def run(name, t_plate, t_amb, h_out, ins_side, ins_top, t0_gel, *, thaw=False, t
 
     problem = NonlinearProblem(F, T, bcs=bcs)
     solver = NewtonSolver(MPI.COMM_WORLD, problem)
-    solver.rtol, solver.atol, solver.max_it = 1e-8, 1e-6, 30
+    solver.convergence_criterion, solver.rtol, solver.atol, solver.max_it = "incremental", 1e-6, 1e-6, 40
     ksp = solver.krylov_solver
     ksp.setType("preonly"); ksp.getPC().setType("lu")
 
@@ -100,12 +100,21 @@ def run(name, t_plate, t_amb, h_out, ins_side, ins_top, t0_gel, *, thaw=False, t
     t_f = np.full(len(xs), np.nan)  # 얼음 전선(동결) / 다 녹음(해동) 시각
     t, t_end, steps, last = 0.0, t_end_h * 3600, 0, time.time()
     hist = []
+    h = 5.0  # 시간 간격: 수렴하면 늘리고 (최대 300 s), 안 되면 반으로
     while t < t_end:
-        dt.value = 30.0 if t < 1800 else 120.0 if t < 7200 else 300.0
-        n, ok = solver.solve(T)
+        dt.value = h
+        try:
+            _, ok = solver.solve(T)
+        except RuntimeError:
+            ok = False
         if not ok:
-            raise RuntimeError("Newton 미수렴")
-        t += float(dt.value); steps += 1
+            T.x.array[:] = Tn.x.array
+            h /= 2
+            if h < 0.05:
+                raise RuntimeError("Newton 미수렴 (시간 간격 0.05 s 미만)")
+            continue
+        t += h; steps += 1
+        h = min(h * 1.3, 300.0)
         a = T.x.array
         hit = np.isnan(t_f) & ((a > TM + DT_PC) if thaw else (a < TM - DT_PC))
         t_f[hit] = t
