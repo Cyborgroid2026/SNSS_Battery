@@ -7,6 +7,7 @@ FEniCSx 는 Docker 이미지로 돌립니다 (설치 없이): dolfinx/dolfinx:v0
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -15,9 +16,11 @@ IMAGE = "dolfinx/dolfinx:v0.9.0"
 OUT = ROOT / "spec" / "fenicsx_freezing.json"
 
 
-def run(cell_m: float = 0.0008) -> None:
-    subprocess.run(["docker", "run", "--rm", "-v", f"{ROOT}:/work", "-w", "/work", "--user", "root", IMAGE,
-                    "python3", "sim/freeze_fenicsx.py", str(cell_m)], check=True)
+def run(cell_m: float = 0.0008, xdmf: bool = False) -> None:
+    """xdmf=True: ParaView 애니메이션(results/*.xdmf)만 만듦. 결과 파일이 내 소유가 되도록 현재 사용자로 실행."""
+    user = f"{os.getuid()}:{os.getgid()}"
+    subprocess.run(["docker", "run", "--rm", "-v", f"{ROOT}:/work", "-w", "/work", "--user", user, "-e", "HOME=/tmp", IMAGE,
+                    "python3", "sim/freeze_fenicsx.py", str(cell_m), *(["--xdmf"] if xdmf else [])], check=True)
 
 
 def load() -> dict:

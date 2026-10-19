@@ -12,3 +12,4 @@ rust_cad/target/
 elab/.env
 elab/certs/
 elab/data/
+results/

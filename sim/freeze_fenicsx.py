@@ -43,7 +43,7 @@ def melt_c():
 TM = melt_c()
 
 
-def run(name, t_plate, t_amb, h_out, ins_side, ins_top, t0_gel, *, thaw=False, t_end_h=40.0, cell=0.0008):
+def run(name, t_plate, t_amb, h_out, ins_side, ins_top, t0_gel, *, thaw=False, t_end_h=40.0, cell=0.0008, xdmf=None):
     r_out = R_GEL + T_PE + ins_side
     z_top = T_PE + H_GEL + GAP + ins_top
     nx, ny = max(4, round(r_out / cell)), max(4, round(z_top / cell))
@@ -100,6 +100,15 @@ def run(name, t_plate, t_amb, h_out, ins_side, ins_top, t0_gel, *, thaw=False, t
     ksp.setType("preonly"); ksp.getPC().setType("lu"); ksp.getPC().setFactorSolverType("mumps")
 
     gel_dofs = np.where(in_gel)[0]
+    if xdmf:  # ParaView 용: 온도 · 얼음 비율 (겔만, 0 = 물 1 = 얼음) 을 시간별로 기록. 시간 단위는 h
+        from dolfinx import io
+
+        ice = fem.Function(V, name="ice_fraction")
+        T.name = "temperature_C"
+        ice_expr = fem.Expression(ufl.conditional(gel, 1 - phi(T), -0.0), V.element.interpolation_points())
+        out_file = io.XDMFFile(msh.comm, str(xdmf), "w")
+        out_file.write_mesh(msh)
+        next_write = 0.0
     t_f = np.full(len(xs), np.nan)  # 얼음 전선(동결) / 다 녹음(해동) 시각
     t, t_end, steps, last = 0.0, t_end_h * 3600, 0, time.time()
     hist = []
@@ -123,10 +132,16 @@ def run(name, t_plate, t_amb, h_out, ins_side, ins_top, t0_gel, *, thaw=False, t
         t_f[hit] = t
         Tn.x.array[:] = a
         frac = np.mean(~np.isnan(t_f[gel_dofs]))
+        if xdmf and t >= next_write:
+            ice.interpolate(ice_expr)
+            out_file.write_function(T, t / 3600); out_file.write_function(ice, t / 3600)
+            next_write += 900.0  # 15분마다
         if steps % 20 == 0:
             hist.append([t / 3600, float(frac)])
         if frac >= 0.999:
             break
+    if xdmf:
+        out_file.close()
     tf = t_f[gel_dofs] / 3600
     g = xs[gel_dofs]
 
@@ -159,7 +174,13 @@ def run(name, t_plate, t_amb, h_out, ins_side, ins_top, t0_gel, *, thaw=False, t
 if __name__ == "__main__":
     import sys
 
-    cell = float(sys.argv[1]) if len(sys.argv) > 1 else 0.0008
+    args = [x for x in sys.argv[1:] if not x.startswith("--")]
+    cell = float(args[0]) if args else 0.0008
+    if "--xdmf" in sys.argv:  # ParaView 애니메이션만 (results/, JSON 은 그대로)
+        (ROOT / "results").mkdir(exist_ok=True)
+        run("A · 새 레시피", -20.0, 4.0, 8.0, 0.03, 0.03, 20.0, cell=cell, xdmf=ROOT / "results" / "freeze_A_new_recipe.xdmf")
+        run("E · 저가 (냉동실 + 단열 8 cm)", -15.0, -20.0, 8.0, 0.08, 0.08, 20.0, cell=cell, xdmf=ROOT / "results" / "freeze_E_low_cost.xdmf")
+        sys.exit(0)
     res = {"tool": "FEniCSx dolfinx 0.9 (Docker dolfinx/dolfinx:v0.9.0)", "melt_c": TM, "cases": [
         run("A · 새 레시피: 저온실 +4 °C, 냉각판 −20 °C, 단열 3 cm", -20.0, 4.0, 8.0, 0.03, 0.03, 20.0, cell=cell),
         run("B · 이전 레시피: 냉동실 −20 °C, 금속판, 옆 단열 2 cm (위 없음)", -20.0, -20.0, 8.0, 0.02, 0.0, 20.0, cell=cell),

@@ -91,7 +91,8 @@ def build(stack: ArtificialCellStack, ph: Physics, v_min: float, v_max: float):
     ocv = emf + 2 * q / c_dl
     V = ocv - I * (r_fixed + r_cells)
     m.variables = {"c_A [mol.m-3]": ca, "c_B [mol.m-3]": cb, "c_A,s [mol.m-3]": cas, "c_B,s [mol.m-3]": cbs,
-                   "c_A mean [mol.m-3]": pybamm.x_average(ca), "c_B mean [mol.m-3]": pybamm.x_average(cb),
+                   # 영역 평균 (x_average 는 사용자 정의 영역에서 스칼라가 아니라 분포로 남음)
+                   "c_A mean [mol.m-3]": pybamm.Integral(ca, xa) / half, "c_B mean [mol.m-3]": pybamm.Integral(cb, xb) / half,
                    "q [C]": q, "OCV [V]": ocv, "Voltage [V]": V, "R [Ohm]": r_fixed + r_cells,
                    "Electrode voltage [V]": q / c_dl}
     m.events = [pybamm.Event("전압 한계", dis * (V - v_min) + (1 - dis) * (v_max - V)),
@@ -192,3 +193,32 @@ def write(path: Path = OUT) -> dict:
     slim["curves"] = {k: [{"cycle": x["cycle"], "phase": x["phase"], "t_h": x["t_h"], "v": x["v"]} for x in v] for k, v in r["curves"].items()}
     path.write_text(json.dumps(slim, ensure_ascii=False, indent=1, default=float), encoding="utf-8")
     return r
+
+
+def view(current_ma: float = 0.1, n_cycles: int = 1) -> None:
+    """PyBaMM 공식 그래프 창 (dynamic_plot): 시간 슬라이더로 전압 · 세포 안 농도 분포를 봄. 확산 + 활동도 모델."""
+    import pybamm
+
+    from .bottle import BottleGelBattery
+    from .simulation import suggest_limits
+
+    st = BottleGelBattery().stack
+    i = current_ma / 1000
+    v_max, v_min = suggest_limits(st, i)
+    model = build(st, Physics(), v_min, v_max)
+    solver = pybamm.IDAKLUSolver(rtol=1e-8, atol=1e-10)
+    phases = [(0, "discharge")] + [(c, p) for c in range(1, n_cycles + 1) for p in ("charge", "discharge")]
+    sols, sol = [], None
+    for _, p in phases:
+        if sol is not None:
+            model.set_initial_conditions_from(sol)
+        t0 = sol.t[-1] if sol is not None else 0.0  # 앞 단계 끝 시각에서 이어서 (시간축 하나로 붙이려고)
+        sol = solver.solve(model, np.linspace(t0, t0 + 7 * 86400, 2000),
+                           inputs={"I [A]": i if p == "discharge" else -i, "discharge": 1.0 if p == "discharge" else 0.0})
+        sols.append(sol)
+    total = sols[0]
+    for s in sols[1:]:
+        total = total + s  # 단계를 이어 붙임
+    pybamm.dynamic_plot(total, [["Voltage [V]", "OCV [V]"], "Electrode voltage [V]",
+                                "c_A [mol.m-3]", "c_B [mol.m-3]", ["c_A,s [mol.m-3]", "c_A mean [mol.m-3]"]],
+                        time_unit="hours")
