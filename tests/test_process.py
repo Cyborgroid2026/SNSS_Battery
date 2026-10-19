@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from snss_battery.process import HAND, MACHINE, markdown, process, summary, thaw_hours
+from snss_battery.process import HAND, MACHINE, fem_hours, markdown, process, summary, thaw_hours
 from snss_battery.tissue import TissueRecipe, freezing
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,9 +30,14 @@ class ProcessTest(unittest.TestCase):
 
     def test_times_follow_model(self):
         rc = TissueRecipe()
-        fz = freezing(rc.battery().gel_height_mm, rc.plate_c)["hours"]
+        stefan = freezing(rc.battery().gel_height_mm, rc.plate_c)["hours"]
         by = {x.id: x for x in self.steps}
-        self.assertAlmostEqual(by["dfreeze"].hours, fz)
+        fem = fem_hours()
+        if fem:  # FEniCSx: 병 벽 · 처음 온도 · 주변 열 때문에 스테판보다 길고, 2배를 넘지 않음
+            self.assertAlmostEqual(by["dfreeze"].hours, fem[0])
+            self.assertTrue(stefan < fem[0] < 2 * stefan)
+        else:
+            self.assertAlmostEqual(by["dfreeze"].hours, stefan)
         self.assertAlmostEqual(by["ft"].hours, (rc.freeze_thaw - 1) * (fz + by["thaw"].hours))
         s = summary(self.steps)
         self.assertGreater(s["days"], 3)  # 이틀로는 안 됨

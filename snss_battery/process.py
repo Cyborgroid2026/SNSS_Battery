@@ -16,7 +16,9 @@ RECIPE.md 3절, 웹 뷰어의 레시피 탭과 실험대가 모두 이 목록을
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass
+from pathlib import Path
 
 from .tissue import ICE_RHO_L, TissueRecipe, freezing
 
@@ -25,6 +27,20 @@ MODE_KO = {HAND: "수작업", MACHINE: "기계작업"}
 WATER_K = 0.6  # 녹은 물(겔) 열전도도 W/(m·K)
 BATH_C = 25.0  # 해동 항온수조
 COLD_ROOM_C = 4.0  # 냉각판을 두는 저온실
+
+
+FEM = Path(__file__).resolve().parents[1] / "spec" / "fenicsx_freezing.json"
+
+
+def fem_hours() -> tuple[float, float] | None:
+    """FEniCSx 결과 (sim/freeze_fenicsx.py): (A 조건 동결 h, 25 °C 수조 해동 h). 없으면 None."""
+    try:
+        cases = json.loads(FEM.read_text(encoding="utf-8"))["cases"]
+    except (OSError, KeyError, ValueError):
+        return None
+    fz = next(c["t_all_h"] for c in cases if c["name"].startswith("A"))
+    th = next(c["t_all_h"] for c in cases if c["name"].startswith("해동"))
+    return (fz, th) if fz and th else None
 
 
 def thaw_hours(radius_mm: float, bath_c: float = BATH_C, melt_c: float = -0.6) -> float:
@@ -59,8 +75,10 @@ def process(rc: TissueRecipe | None = None) -> list[Step]:
     pva = v * rc.pva_wt / 100
     go = v * rc.go_mg_ml / 4.0
     rest = v - rc.take_out_ml - go
-    fz = freezing(bat.gel_height_mm, rc.plate_c)["hours"]
-    th = thaw_hours(bat.bottle.inner_diameter_mm / 2)
+    # 시간: FEniCSx 열전달 계산이 있으면 그 값 (병 벽 · 처음 20 °C 식히기 · 주변 열까지 들어감), 없으면 해석식
+    fem = fem_hours()
+    fz, th = fem or (freezing(bat.gel_height_mm, rc.plate_c)["hours"], thaw_hours(bat.bottle.inner_diameter_mm / 2))
+    src = "FEniCSx" if fem else "스테판 계산"
     n = rc.freeze_thaw - 1
     s = 1 / 25  # 예비 시험 축척 (500 mL → 20 mL)
     return [
@@ -96,10 +114,10 @@ def process(rc: TissueRecipe | None = None) -> list[Step]:
              "병 바닥이 평평한지 보고, 판에 접촉액을 몇 mL 떨어뜨린 뒤 병을 세운다. 옆면·윗면을 단열하고 병 벽 아래·위에 열전대를 붙인다.",
              "바닥 열전대가 내려가기 시작"),
         Step("dfreeze", "방향성 동결", MACHINE, 0, fz, ("냉각판", "저온실 +4 °C", "기록계"),
-             f"손대지 않는다. 얼음이 아래에서 위로 자라며 세포가 생긴다 (모델 약 {fz:.0f} h).",
+             f"손대지 않는다. 얼음이 아래에서 위로 자라며 세포가 생긴다 ({src} 약 {fz:.0f} h).",
              "위쪽 열전대 < −3 °C (판 접촉이 나쁘면 더 걸림)"),
         Step("thaw", "해동", MACHINE, 5, th, ("항온수조 25 °C",),
-             f"병을 어깨까지 수조에 담근다 (계산 약 {th:.1f} h).",
+             f"병을 어깨까지 수조에 담근다 ({src} 약 {th:.1f} h).",
              "병을 눌러 단단한 심이 없음"),
         Step("ft", f"재동결 · 해동 × {n}", MACHINE, 30 * n, n * (fz + th), ("냉각판", "항온수조 25 °C"),
              f"동결 세팅과 같은 방법으로 다시 방향성 동결 → 수조 해동을 {n}번 한다. PVA 골격이 단단해진다.",

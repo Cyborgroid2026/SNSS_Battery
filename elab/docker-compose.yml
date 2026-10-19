@@ -7,6 +7,13 @@ services:
     container_name: snss-elabftw
     restart: unless-stopped
     depends_on: [mysql]
+    # 공식 설정처럼 root 가 아닌 사용자 · 읽기 전용 · /run 은 메모리 (UID/GID 는 이 컴퓨터 사용자 1000)
+    user: "1000:1000"
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    tmpfs:
+      - /run:mode=755,uid=1000,gid=1000,exec,nosuid,nodev,size=64m
     environment:
       - SECRET_KEY=${SECRET_KEY}
       - DB_HOST=mysql
@@ -23,7 +30,10 @@ services:
     ports:
       - "127.0.0.1:3148:8080"  # eLabFTW 6 은 컨테이너 안 8080 에서 HTTPS
     volumes:
-      - uploads:/elabftw/uploads
+      # 쓰기 가능한 폴더 (읽기 전용 컨테이너라 따로 연결, git 제외)
+      - ./data/cache:/var/cache/elabftw
+      - ./data/uploads:/var/lib/elabftw/uploads
+      - ./data/exports:/var/lib/elabftw/exports
       - ./certs:/certs:ro  # 자체 서명 인증서 (python3 -m snss_battery elab --setup 이 만듦, git 제외)
   mysql:
     image: mysql:8.0
@@ -38,5 +48,4 @@ services:
     volumes:
       - db:/var/lib/mysql
 volumes:
-  uploads:
   db:
