@@ -168,7 +168,7 @@ def run(name, t_plate, t_amb, h_out, ins_side, ins_top, t0_gel, *, thaw=False, t
     if not thaw:
         tg = np.array([[np.nan if v is None else v for v in row] for row in out["grid"]["t_h"]])
         out["bottom_up_fraction"] = float(np.mean(tg[1:] >= tg[:-1] - 0.02))
-    print(f"{name}: {nx}×{ny} 격자, {steps} 단계, {out['wall_s']:.0f} s · 끝 {out['t_all_h']} h · 위 가운데 {out['t_top_center_h']:.1f} h", flush=True)
+    print(f"{name}: {nx}×{ny} 격자, {steps} 단계, {out['wall_s']:.0f} s · 끝 {out['t_all_h']:.1f} h · 위 가운데 {out['t_top_center_h']:.1f} h", flush=True)
     return out
 
 
