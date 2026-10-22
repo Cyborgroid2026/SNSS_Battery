@@ -1,0 +1,5 @@
+[console_scripts]
+snss-battery = snss_battery.cli:main
+
+[gui_scripts]
+snss-battery-gui = snss_battery.gui:main

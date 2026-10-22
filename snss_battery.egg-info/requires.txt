@@ -1,0 +1,7 @@
+
+[fractal]
+numpy>=1.21
+scipy>=1.7
+
+[gui]
+matplotlib>=3.5

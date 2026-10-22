@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: snss-battery
+Version: 0.2.0
+Summary: 멸균생리식염수 기반 인공세포형 금속 무함유 2차 전지 모델링/시뮬레이션
+Requires-Python: >=3.10
+Provides-Extra: gui
+Requires-Dist: matplotlib>=3.5; extra == "gui"
+Provides-Extra: fractal
+Requires-Dist: numpy>=1.21; extra == "fractal"
+Requires-Dist: scipy>=1.7; extra == "fractal"
