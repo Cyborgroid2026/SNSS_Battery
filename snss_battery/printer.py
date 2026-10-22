@@ -197,42 +197,72 @@ def bom(spec: PrinterSpec | None = None) -> list[BomLine]:
 
 
 def klipper_cfg(spec: PrinterSpec | None = None) -> str:
-    """Klipper printer.cfg 의 프린터 고유 부분 (핀 번호는 보드에 맞게 바꿈)."""
+    """Klipper printer.cfg 의 프린터 고유 부분 (핀 이름은 보드에 맞게 바꿈).
+
+    E 는 부피(mm³): 가상 [extruder] 축 1 mm = 잉크 1 mm³. 주사기마다 extruder_stepper 를 두고
+    rotation_distance = 리드 × 단면적 / 몫 으로 맞춰 가상 축에 동기화한다 → 혼합비 = 몫.
+    """
     s = spec or PrinterSpec()
-    out = [f"# {s.name} — Klipper 설정 (발췌)", "# 핀 이름은 BTT Octopus Pro 기준 예시. 실제 배선에 맞게 고칠 것.", "",
+    syr = [(h, j, sy) for h in s.heads for j, sy in enumerate(h.syringes)]
+    out = [f"# {s.name} — Klipper 설정 (프린터 고유 부분)",
+           "# 스테퍼 12축: XY 2 + Z 3 + 주사기 " + str(len(syr)) + " + 가상 E 1 → Octopus Pro(8) + SKR Pico(4, 두 번째 MCU 'pico')",
+           "# 핀 이름은 예시. 실제 배선에 맞게 고칠 것.", "",
            "[printer]", "kinematics: corexy", f"max_velocity: {s.travel_speed_mm_s:g}", f"max_accel: {s.accel_mm_s2:g}",
            "max_z_velocity: 5", "", "[z_tilt]", "z_positions: -10,-10 | 130,-10 | 60,140",
-           "points: 10,10 | 110,10 | 60,110", ""]
-    names = ["extruder"] + [f"extruder_stepper syr{i}" for i in range(1, 8)]
-    k = 0
-    for h in s.heads:
-        for j, syr in enumerate(h.syringes):
-            sec = "extruder" if k == 0 else f"extruder_stepper syr_t{h.tool}_{j}"
-            out += [f"[{sec}]  # T{h.tool} {h.name} 주사기 {j}: {syr.content}",
-                    f"rotation_distance: {syr.lead_mm / syr.area_mm2 * (math.pi * (1.75 / 2) ** 2):.6f}  # 필라멘트 1.75 mm 환산 → 실제 부피 일치",
-                    f"nozzle_diameter: {h.nozzle_mm}" if sec == "extruder" else "", ""]
-            k += 1
-    del names
+           "points: 10,10 | 110,10 | 60,110", "",
+           "[extruder]  # 가상 부피 축 — 모터는 연결하지 않음 (빈 드라이버)",
+           "step_pin: pico:gpio14", "dir_pin: pico:gpio13", "enable_pin: !pico:gpio15",
+           "microsteps: 16", "rotation_distance: 40  # E 1 = 1 mm³ 로 쓰므로 값 자체는 무관",
+           f"nozzle_diameter: {s.line_mm}", "filament_diameter: 1.1284  # 단면적 1 mm² → E(mm) = 부피(mm³)",
+           "max_extrude_cross_section: 5", "heater_pin: pico:gpio23  # 히터 없음 (자리만)",
+           "sensor_type: temperature_host", "control: watermark", "min_temp: -50", "max_temp: 60",
+           "min_extrude_temp: -50", ""]
+    for h, j, sy in syr:
+        out += [f"[extruder_stepper syr_t{h.tool}_{j}]  # T{h.tool} {h.name} · {sy.content}",
+                f"step_pin: PLACEHOLDER_T{h.tool}_{j}_STEP", f"dir_pin: PLACEHOLDER_T{h.tool}_{j}_DIR",
+                f"microsteps: 16", f"rotation_distance: {sy.lead_mm * sy.area_mm2:.4f}  # 리드 {sy.lead_mm} mm × 단면적 {sy.area_mm2:.2f} mm²", ""]
     plate = s.plate
-    out += ["[heater_generic cold_plate]  # 펠티어: 냉각 방향으로 구동 (PWM 반전)",
+    out += ["[heater_generic cold_plate]  # 펠티어 냉각 — 출력이 클수록 차가워지므로 제어 반전",
             "heater_pin: !PA2", "sensor_type: Generic 3950", "sensor_pin: PF4", "control: pid",
-            f"min_temp: -45", "max_temp: 40", "",
+            "pid_Kp: 40", "pid_Ki: 1.5", "pid_Kd: 200", "min_temp: -45", "max_temp: 40", "",
             "[temperature_sensor chamber]", "sensor_type: Generic 3950", "sensor_pin: PF5", "",
-            "[gcode_macro SET_MIX]",
-            "description: 혼합 헤드의 도펀트 주사기 비율 (0~1) — 소성 후 도핑량 = RATIO × 최대 at%",
-            "gcode:",
-            "  {% set t = params.TOOL|int %}{% set r = params.RATIO|float %}",
-            "  SYNC_EXTRUDER_MOTION EXTRUDER=syr_t{t}_1 MOTION_QUEUE=extruder",
-            "  SET_EXTRUDER_ROTATION_DISTANCE EXTRUDER=syr_t{t}_1 DISTANCE={printer.configfile.settings['extruder'].rotation_distance / [r, 0.001]|max}",
-            "  RESPOND MSG=\"T{t} 도펀트 비율 {r}\"", "",
-            "[gcode_macro COLD_PLATE]", "gcode:",
-            "  SET_HEATER_TEMPERATURE HEATER=cold_plate TARGET={params.TARGET|default(" + f"{plate.target_c:g}" + ")|float}",
-            "  TEMPERATURE_WAIT SENSOR='heater_generic cold_plate' MAXIMUM={params.TARGET|default(" + f"{plate.target_c:g}" + ")|float + 1}", "",
-            "[gcode_macro FREEZE_WAIT]", "description: 층이 다 얼 때까지 기다림 (슬라이서가 계산한 초)",
-            "gcode:", "  G4 P{(params.S|float * 1000)|int}", ""]
+            "[gcode_macro _MIX]",
+            "variable_ratio: {" + ", ".join(f"'{h.tool}': 0.0" for h in s.heads if h.mixing) + "}",
+            "variable_tool: -1", "gcode:", "", ""]
     for h in s.heads:
-        out += [f"[gcode_macro T{h.tool}]  # {h.name}", "gcode:", "  NOZZLES_UP",
-                f"  SET_SERVO SERVO=lift{h.tool} ANGLE=0  # 이 노즐만 내림",
-                f"  SET_GCODE_OFFSET X={-h.offset_xy[0]:g} Y={-h.offset_xy[1]:g}", ""]
-    out += ["[gcode_macro NOZZLES_UP]", "gcode:"] + [f"  SET_SERVO SERVO=lift{h.tool} ANGLE=90" for h in s.heads]
-    return "\n".join(x for x in out if x is not None) + "\n"
+        out += [f"[servo lift{h.tool}]", f"pin: PLACEHOLDER_SERVO{h.tool}", "initial_angle: 90", ""]
+    out += ["[gcode_macro SET_MIX]",
+            "description: 혼합 헤드의 도펀트 주사기 몫 (0~1). 소성 후 도핑량 = RATIO × 최대 at%",
+            "gcode:", "  {% set r = printer['gcode_macro _MIX'].ratio %}",
+            "  {% set _ = r.update({params.TOOL: params.RATIO|float}) %}",
+            "  SET_GCODE_VARIABLE MACRO=_MIX VARIABLE=ratio VALUE=\"{r}\"",
+            "  {% if printer['gcode_macro _MIX'].tool|string == params.TOOL %}_SYNC TOOL={params.TOOL}{% endif %}", "",
+            "[gcode_macro _UNSYNC_ALL]", "gcode:"]
+    out += [f"  SYNC_EXTRUDER_MOTION EXTRUDER=syr_t{h.tool}_{j} MOTION_QUEUE=" for h, j, _ in syr] + [""]
+    out += ["[gcode_macro _SYNC]", "gcode:", "  {% set t = params.TOOL|int %}", "  _UNSYNC_ALL"]
+    for h in s.heads:
+        out.append(f"  {{% if t == {h.tool} %}}")
+        if h.mixing:
+            out.append(f"    {{% set r = printer['gcode_macro _MIX'].ratio['{h.tool}']|float %}}")
+            for j, sy in enumerate(h.syringes):
+                share = "(1 - r)" if j == 0 else "r"
+                out += [f"    {{% if {share} > 0.001 %}}",
+                        f"      SET_EXTRUDER_ROTATION_DISTANCE EXTRUDER=syr_t{h.tool}_{j} DISTANCE={{{sy.lead_mm * sy.area_mm2:.4f} / {share}}}",
+                        f"      SYNC_EXTRUDER_MOTION EXTRUDER=syr_t{h.tool}_{j} MOTION_QUEUE=extruder", "    {% endif %}"]
+        else:
+            out.append(f"    SYNC_EXTRUDER_MOTION EXTRUDER=syr_t{h.tool}_0 MOTION_QUEUE=extruder")
+        out.append("  {% endif %}")
+    out += ["  SET_GCODE_VARIABLE MACRO=_MIX VARIABLE=tool VALUE={t}", "",
+            "[gcode_macro COLD_PLATE]", "description: 차가운 판 목표 온도로 내리고 도달할 때까지 기다림", "gcode:",
+            f"  {{% set t = params.TARGET|default({plate.target_c:g})|float %}}",
+            "  SET_HEATER_TEMPERATURE HEATER=cold_plate TARGET={t}",
+            "  TEMPERATURE_WAIT SENSOR='heater_generic cold_plate' MAXIMUM={t + 1}", "",
+            "[gcode_macro FREEZE_WAIT]", "description: 방금 올린 층이 다 얼 때까지 기다림 (슬라이서가 계산한 초)",
+            "gcode:", "  G4 P{(params.S|float * 1000)|int}", "",
+            "[gcode_macro NOZZLES_UP]", "gcode:"] + [f"  SET_SERVO SERVO=lift{h.tool} ANGLE=90" for h in s.heads] + [""]
+    for h in s.heads:
+        out += [f"[gcode_macro T{h.tool}]", f"description: {h.name} 헤드로 바꿈", "gcode:", "  G91", f"  G1 Z{s.z_lift_mm:g} F600", "  G90",
+                "  NOZZLES_UP", f"  SET_GCODE_OFFSET X={-h.offset_xy[0]:g} Y={-h.offset_xy[1]:g}",
+                f"  SET_SERVO SERVO=lift{h.tool} ANGLE=0", f"  _SYNC TOOL={h.tool}",
+                "  G91", f"  G1 Z-{s.z_lift_mm:g} F600", "  G90", ""]
+    return "\n".join(out)
