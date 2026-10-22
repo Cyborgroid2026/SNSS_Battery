@@ -39,7 +39,8 @@ scene.unit_settings.system = "METRIC"
 # ---------- 재질 ----------
 def principled(name, color, rough=0.5, alpha=1.0, metallic=0.0, transmission=0.0, emission=None, strength=0.0):
     m = bpy.data.materials.new(name)
-    m.use_nodes = True
+    if not m.node_tree:  # Blender 5: 재질은 늘 노드 (use_nodes 는 없어질 예정)
+        m.use_nodes = True
     b = m.node_tree.nodes["Principled BSDF"]
     b.inputs["Base Color"].default_value = (*color, 1)
     b.inputs["Roughness"].default_value = rough
@@ -68,7 +69,8 @@ def hexrgb(h):
 def cell_material(name, color):
     """세포질 재질: 'wake' 속성 < 시계 → 빛남. wake < 0 (잠든 세포) 은 어둡게."""
     m = bpy.data.materials.new(name)
-    m.use_nodes = True
+    if not m.node_tree:  # Blender 5: 재질은 늘 노드 (use_nodes 는 없어질 예정)
+        m.use_nodes = True
     nt = m.node_tree
     b = nt.nodes["Principled BSDF"]
     b.inputs["Roughness"].default_value = 0.45
@@ -253,7 +255,8 @@ bpy.ops.object.light_add(type="SUN", location=(0, 0, 6))
 bpy.context.object.data.energy = 1.5
 bpy.context.object.rotation_euler = (0.6, 0.2, 0.8)
 world = bpy.data.worlds.new("배경")
-world.use_nodes = True
+if not world.node_tree:
+    world.use_nodes = True
 world.node_tree.nodes["Background"].inputs[0].default_value = (0.93, 0.94, 0.96, 1)
 world.node_tree.nodes["Background"].inputs[1].default_value = 0.6
 scene.world = world
@@ -370,10 +373,11 @@ if ANIM:
     # 1~120: 아래에서 위로 쌓임 (지오메트리 노드로 높이 위를 지움) · 121~240: 발에서 깨어남
     ng = bpy.data.node_groups.new("쌓기", "GeometryNodeTree")
     ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
-    hs = ng.interface.new_socket("높이", in_out="INPUT", socket_type="NodeSocketFloat")
     ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
     n = ng.nodes
     gi, go = n.new("NodeGroupInput"), n.new("NodeGroupOutput")
+    height = n.new("ShaderNodeValue")  # 모든 조각이 같은 높이를 씀 — 이 노드에 키프레임
+    height.name = height.label = "height"
     pos_n, sep = n.new("GeometryNodeInputPosition"), n.new("ShaderNodeSeparateXYZ")
     cmp_ = n.new("FunctionNodeCompare")
     cmp_.data_type = "FLOAT"
@@ -382,19 +386,17 @@ if ANIM:
     dele.domain = "FACE"
     ng.links.new(pos_n.outputs[0], sep.inputs[0])
     ng.links.new(sep.outputs["Z"], cmp_.inputs[0])
-    ng.links.new(gi.outputs[1], cmp_.inputs[1])
+    ng.links.new(height.outputs[0], cmp_.inputs[1])
     ng.links.new(gi.outputs[0], dele.inputs["Geometry"])
     ng.links.new(cmp_.outputs[0], dele.inputs["Selection"])
     ng.links.new(dele.outputs[0], go.inputs[0])
     scene.frame_start, scene.frame_end = 1, 240
     for o in objs.values():
-        mod = o.modifiers.new("쌓기", "NODES")
-        mod.node_group = ng
-        key = hs.identifier
-        mod[key] = 0.0
-        mod.keyframe_insert(f'["{key}"]', frame=1)
-        mod[key] = float(H * S * 1.02)
-        mod.keyframe_insert(f'["{key}"]', frame=120)
+        o.modifiers.new("쌓기", "NODES").node_group = ng
+    height.outputs[0].default_value = 0.0
+    height.outputs[0].keyframe_insert("default_value", frame=1)
+    height.outputs[0].default_value = float(H * S * 1.02)
+    height.outputs[0].keyframe_insert("default_value", frame=120)
     for role in ("pos", "neg"):
         node = MAT[role].node_tree.nodes["clock"]
         node.outputs[0].default_value = 0.0
