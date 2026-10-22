@@ -1,6 +1,7 @@
 """SC-1 출력 부품 — 기계를 이루는 부품은 3D 프린터로 뽑는다 (명세: spec/SCULPTOR.md §7).
 
 RepRap 방식: 구조·기구 부품은 흔한 FDM 프린터(베드 220×220 mm)로 PETG 출력, 봉·모터·전자처럼 출력할 수 없는 것만
+시중에서 산다. 기계가 통째로 배지에 잠기므로 젖는 부품은 모두 PETG(비금속), 모터 · 전자는 출력한 방수 통 안.
 시중에서 산다 (printer.bom). SC-1 자체는 젤을 빚는 기계라 플라스틱 부품을 직접 뽑지는 못한다 — '부모 프린터'가 뽑음.
 모양은 부호 있는 거리장(SDF)을 더하고 빼서 만들고 표면망(mesh.surface_nets)으로 STL 을 만든다 (CAD 프로그램 없이).
 """
@@ -218,6 +219,35 @@ def _scanner_mount(p):
     return cut(d, cyl(p, (-25, 0, 30), 6.1, 20, 0), box(p, (25, 0, 30), (12, 24, 24)), cyl(p, (0, 0, 2), 1.7, 10))
 
 
+def _motor_pod(p):
+    """모터 방수 통: NEMA17(얇은 것) 이 들어가는 통 — 바닥 벽 3 mm 너머로 자석 커플링, 뚜껑 O-링 홈 · 케이블 글랜드 자리.
+    축 구멍이 없어 물이 들어갈 길이 없음 (수족관 펌프 방식)."""
+    d = cut(cyl(p, (0, 0, 22), 28, 44), cyl(p, (0, 0, 25), 24, 44))  # 벽 4 mm, 바닥 3 mm (z 0–3)
+    d = union(d, cut(cyl(p, (0, 0, 42), 31, 4), cyl(p, (0, 0, 42), 24, 6)))  # 뚜껑 받침 테
+    return cut(d, cut(cyl(p, (0, 0, 43.2), 28.6, 1.8), cyl(p, (0, 0, 43.2), 26.4, 3)),  # O-링 홈
+               *[cyl(p, (sx * 15.5, sy * 15.5, 6), 1.7, 8) for sx in (-1, 1) for sy in (-1, 1)])  # 모터 나사 (막힌 구멍)
+
+
+def _pod_lid(p):
+    """방수 통 뚜껑: O-링을 눌러 막고 케이블 글랜드(PG9, Ø15.2) 한 개."""
+    d = cyl(p, (0, 0, 2.5), 31, 5)
+    return cut(d, cyl(p, (0, 0, 2.5), 7.6, 8), *[cyl(p, (29 * math.cos(k * math.pi / 3), 29 * math.sin(k * math.pi / 3), 2.5), 1.7, 8)
+                                                for k in range(6)])
+
+
+def _coupler(p):
+    """자석 커플링 원판: 네오디뮴 Ø10 × 3 자석 6개를 PETG 속에 묻음 (뚜껑 0.6 mm 로 덮어 배지에 닿지 않게) + 풀리 축."""
+    d = union(cyl(p, (0, 0, 3), 22, 6), cyl(p, (0, 0, 10), 5, 10))
+    pockets = [cyl(p, (15 * math.cos(k * math.pi / 3), 15 * math.sin(k * math.pi / 3), 2.9), 5.1, 3.2) for k in range(6)]
+    return cut(d, *pockets, cyl(p, (0, 0, 10), 2.6, 30))  # 묻힌 자석 자리(출력 중 넣고 덮음) · 축 Ø5
+
+
+def _bushing(p):
+    """미끄럼 부싱: LM8UU 자리에 끼워 탄소섬유 봉 Ø8 위를 미끄러짐 (물이 윤활)."""
+    d = cyl(p, (0, 0, 12), 7.5, 24)
+    return cut(d, cyl(p, (0, 0, 12), 4.15, 30), box(p, (0, 4, 12), (1.2, 8, 26)))  # 한쪽 틈 — 끼울 때 벌어짐
+
+
 def _belt_clamp(p):
     d = box(p, (0, 0, 4), (24, 12, 8), 2)
     return cut(d, box(p, (0, 0, 6.5), (26, 6.4, 1.6)), cyl(p, (-8, 0, 4), 1.7, 10), cyl(p, (8, 0, 4), 1.7, 10))
@@ -237,7 +267,11 @@ def printed_parts(spec: SculptorSpec | None = None) -> list[PrintedPart]:
         PrintedPart("pad_holder", "배양 받침 (수확 손잡이)", 1, "PETG", "흑연 패드 2장 — 존재의 발 (왼발 +, 오른발 −) · 받침째 꺼냄", (-40, -16, 0), (40, 20, 6), _pad_holder),
         PrintedPart("level_probe", "배지 전도도 전극 집게", 1, "PETG", "연필심 2개 — 배지 염도", (-11, -4, 0), (11, 17, 40), _level_probe),
         PrintedPart("port_panel", "단자판 (아날로그 · 디지털 · 양자)", 1, "PETG", "BNC 8 · SMA 3 · USB-C · RJ45", (-85, -32, 0), (85, 32, 16), _port_panel),
-        PrintedPart("electronics_box", "전자함", 1, "PETG", "파이 · 보드 · 아날로그 보드", (-90, -60, 0), (90, 60, 50), _electronics_box),
+        PrintedPart("electronics_box", "전자 방수 통 (몸)", 1, "PETG (벽 4겹 · 채움 100 %)", "파이 Zero · 보드 — 뚜껑은 실리콘 + 글랜드", (-90, -60, 0), (90, 60, 50), _electronics_box),
+        PrintedPart("motor_pod", "모터 방수 통", 8, "PETG (벽 4겹 · 채움 100 %)", "NEMA17 — 자석 커플링, 축 구멍 없음", (-31, -31, 0), (31, 31, 46), _motor_pod),
+        PrintedPart("pod_lid", "방수 통 뚜껑", 8, "PETG", "O-링 · 케이블 글랜드 PG9", (-31, -31, 0), (31, 31, 5), _pod_lid),
+        PrintedPart("coupler", "자석 커플링 원판", 16, "PETG (자석 묻음)", "통 안 · 밖 한 쌍씩", (-22, -22, 0), (22, 22, 20), _coupler),
+        PrintedPart("bushing", "미끄럼 부싱", 8, "PETG", "LM8UU 자리 — 탄소섬유 봉 위", (-7.5, -7.5, 0), (7.5, 7.5, 24), _bushing),
         PrintedPart("led_ring", "405 nm 빛 고리", 1, "PETG (검정)", "펜 끝 광환원", (-17, -17, 0), (17, 17, 6), _led_ring),
         PrintedPart("scanner_mount", "스캐너 받침", 1, "PETG", "레이저 선 + 카메라", (-30, -15, 0), (30, 15, 40), _scanner_mount),
         PrintedPart("belt_clamp", "벨트 물림", 2, "PETG", "GT2 벨트 끝", (-12, -6, 0), (12, 6, 8), _belt_clamp),

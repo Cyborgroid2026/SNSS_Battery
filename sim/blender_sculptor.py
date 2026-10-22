@@ -193,29 +193,36 @@ def collection(name):
     return c
 
 
-# ---------- 기계 ----------
-collection("조각가 SC-1")
-FX, FY, FZ = 420, 420, 560
-Z0 = -70  # 프레임 바닥
+# ---------- 기계 — 통째로 배지에 잠김 ----------
+collection("조각가 SC-1 (물속)")
+FX, FY, FZ = 330, 330, 300  # printer.SculptorSpec.frame_mm
+TANK_IN, FILL_MM = 350, 330  # printer.Tank: 36 큐브 수조 안 350, 배지 330 mm
+Z0 = -8  # 수조 바닥
+MAT["cf"] = principled("탄소섬유 봉", (0.04, 0.04, 0.05), 0.3, metallic=0.2)
+MAT["petg"] = principled("PETG (출력 부품)", (0.95, 0.42, 0.08), 0.4)
+MAT["nylon"] = principled("나일론 나사봉", (0.92, 0.9, 0.84), 0.5)
+tank = box("배양조 — 36 큐브 유리 수조", (TANK_IN + 8, TANK_IN + 8, TANK_IN + 6), (0, 0, Z0 + TANK_IN / 2), MAT["acrylic"])
+box("수조 받침대", (TANK_IN + 40, TANK_IN + 40, 14), (0, 0, Z0 - 10), MAT["plate"])
+# 프레임: PETG 꼭짓점 8 + 탄소섬유 봉 12 (금속 없음)
+fz0, fz1 = Z0 + 4, Z0 + 4 + FZ
+hx, hy = FX / 2 - 18, FY / 2 - 18
 for sx in (-1, 1):
     for sy in (-1, 1):
-        box("기둥", (20, 20, FZ), (sx * (FX / 2 - 10), sy * (FY / 2 - 10), Z0 + FZ / 2), MAT["frame"])
-for z in (Z0 + 10, Z0 + FZ - 10):
+        for z in (fz0 + 18, fz1 - 18):
+            box("꼭짓점 (PETG)", (36, 36, 36), (sx * hx, sy * hy, z), MAT["petg"])
+        cyl("탄소섬유 봉 (세로)", 4, FZ - 36, (sx * hx, sy * hy, (fz0 + fz1) / 2), MAT["cf"], verts=16)
+for z in (fz0 + 26, fz1 - 26):
     for sy in (-1, 1):
-        box("가로대 X", (FX, 20, 20), (0, sy * (FY / 2 - 10), z), MAT["frame"])
+        cyl("탄소섬유 봉 (X)", 4, 2 * hx - 36, (0, sy * hy, z), MAT["cf"], rot=(0, math.pi / 2, 0), verts=16)
     for sx in (-1, 1):
-        box("가로대 Y", (20, FY, 20), (sx * (FX / 2 - 10), 0, z), MAT["frame"])
-box("바닥판", (FX - 40, FY - 40, 6), (0, 0, Z0 + 23), MAT["dark"])
-box("배양조 받침", (170, 170, 14), (0, 0, -7 - 3), MAT["plate"])
-TANK_H = 120
-FILL_MM = 110  # 처음부터 배지 가득 (printer.Tank.fill_mm)
-tank = box("배양조 (= 프린터 몸체, 수중 환경)", (154, 154, TANK_H + 4), (0, 0, TANK_H / 2 - 2), MAT["acrylic"])
+        cyl("탄소섬유 봉 (Y)", 4, 2 * hy - 36, (sx * hx, 0, z), MAT["cf"], rot=(math.pi / 2, 0, 0), verts=16)
 # 배양 받침 + 흑연 패드 (왼발 +, 오른발 −) — 받침째 들어 올려 수확
 box("배양 받침", (50, 36, 6), (0, 2, -3), MAT["pen"])
 for sx in (-1, 1):
     box("수확 손잡이", (14, 14, 6), (sx * 31, 2, -3), MAT["pen"])
 pads = [box(f"흑연 패드 {'+' if sx < 0 else '−'}", (14, 22, 0.8), (sx * 9.5, 2.5, -0.4), MAT["graphite"]) for sx in (-1, 1)]
-box("배지 전도도 전극 (연필심)", (3, 3, 40), (-74, 60, FILL_MM - 20), MAT["graphite"])
+box("배지 전도도 전극 (연필심)", (3, 3, 40), (-hx + 30, hy - 10, 150), MAT["graphite"])
+box("누설 기준 전극 (흑연)", (3, 3, 40), (-hx + 40, hy - 10, 150), MAT["graphite"])
 
 # 펜 위치 = 마지막 경로 끝 (없으면 작업물 위)
 pen_xyz = (0.0, 0.0, 60.0)
@@ -226,35 +233,38 @@ for op in reversed(passes["ops"]):
         pen_xyz = (s[2], s[3], ps[-1]["z"]) if ps[-1]["kind"] != "stroke" else tuple(s)
         break
 px_, py_, pz_ = pen_xyz
-GZ = pz_ + 170  # 갠트리 높이
-for sx in (-1, 1):
-    box("Y 레일", (12, FY - 40, 10), (sx * (FX / 2 - 30), 0, Z0 + FZ - 35), MAT["rail"])
-box("X 빔", (FX - 60, 24, 24), (0, py_, Z0 + FZ - 50), MAT["frame"])
-box("캐리지", (60, 46, 70), (px_, py_, Z0 + FZ - 80), MAT["dark"])
-for zx, zy in ((-170, -170), (170, -170), (0, 170)):  # Z 리드스크루 3개 (자동 수평)
-    cyl("Z 리드스크루", 4, FZ - 60, (zx, zy, Z0 + FZ / 2), MAT["rail"], verts=16)
-# 펜: 바늘 40 mm + 몸체 + 빛 고리 + 원료 관 3개
 tip = (px_, py_, pz_)
+GZ = tip[2] + 125  # Z 갠트리 (XY 가 통째로 오르내림)
+for sx in (-1, 1):
+    cyl("Y 안내 (탄소섬유)", 4, 2 * hy - 40, (sx * (hx - 22), 0, GZ), MAT["cf"], rot=(math.pi / 2, 0, 0), verts=16)
+    box("X 봉 끝단 (PETG)", (40, 32, 30), (sx * (hx - 22), py_, GZ), MAT["petg"])
+cyl("X 안내 (탄소섬유)", 4, 2 * hx - 80, (0, py_, GZ), MAT["cf"], rot=(0, math.pi / 2, 0), verts=16)
+box("펜 캐리지 (PETG)", (70, 62, 18), (px_, py_, GZ - 12), MAT["petg"])
+for zx, zy in ((-hx + 22, -hy + 22), (hx - 22, -hy + 22), (0, hy - 22)):  # Z 나일론 나사봉 3개
+    cyl("Z 나일론 나사봉", 4, FZ - 50, (zx, zy, (fz0 + fz1) / 2), MAT["nylon"], verts=16)
+    cyl("모터 방수 통 (Z)", 28, 46, (zx, zy, fz0 + 23), MAT["petg"])
+for sx in (-1, 1):  # XY 모터 방수 통 (뒤 모서리, 갠트리와 함께)
+    cyl("모터 방수 통 (XY)", 28, 46, (sx * (hx - 22), hy - 30, GZ + 20), MAT["petg"])
+# 펜 (물속): 바늘 + 몸체 + 실리콘에 묻힌 빛 고리
 cyl("바늘 22G", 0.5, 40, (tip[0], tip[1], tip[2] + 20), MAT["needle"], verts=16)
 cyl("펜 몸체", 11, 70, (tip[0], tip[1], tip[2] + 75), MAT["pen"])
 cyl("혼합기", 5, 14, (tip[0], tip[1], tip[2] + 45), MAT["pen"])
 bpy.ops.mesh.primitive_torus_add(major_radius=9 * S, minor_radius=2 * S, location=(tip[0] * S, tip[1] * S, (tip[2] + 42) * S))
-bpy.context.object.name = "405 nm 빛 고리"
+bpy.context.object.name = "405 nm 빛 고리 (실리콘 속)"
 bpy.context.object.data.materials.append(MAT["led"])
-# 펜은 통째로 배지에 잠김 — 물 위 캐리지에서 내려온 대롱 끝 (모터 · 봉 · 전자 · 스캐너 · 자석 마운트는 물 위)
-car_z = Z0 + FZ - 80
-mount_z = max(FILL_MM + 25, tip[2] + 130)
-cyl("대롱 (물 위 → 펜)", 4, mount_z - (tip[2] + 110), (tip[0], tip[1], (tip[2] + 110 + mount_z) / 2), MAT["rail"], verts=24)
-box("펜 마운트 (자석, 물 위)", (34, 34, 10), (tip[0], tip[1], mount_z), MAT["rail"])
-cyl("마운트 기둥", 6, car_z - 35 - mount_z, (tip[0], tip[1], (mount_z + car_z - 35) / 2), MAT["dark"], verts=24)
-box("스캐너 (물 위)", (40, 22, 30), (tip[0] + 45, tip[1], car_z - 50), MAT["dark"])
-pump_x, pump_y = -FX / 2 + 40, FY / 2 - 70
+box("카메라 방수 통 (스캐너)", (40, 22, 30), (tip[0] + 45, tip[1], GZ - 30), MAT["petg"])
+# 원료 주사기 펌프 3 (방수 통 모터) — 왼쪽 벽, 물속
 for i, (key, lab) in enumerate((("go", "GO"), ("snss", "SNSS"), ("pva", "PVA"))):
-    py = pump_y - i * 40
-    cyl(f"원료 주사기 {lab}", 10, 110, (pump_x, py, 220), MAT[key], rot=(0, 0, 0))
-    box(f"주사기 펌프 {lab}", (34, 30, 30), (pump_x, py, 290), MAT["dark"])
-    tube(f"원료 관 {lab}", [(pump_x, py, 160), (pump_x + 60, py - 20, 380), (tip[0] - 20, tip[1] + 10, tip[2] + 160),
+    py = hy - 60 - i * 50
+    cyl(f"원료 주사기 {lab}", 10, 110, (-hx + 40, py, 120), MAT[key])
+    cyl(f"주사기 펌프 방수 통 {lab}", 28, 46, (-hx + 40, py, 200), MAT["petg"])
+    tube(f"원료 관 {lab}", [(-hx + 40, py, 64), (-hx + 80, py - 10, 40), (tip[0] - 30, tip[1] + 10, tip[2] + 150),
                             (tip[0] + (i - 1) * 5, tip[1], tip[2] + 110)], 1.2, MAT[key])
+# 전자 방수 통 + 방수 케이블 → 배양조 밖 단자판
+box("전자 방수 통 (파이 Zero · 보드)", (180, 120, 50), (40, hy - 70, fz0 + 30), MAT["petg"])
+tube("방수 케이블 (24 V + 이더넷)", [(120, hy - 40, fz0 + 40), (150, hy, 200), (TANK_IN / 2 - 10, TANK_IN / 2 - 20, FILL_MM + 30),
+                                 (TANK_IN / 2 + 60, TANK_IN / 2 - 20, FILL_MM + 10), (TANK_IN / 2 + 110, 40, 140)], 3, MAT["dark"])
+box("배양조 밖 단자판 (BNC · SMA · USB · RJ45)", (40, 170, 64), (TANK_IN / 2 + 120, 40, 120), MAT["petg"])
 
 # 빛
 bpy.ops.object.light_add(type="AREA", location=(1.6, -2.4, 4.2))
@@ -286,7 +296,7 @@ allv = np.concatenate([mz[f"{r}_v"] for r in ("pos", "neg", "mem") if f"{r}_v" i
 lo, hi = allv.min(0), allv.max(0)
 center = (lo + hi) / 2
 H = hi[2]
-water = box("배지 (멸균생리식염수)", (150, 150, FILL_MM), (0, 0, FILL_MM / 2), MAT["bath"])
+water = box("배지 (멸균생리식염수) — 기계까지 잠김", (TANK_IN - 2, TANK_IN - 2, FILL_MM), (0, 0, Z0 + FILL_MM / 2), MAT["bath"])
 BATH = [tank, water]
 
 # 경로 (뷰포트 참고용, 렌더 안 함)
@@ -331,7 +341,7 @@ def camera(name, loc, target, lens=50):
     return o
 
 
-hero = camera("전체", (900, -1250, 520), (0, 0, 200), 55)
+hero = camera("전체", (760, -1050, 560), (40, 0, 150), 50)
 close = camera("작업물", (center[0] + 2.1 * H, center[1] - 2.6 * H, H * 1.0), (center[0], center[1], H * 0.48), 60)
 
 if CYCLES:

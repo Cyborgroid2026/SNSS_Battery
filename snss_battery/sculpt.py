@@ -773,8 +773,9 @@ def write_gcode(job: Job, plan, spec: SculptorSpec, path: str | Path, pred: dict
            + (" — 배지를 가세요" if med["change_medium"] else " (갈 필요 없음)"),
            "G21", "G90", "M83", "G28", "Z_TILT_ADJUST", "G28 Z"]
     if med["fill_ml"]:
-        out += [f"FILL ML={med['fill_ml']:.0f}  ; 빈 배양조를 배지로 가득 ({med['fill_mm']:g} mm)",
-                "M117 배지 가득 — 펜 끝이 잠겼는지 확인", "M0"]
+        out += [f"FILL ML={med['fill_ml']:.0f}  ; 빈 배양조를 배지로 가득 ({med['fill_mm']:g} mm) — 기계까지 통째로 잠김",
+                "M117 배지 가득 — 기계가 다 잠겼는지 · 거품이 없는지 확인", "M0"]
+    out.append("LEAK_CHECK  ; 물속 기계 누설 점검 (A8)")
     if pred:
         out += ["; " + x for x in describe_prediction(pred).splitlines()]
     last_role = None

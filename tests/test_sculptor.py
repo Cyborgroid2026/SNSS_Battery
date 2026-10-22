@@ -329,4 +329,44 @@ class CultureTankTest(unittest.TestCase):
 
         items = " ".join(b.part + b.spec for b in bom())
         self.assertNotIn("카보머", items)
-        self.assertTrue(any(b.group == "수조" and "마트" in b.where for b in bom()))
+        self.assertTrue(any(b.group == "배양조" and "마트" in b.where for b in bom()))
+
+
+class SubmergedMachineTest(unittest.TestCase):
+    """기계까지 통째로 배지에 잠김 — 젖는 쪽 비금속, 전기는 방수 통, 상온 유지."""
+
+    def setUp(self):
+        self.spec = SculptorSpec()
+
+    def test_design_check_passes(self):
+        self.assertEqual(self.spec.check(), [])
+
+    def test_whole_machine_under_medium(self):
+        tk = self.spec.tank
+        self.assertLessEqual(self.spec.frame_mm[2], tk.fill_mm - 10)
+        self.assertLessEqual(max(self.spec.frame_mm[:2]), min(tk.inner_mm[:2]))
+
+    def test_room_temperature_kept(self):
+        self.assertLessEqual(self.spec.heat_rise_k(), 1.0)  # 기계 열이 배지를 1 K 넘게 데우지 않음
+
+    def test_wet_side_is_metal_free(self):
+        self.assertEqual(self.spec.sub.wet_metals(), [])
+        from snss_battery.printer import bom
+
+        names = " ".join(b.part for b in bom() if b.group in ("물속 기계", "배양조"))
+        for metal in ("LM8UU", "스테인리스", "알루미늄", "전산볼트"):
+            self.assertNotIn(metal, names)
+        self.assertIn("탄소섬유", names)
+
+    def test_leak_check_and_pods(self):
+        import tempfile
+        from pathlib import Path
+
+        from snss_battery.parts import printed_parts
+
+        job = S.job_new(S.design("coupon", 6.0, S.CellParams(), self.spec, "t"), self.spec)
+        with tempfile.TemporaryDirectory() as d:
+            g = S.write_gcode(job, S.plan_passes(job, self.spec), self.spec, Path(d) / "j.gcode").read_text(encoding="utf-8")
+        self.assertIn("LEAK_CHECK", g)
+        keys = {p.key for p in printed_parts()}
+        self.assertTrue({"motor_pod", "pod_lid", "coupler", "bushing"} <= keys)
