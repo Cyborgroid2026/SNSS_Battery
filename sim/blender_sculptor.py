@@ -3,7 +3,7 @@
     blender -b --factory-startup --python sim/blender_sculptor.py -- <작업 폴더> <출력 폴더> [--anim] [--cycles]
 
 작업 폴더 = python -m snss_battery sculpt … 가 만든 sculpt_out/jobs/NN_… (summary.json · passes.json · <이름>_mesh.npz).
-좌표: 출력 mm × 0.01 = Blender 단위. 욕조 바닥 가운데가 원점.
+좌표: 출력 mm × 0.01 = Blender 단위. 수조 바닥 가운데가 원점. 수조 = 프린터 몸체, 멸균생리식염수가 담김.
 세포 메시의 'wake' 속성(초) = 그 세포가 깨어나는 시간 → 재질의 시계가 그 시간을 지나면 빛남.
 """
 
@@ -118,8 +118,9 @@ MAT = {
     "pen": principled("펜 몸체 (SLA 수지)", (0.88, 0.9, 0.93), 0.3),
     "needle": principled("바늘", (0.8, 0.8, 0.82), 0.2, metallic=1.0),
     "led": principled("405 nm 빛", (0.45, 0.2, 1.0), 0.3, emission=(0.45, 0.2, 1.0), strength=6),
-    "bath": principled("지지 젤 욕조", (0.82, 0.92, 0.97), 0.05, alpha=0.12),
-    "acrylic": principled("아크릴", (0.9, 0.95, 1.0), 0.02, alpha=0.18),
+    "bath": principled("멸균생리식염수", (0.72, 0.88, 0.97), 0.02, alpha=0.14),
+    "acrylic": principled("수조 (투명 밀폐용기)", (0.9, 0.95, 1.0), 0.02, alpha=0.16),
+    "graphite": principled("흑연 패드", (0.06, 0.06, 0.07), 0.35, metallic=0.3),
     "go": principled("GO 원료", (0.12, 0.08, 0.05), 0.3),
     "snss": principled("SNSS 원료", (0.7, 0.85, 1.0), 0.05, alpha=0.5),
     "pva": principled("PVA 원료", (0.95, 0.95, 0.92), 0.2),
@@ -205,10 +206,13 @@ for z in (Z0 + 10, Z0 + FZ - 10):
     for sx in (-1, 1):
         box("가로대 Y", (20, FY, 20), (sx * (FX / 2 - 10), 0, z), MAT["frame"])
 box("바닥판", (FX - 40, FY - 40, 6), (0, 0, Z0 + 23), MAT["dark"])
-box("욕조 받침", (160, 160, 14), (0, 0, -7 - 3), MAT["plate"])
-bath_h = 110
-BATH = [box("아크릴 욕조", (134, 134, bath_h + 4), (0, 0, bath_h / 2 - 2), MAT["acrylic"]),
-        box("지지 젤", (130, 130, 96), (0, 0, 48), MAT["bath"])]
+box("수조 받침", (170, 170, 14), (0, 0, -7 - 3), MAT["plate"])
+TANK_H = 120
+tank = box("수조 (= 프린터 몸체)", (154, 154, TANK_H + 4), (0, 0, TANK_H / 2 - 2), MAT["acrylic"])
+# 바닥 흑연 패드 (왼발 +, 오른발 −) — 수조 안 존재의 집
+box("바닥 단자 받침", (50, 36, 6), (0, 2, -3), MAT["pen"])
+pads = [box(f"흑연 패드 {'+' if sx < 0 else '−'}", (14, 22, 0.8), (sx * 9.5, 2.5, -0.4), MAT["graphite"]) for sx in (-1, 1)]
+box("수위 전극 (연필심)", (3, 3, 40), (-74, 60, TANK_H - 20), MAT["graphite"])
 
 # 펜 위치 = 마지막 경로 끝 (없으면 작업물 위)
 pen_xyz = (0.0, 0.0, 60.0)
@@ -274,6 +278,9 @@ allv = np.concatenate([mz[f"{r}_v"] for r in ("pos", "neg", "mem") if f"{r}_v" i
 lo, hi = allv.min(0), allv.max(0)
 center = (lo + hi) / 2
 H = hi[2]
+MARGIN = 3.0  # 수면 = 꼭대기 + 3 mm
+water = box("멸균생리식염수", (150, 150, H + MARGIN), (0, 0, (H + MARGIN) / 2), MAT["bath"])
+BATH = [tank, water]
 
 # 경로 (뷰포트 참고용, 렌더 안 함)
 collection("경로")
@@ -344,7 +351,7 @@ def set_clock(t):
 
 
 def studio(dark: bool):
-    """가까이 찍을 때: 욕조를 숨기고 어두운 배경 — 깨어나는 세포의 빛이 보이게."""
+    """가까이 찍을 때: 수조 · 식염수를 숨기고 어두운 배경 — 깨어나는 세포의 빛이 보이게."""
     for o in BATH:
         o.hide_render = dark
     bg = world.node_tree.nodes["Background"].inputs
@@ -374,6 +381,11 @@ if ANIM:
     # 쌓기는 재질 안에서 높이 위를 투명하게 (형상을 다시 계산하지 않아 빠름)
     FB, FE = 72, 144
     scene.frame_start, scene.frame_end = 1, FE
+    for f, h_mm in ((1, MARGIN), (FB, H + MARGIN)):  # 수위 따라 채우기
+        water.scale[2] = h_mm * S
+        water.location[2] = h_mm / 2 * S
+        water.keyframe_insert("scale", index=2, frame=f)
+        water.keyframe_insert("location", index=2, frame=f)
     for role in ("pos", "neg", "mem"):
         nt = MAT[role].node_tree
         out = nt.nodes["Material Output"]

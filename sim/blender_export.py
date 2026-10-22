@@ -6,7 +6,7 @@ Blender 안에서 (Scripting 탭 → 이 파일 열기 → 실행) 또는
 - 선택한 메시 → <출력>/shape.stl (mm). 조각가: python -m snss_battery sculpt new 이름 --shape <출력>/shape.stl
 - 곡선 객체 → <출력>/strokes.json. 재질은 사용자 속성 "material" (pos · neg · mem) 또는 이름 앞머리 pos_ · neg_ · mem_
   조각가: python -m snss_battery sculpt draw 이름 --strokes <출력>/strokes.json
-좌표: 장면 단위 → mm (장면 단위 배율 반영). 원점 = 욕조 바닥 가운데, Z 위.
+좌표: 장면 단위 → mm (장면 단위 배율 반영). 원점 = 수조 바닥 가운데, Z 위.
 """
 
 import json

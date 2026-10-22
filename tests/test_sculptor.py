@@ -39,7 +39,7 @@ class SculptorMachineTest(unittest.TestCase):
         self.spec = SculptorSpec()
 
     def test_recipes_gel_at_pen_tip(self):
-        # 세 원료가 펜 끝에서 섞이면 모두 굳고, 욕조보다 단단해야 함
+        # 세 원료가 펜 끝에서 섞이면 모두 굳고, 식염수 수조 속에서 출력 높이보다 높이 서야 함
         self.assertEqual(self.spec.check(), [])
         for r in self.spec.recipes.values():
             g = self.spec.gel_check(r)
@@ -275,3 +275,50 @@ class PrintedPartsTest(unittest.TestCase):
         self.assertTrue(any("약국" in w for w in raw.values()))  # 생리식염수
         self.assertTrue(all(w for w in raw.values()))  # 모두 구입처가 있음
         self.assertFalse(any("알루미늄" in b.part for b in bom()))  # 프레임은 출력 + 철물점 봉
+
+
+class SalineTankTest(unittest.TestCase):
+    """프린터 자체가 멸균생리식염수 수조 — 그 안에서 작업."""
+
+    def setUp(self):
+        self.spec = SculptorSpec()
+
+    def test_neutral_buoyancy_holds_shape(self):
+        for r in self.spec.recipes.values():
+            g = self.spec.gel_check(r)
+            self.assertLess(abs(g["drho"]), 5.0)  # 잉크 ≈ 식염수 밀도
+            self.assertLess(g["free_height_air_mm"], 10.0)  # 공기 중이면 몇 mm 에서 무너짐
+            self.assertGreater(g["free_height_mm"], self.spec.build_mm[2])  # 식염수 속에서는 출력 높이 이상
+            self.assertTrue(g["bath_gels"])  # 수조 식염수가 겉을 엉기게 함
+
+    def test_level_follows_the_work(self):
+        p = S.design("seed", 20.0, S.CellParams(), self.spec, "씨앗")
+        job = S.job_new(p, self.spec)
+        plan = S.plan_passes(job, self.spec)
+        start, doses, total = S.level_doses(job, plan, self.spec)
+        tk = self.spec.tank
+        self.assertAlmostEqual(start, tk.fill_ml(tk.margin_mm))
+        printed_ml = sum(float(ps.segs[:, 4].sum()) for _, pp in plan for ps in pp if ps.kind == "add") \
+            * self.spec.line_mm ** 2 * self.spec.layer_mm / 1000
+        top = max(ps.z for _, pp in plan for ps in pp)
+        final_level = (total + printed_ml) * 1000 / tk.area_mm2  # 부은 식염수 + 젤 = 면적 × 수위
+        self.assertGreaterEqual(final_level, top + tk.margin_mm - tk.dose_every_mm - 1e-6)  # 늘 2 mm 이상 잠겨 있음
+        self.assertLess(final_level, top + tk.margin_mm + 2 * tk.dose_every_mm + 0.5)
+
+    def test_gcode_doses_saline_and_ends_in_tank(self):
+        import tempfile
+        from pathlib import Path
+
+        job = S.job_new(S.design("coupon", 6.0, S.CellParams(), self.spec, "t"), self.spec)
+        with tempfile.TemporaryDirectory() as d:
+            g = S.write_gcode(job, S.plan_passes(job, self.spec), self.spec, Path(d) / "j.gcode").read_text(encoding="utf-8")
+        self.assertIn("LEVEL ML=", g)
+        self.assertIn("CHARGE ON=1", g)  # 다 빚으면 수조 안에서 그대로 충전할 수 있음
+        self.assertIn("[gcode_macro LEVEL]", klipper_cfg(self.spec))
+
+    def test_tank_is_bought_not_carbomer(self):
+        from snss_battery.printer import bom
+
+        items = " ".join(b.part + b.spec for b in bom())
+        self.assertNotIn("카보머", items)
+        self.assertTrue(any(b.group == "수조" and "마트" in b.where for b in bom()))

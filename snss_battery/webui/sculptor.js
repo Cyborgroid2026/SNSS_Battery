@@ -17,6 +17,7 @@ if (D) {
     ["에너지 (0.8 V)", `${(P.energy_j * 1000).toFixed(0)} mJ · ${P.capacitance_f.toFixed(2)} F`],
     ["깨어남", `절반 ${tfmt(P.wake_median_s)} · 머리 ${tfmt(P.wake_head_s)}`],
     ["빚는 시간", `작업 ${D.job.work_h.toFixed(1)} h + 숙성 ${D.job.wait_h.toFixed(1)} h`],
+    ["수조 식염수", `약 ${(D.job.saline_ml / 1000).toFixed(1)} L (수면 = 꼭대기 + 3 mm)`],
     ["설계 점검", D.check.length ? D.check.join(" · ") : "통과 (상온 · 펜 끝에서 굳음)"],
   ].map(([k, v]) => `<div class="card"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join("");
 
