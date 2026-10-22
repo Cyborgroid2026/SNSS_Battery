@@ -172,3 +172,92 @@ def make_layout(spec: SculptorSpec | None = None) -> Layout:
         Box("손 · 수확 통로 (주차 때)", (-HAND, -HAND, z_tip - bz - PLATE), (HAND, HAND, sp.tank.inner_mm[2]), "zone"),
     ]
     return Layout(sp, z_tip, gz, bed_bottom_min, travel, park, boxes, zones)
+
+
+# ---------- 빛 조각가 SC-2: 펜 · 갠트리 없음, 수조 위 프로젝터 · 잉크 우물 · 받침 기둥 ----------
+@dataclass
+class LightLayout(Layout):
+    """노광면 = 배지 수면 (z_tip 자리). 갠트리 대신 수조 위 프로젝터, 받침은 기둥(riser) 위에서 내려감."""
+
+    def problems(self) -> list[str]:
+        bad = []
+        frame_static = [b for b in self.boxes if b.kind in ("frame", "static")]
+        for z in self.zones:
+            obstacles = frame_static + [b for b in self.boxes if b.kind == "well" and not z.name.startswith("손")]
+            for b in {b.name: b for b in sorted(obstacles, key=z.gap, reverse=True)}.values():
+                g = z.gap(b)
+                if g < 2.0:
+                    bad.append(f"{z.name} ↔ {b.name}: {'겹침 ' + format(-g, '.1f') if g < 0 else '틈 ' + format(g, '.1f')} mm (2 mm 이상 필요)")
+        if self.bed_bottom_min < 2.0:
+            bad.append(f"받침 너트 판이 프레임 바닥까지 내려감 (여유 {self.bed_bottom_min:.1f} mm)")
+        screw = next(b for b in self.boxes if b.name == "Z 나일론 나사봉")
+        nut_top = next(b for b in self.boxes if b.name == "받침 너트 판 (가장 높을 때)").hi[2]
+        if nut_top > screw.hi[2]:
+            bad.append("받침 너트 판이 나사봉 끝을 넘어감")
+        return bad
+
+    def parked(self) -> list[Box]:
+        return []
+
+    def describe(self) -> str:
+        sp = self.spec
+        lines = [f"[공간 배치 — {sp.name}] 프레임 {sp.frame_mm[0]:g}×{sp.frame_mm[1]:g}×{sp.frame_mm[2]:g} · 배지 {sp.tank.fill_mm:g} mm",
+                 f"  노광면 = 수면 {self.z_tip:g} mm · 프로젝터 {self.gz:g} mm (수조 밖) · 받침은 기둥 위에서 층마다 내려감 "
+                 f"(너트 판 가장 낮을 때 바닥 {self.bed_bottom_min:g} mm)"]
+        for zone, nearest, gap in self.clearances():
+            lines.append(f"  {zone:<28} 가장 가까운 고정 부품: {nearest} — 틈 {gap:.1f} mm")
+        bad = self.problems()
+        lines.append("  공간 점검: " + ("통과 — 빛길 · 출력 · 수확 공간이 모두 비어 있음" if not bad else "; ".join(bad)))
+        return "\n".join(lines)
+
+
+RISER = 40.0  # 받침 기둥 (너트 판 → 받침)
+
+
+def make_light_layout(spec=None) -> LightLayout:
+    from .lightsculpt import LightSculptorSpec
+
+    sp = spec or LightSculptorSpec()
+    FX, FY, FZ = sp.frame_mm
+    bx, by, bz = sp.build_mm[0] / 2, sp.build_mm[1] / 2, sp.build_mm[2]
+    h = FX / 2 - 18
+    fill = sp.tank.fill_mm
+    z_tip = fill  # 노광면
+    gz = fill + sp.projector.throw_mm  # 프로젝터 렌즈 높이
+    nut_hi = z_tip - PLATE - RISER  # 처음 (받침이 수면 바로 아래)
+    nut_lo = nut_hi - bz
+    bed_bottom_min = nut_lo - BED_CARRIAGE
+    boxes: list[Box] = []
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            for zc, lab in ((18, "아래"), (FZ - 18, "위")):
+                boxes.append(Box(f"꼭짓점 ({lab})", (sx * h - 18, sy * h - 18, zc - 18), (sx * h + 18, sy * h + 18, zc + 18), "frame"))
+            boxes.append(_cyl("탄소섬유 봉 (세로)", sx * h, sy * h, 4, 0, FZ, "frame"))
+    for zc, lab in ((26, "아래"), (FZ - 26, "위")):
+        for s in (-1, 1):
+            boxes.append(Box(f"탄소섬유 봉 (가로, {lab}, X)", (-h, s * h - 4, zc - 4), (h, s * h + 4, zc + 4), "frame"))
+            boxes.append(Box(f"탄소섬유 봉 (가로, {lab}, Y)", (s * h - 4, -h, zc - 4), (s * h + 4, h, zc + 4), "frame"))
+    for x, y in ((Z_SCREW, -Z_SCREW), (Z_SCREW, Z_SCREW), (-Z_SCREW, -Z_SCREW)):
+        boxes.append(_cyl("Z 나일론 나사봉", x, y, 4, 0, FZ - 8))
+        boxes.append(_cyl("Z 모터 방수 통", x, y, 28, 0, 46))
+    boxes.append(Box("받침 너트 판 (가장 높을 때)", (-Z_SCREW - 12, -Z_SCREW - 12, nut_hi - BED_CARRIAGE), (Z_SCREW + 12, Z_SCREW + 12, nut_hi), "bed"))
+    boxes.append(Box("배양 받침 기둥 (쓸림)", (-60, -60, bed_bottom_min), (60, 60, z_tip), "bed"))
+    # 전극: 배지 전도도 · 누설 기준 (뒤 왼쪽 구석, 잉크 우물 밖)
+    boxes.append(Box("배지 전도도 · 누설 전극", (-133, 132, 60), (-127, 141, 100), "static"))
+    boxes.append(Box("Z 모터 케이블 (방수, 밖으로)", (152, -8, 0), (160, 8, fill + 20), "static"))
+    # 잉크 우물: 떠 있는 테 4면 (PETG, 두께 3) — 수면 위 5 mm ~ 잉크층 아래 10 mm
+    w = sp.ink.well_mm / 2
+    z0, z1 = fill - sp.ink.depth_mm - 10, fill + 5
+    for s in (-1, 1):
+        a, b = (w, w + 3) if s > 0 else (-w - 3, -w)  # 안쪽 면 ±w, 두께 3
+        boxes.append(Box("잉크 우물 테 (X)", (-w - 3, a, z0), (w + 3, b, z1), "well"))
+        boxes.append(Box("잉크 우물 테 (Y)", (a, -w - 3, z0), (b, w + 3, z1), "well"))
+    # 수조 위 (밖): 프로젝터 · 잉크 보충 병 — 배지에 닿지 않음
+    boxes.append(Box("405 nm 프로젝터 (수조 위)", (-60, -45, gz), (60, 45, gz + 60), "static"))
+    zones = [
+        Box("출력 공간", (-bx, -by, z_tip - bz), (bx, by, z_tip), "zone"),
+        Box("빛길 (프로젝터 렌즈 → 수면)", (-bx, -by, z_tip), (bx, by, gz - 5), "zone"),
+        Box("배양 받침 기둥", (-62, -62, bed_bottom_min), (62, 62, z_tip), "zone"),
+        Box("손 · 수확 통로 (테 들어낸 뒤)", (-HAND, -HAND, z_tip - bz - PLATE), (HAND, HAND, sp.tank.inner_mm[2]), "zone"),
+    ]
+    return LightLayout(sp, z_tip, gz, bed_bottom_min, (bx, by), (0.0, 0.0), boxes, zones)

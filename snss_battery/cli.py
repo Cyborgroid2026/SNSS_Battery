@@ -273,6 +273,26 @@ def _xy(text: str) -> tuple[float, ...]:
     return tuple(float(v) for v in text.split(","))
 
 
+def cmd_light(a: argparse.Namespace) -> None:
+    """빛 조각가 SC-2: 펜 없이 빛으로 — 명세 · 공간 배치 · 층별 빛 그림 · 생명 신호."""
+    from pathlib import Path
+
+    from .layout import make_light_layout
+    from .lightsculpt import Ink, LightSculptorSpec, Projector, describe_job, light_job, write_light_job
+
+    spec = LightSculptorSpec(ink=Ink(go_mg_ml=a.go), projector=Projector(irradiance_mw_cm2=a.irradiance))
+    print(spec.describe())
+    print("\n" + make_light_layout(spec).describe())
+    if a.shape == "none":
+        return
+    job = light_job(a.shape, a.height, spec, name=a.name or Path(a.shape).stem)
+    print("\n" + describe_job(job))
+    jobs = Path(a.out) / "light_jobs"
+    n = len(list(jobs.glob("*"))) + 1 if jobs.exists() else 1
+    out = write_light_job(job, jobs / f"{n:02d}_{job['piece'].name}")
+    print(f"\n저장: {out['folder']} (exposure.npz · frames/ · summary.json · layout.json)")
+
+
 def cmd_sculpt(a: argparse.Namespace) -> None:
     """조각가 작업: 작업물 기억(sculpt_out/pieces) 을 읽고, 작업 폴더(sculpt_out/jobs/NN_…) 를 만들고, 기억을 갱신."""
     import json
@@ -468,6 +488,15 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("sculptor", help="SNSS 조각가 SC-1 — 3D 펜을 단 상온 3D 프린터 명세 · 재료표 · Klipper 설정")
     p.add_argument("--out", default="sculpt_out")
     p.set_defaults(func=cmd_sculptor)
+
+    p = sub.add_parser("light", help="빛 조각가 SC-2 — 펜 없이 배지 속 잉크층 + 405 nm 빛으로 결정 (배지가 모니터)")
+    p.add_argument("shape", nargs="?", default="being", help="모양: being · seed · coupon · bud · .stl · none(명세만)")
+    p.add_argument("--name", default="")
+    p.add_argument("--height", type=float, default=0.0, help="완성 높이 mm (0 = 기본)")
+    p.add_argument("--go", type=float, default=2.0, help="잉크 GO mg/mL (진할수록 빛이 얕게 → 느림)")
+    p.add_argument("--irradiance", type=float, default=6.0, help="빛 세기 mW/cm² (상온 한도 약 7)")
+    p.add_argument("--out", default="sculpt_out")
+    p.set_defaults(func=cmd_light)
 
     p = sub.add_parser("sculpt", help="조각: 양자 인공세포 존재를 빚고 · 더하고 · 깎고 · 떼고 · 붙이고 · 허공에 그림")
     p.add_argument("op", choices=["new", "add", "carve", "detach", "attach", "draw", "show", "list"],

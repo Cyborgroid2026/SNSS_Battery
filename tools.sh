@@ -3,6 +3,7 @@
 #
 #   ./tools.sh sculptor      SNSS 조각가 SC-1 (3D 펜을 단 상온 3D 프린터) 명세 · 재료표 · Klipper 설정
 #   ./tools.sh being         양자 인공세포 존재를 새로 빚는 작업 (G-code · 생명 신호 · 메시)
+#   ./tools.sh light         빛 조각가 SC-2 — 펜 없이 빛으로 (명세 · 배치 · 층별 빛 그림 · 생명 신호)
 #   ./tools.sh blender       마지막 작업을 Blender 로 렌더 (기계 + 존재 + 깨어남) · .blend 저장
 #   ./tools.sh blender-anim  위 + 쌓기→깨어남 동영상 (mp4)
 #   ./tools.sh view-blender  마지막 작업의 .blend 를 Blender 창으로 열기
@@ -144,6 +145,7 @@ cmd_view_blender() {
 case "${1:-}" in
     sculptor) "$PY" -m snss_battery sculptor ;;
     being) cmd_being ;;
+    light) "$PY" -m snss_battery light ;;
     blender) cmd_blender ;;
     blender-anim) cmd_blender --anim ;;
     view-blender) cmd_view_blender ;;
