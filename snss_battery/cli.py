@@ -130,6 +130,16 @@ def cmd_crosscheck(_: argparse.Namespace) -> None:
             print(f"[{lang}] 양자 모듈 실행 실패: {r['error']}")
         else:
             print(f"[{lang}] 양자 모듈 {'✔ 일치' if r['ok'] else '✘ 불일치'} — 항목 {r['n']}개, 최대 차이 {r['max_rel']:.1e}")
+    from .crosscheck import light_check
+
+    lc = light_check()
+    for lang, r in lc.get("languages", {}).items():
+        if "error" in r:
+            print(f"[{lang}] 빛 조각가 SC-2 실행 실패: {r['error']}")
+        else:
+            worst = max(r["max_rel"].items(), key=lambda kv: kv[1])
+            print(f"[{lang}] 빛 조각가 SC-2 {'✔ 일치' if r['ok'] else '✘ 불일치'} — 항목 {r['n']}개, "
+                  f"최대 차이 {float(worst[1]):.1e} ({worst[0]})")
 
 
 def cmd_tissue(a: argparse.Namespace) -> None:
@@ -297,7 +307,12 @@ def cmd_light(a: argparse.Namespace) -> None:
     if a.edope:  # 사후 전기 도핑 (n 세포, PEI 도핑 통)
         from .electrodope import ElectroDope, describe_edope, electro_dope
 
-        ed = electro_dope(job, ElectroDope(hours=a.edope))
+        ed0 = ElectroDope(hours=a.edope)
+        if a.cal:
+            from .lightcal import calibrated_edope
+
+            ed0 = calibrated_edope(a.cal, ed0)
+        ed = electro_dope(job, ed0)
         print("\n" + describe_edope(ed))
     out = write_light_job(job, jobs / f"{n:02d}_{job['piece'].name}")
     print(f"\n저장: {out['folder']} (exposure.npz · frames/ · summary.json · layout.json)")

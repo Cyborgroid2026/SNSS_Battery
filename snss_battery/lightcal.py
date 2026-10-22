@@ -12,6 +12,10 @@ B. 광환원 사다리 (405 nm): 얇게 굳힌 뒤 노출을 더 줌 → 정사�
 C. 초록 접목 사다리 (530 nm): E_red 로 다 환원한 뒤 초록 노출 → 배지 속 개방 전위를 도핑 안 한 정사각형 기준으로 잼 ΔV_i.
    ΔV(D) = ΔV_max·(1 − e^(−D/E_g)) 맞춤 → E_g. ΔV_max ≈ 페르미 준위 이동 → 정공 밀도 n = (eΔV_max/ħv_F)²/π.
 
+D. 전기 도핑 사다리 (사후, PEI 도핑 통): 다 환원한 칸마다 다른 전위 E_i 로 잡고 (흑연 기준, 다채널 · 저항 분압) 24 h →
+   씻은 뒤 배지 속 개방 전위 차 ΔV_i (n형이면 +). ΔV = ΔV_max / (1 + e^((E − E½)/w)) 맞춤 → E½ · w, ΔV_max → n_max.
+   (얇은 칸이라 확산은 다 됨 — 확산 계수는 따로, 두꺼운 덩어리를 잘라 단면으로)
+
 결과는 sculpt_out/light_cal.json 에 쓰고, `LightSculptorSpec.calibrated(path)` · `light --cal` 이 읽는다.
 """
 
@@ -41,6 +45,9 @@ def ladders(spec: LightSculptorSpec | None = None) -> dict:
         "B": list(np.round(np.geomspace(ph.e_red_mj_cm2 * 0.05, ph.e_red_mj_cm2 * 4, 12), 0)),
         "C": list(np.round(np.geomspace(ph.e_graft_mj_cm2 * 0.1, ph.e_graft_mj_cm2 * 6, 12), 0)),
     }
+
+
+EDOPE_V = [round(float(v), 2) for v in np.linspace(-0.8, 0.4, 12)]  # 사다리 D 의 칸 전위 (V, 흑연 기준)
 
 
 def coupon_frames(spec: LightSculptorSpec | None = None, px_mm: float = 0.05) -> dict:
@@ -84,6 +91,9 @@ def write_coupon(folder: str | Path, spec: LightSculptorSpec | None = None) -> P
         color = "530 nm" if key == "C" else "405 nm"
         guide.append(f"  {key}. {lab} — 먼저: {f['pre']} → coupon_{key}.png 를 {color} 로 {f['seconds']:.0f} s "
                      f"(회색조 = 켜 두는 시간 비례) · 노출 {f['doses'][0]:g}–{f['doses'][-1]:g} mJ/cm²")
+    for i, v in enumerate(EDOPE_V):  # 전기 도핑: 노출 칸에 전위(V)를 적음
+        rows.append(f"D,{i + 1},{v:g},,mV,전위 V")
+    guide.append(f"  D. 전기 도핑 (사후) — 다 환원한 칸 12개를 도핑 통(배지 + PEI 0.1 %)에서 {EDOPE_V[0]:g}…{EDOPE_V[-1]:g} V 로 24 h → 개방 전위 차 (mV)")
     guide += ["  측정 → measurements.csv 의 '측정값' 칸을 채우고: python -m snss_battery light-cal fit measurements.csv",
               "  B: 칸 양 끝에 흑연 시트 패드를 대고 멀티미터 저항 (배지에서 꺼내 표면 물기만 닦고, 같은 간격으로)",
               "  C: 배지 속에서 흑연 기준 전극 ↔ 칸 사이 개방 전위 (도핑 안 한 칸과의 차, mV) — 30 초 안정 뒤"]
@@ -134,9 +144,26 @@ def fit_graft(dose: np.ndarray, dv_mv: np.ndarray) -> dict:
     return {"e_graft_mj_cm2": tau, "dv_max_mv": a + b, "n_graft_max": n, "rms_mv": math.sqrt(res / len(dose))}
 
 
+def fit_edope(e_v: np.ndarray, dv_mv: np.ndarray) -> dict:
+    """ΔV = ΔV_max / (1 + e^((E − E½)/w)): E½ · w 격자, ΔV_max 선형."""
+    from .qcap import E, HBAR, V_F
+
+    best = None
+    for eh in np.linspace(-0.8, 0.4, 241):
+        for w in np.geomspace(0.01, 0.5, 120):
+            g = 1 / (1 + np.exp((e_v - eh) / w))
+            amp = float(g @ dv_mv / max(g @ g, 1e-12))
+            res = float(np.sum((amp * g - dv_mv) ** 2))
+            if best is None or res < best[3]:
+                best = (float(eh), float(w), amp, res)
+    eh, w, amp, res = best
+    n = (abs(amp) / 1000 * E / (HBAR * V_F)) ** 2 / math.pi / 1e16
+    return {"e_half_v": eh, "width_v": w, "dv_max_mv": amp, "n_max": n, "rms_mv": math.sqrt(res / len(e_v))}
+
+
 def fit_calibration(csv_path: str | Path, spec: LightSculptorSpec | None = None) -> dict:
     spec = spec or LightSculptorSpec()
-    data: dict[str, list[tuple[float, float]]] = {"A": [], "B": [], "C": []}
+    data: dict[str, list[tuple[float, float]]] = {"A": [], "B": [], "C": [], "D": []}
     with open(csv_path, encoding="utf-8") as f:
         for row in csv.DictReader(f):
             v = (row.get("측정값") or "").strip()
@@ -163,7 +190,12 @@ def fit_calibration(csv_path: str | Path, spec: LightSculptorSpec | None = None)
         out["fits"]["C"] = fc
         out["photo"]["e_graft_mj_cm2"] = fc["e_graft_mj_cm2"]
         out["photo"]["n_graft_max"] = fc["n_graft_max"]
-    if not out["photo"]:
+    if len(data["D"]) >= 5:
+        e, y = np.array(data["D"]).T
+        fd = fit_edope(e, y)
+        out["fits"]["D"] = fd
+        out["edope"] = {k: fd[k] for k in ("e_half_v", "width_v", "n_max")}
+    if not out["photo"] and "edope" not in out:
         raise ValueError("측정값이 채워진 시험이 없습니다 (measurements.csv 의 '측정값' 칸).")
     return out
 
@@ -172,8 +204,18 @@ def calibrated_spec(cal: dict | str | Path, spec: LightSculptorSpec | None = Non
     if not isinstance(cal, dict):
         cal = json.loads(Path(cal).read_text(encoding="utf-8"))
     spec = spec or LightSculptorSpec()
-    keys = {k: float(v) for k, v in cal["photo"].items() if k in asdict(spec.photo)}
+    keys = {k: float(v) for k, v in cal.get("photo", {}).items() if k in asdict(spec.photo)}
     return replace(spec, photo=replace(spec.photo, **keys))
+
+
+def calibrated_edope(cal: dict | str | Path, ed=None):
+    """전기 도핑 상수 (사다리 D) 를 ElectroDope 에."""
+    from .electrodope import ElectroDope
+
+    if not isinstance(cal, dict):
+        cal = json.loads(Path(cal).read_text(encoding="utf-8"))
+    ed = ed or ElectroDope()
+    return replace(ed, **{k: float(v) for k, v in cal.get("edope", {}).items()})
 
 
 def describe_calibration(cal: dict, spec: LightSculptorSpec | None = None) -> str:
@@ -187,7 +229,9 @@ def describe_calibration(cal: dict, spec: LightSculptorSpec | None = None) -> st
         lines.append(f"  B 광환원: E_red {f['B']['e_red_mj_cm2']:.0f} mJ/cm² · 전도도 {f['B']['decades']:.1f} 자릿수 상승 · θ {f['B']['theta_mem']:.3f}")
     if "C" in f:
         lines.append(f"  C 초록 접목: E_g {f['C']['e_graft_mj_cm2']:.0f} mJ/cm² · ΔV {f['C']['dv_max_mv']:.0f} mV → 정공 {f['C']['n_graft_max']:.1f}×10¹² cm⁻²")
-    lines.append("  바뀐 상수: " + " · ".join(f"{k} {base[k]:g} → {v:.4g}" for k, v in cal["photo"].items()))
+    if "D" in f:
+        lines.append(f"  D 전기 도핑: E½ {f['D']['e_half_v']:+.2f} V · w {f['D']['width_v']:.3f} V · ΔV {f['D']['dv_max_mv']:.0f} mV → 전자 {f['D']['n_max']:.1f}×10¹² cm⁻²")
+    lines.append("  바뀐 상수: " + " · ".join(f"{k} {base[k]:g} → {v:.4g}" for k, v in cal.get("photo", {}).items()))
     new = calibrated_spec(cal, spec)
     bad = new.check()
     lines.append(f"  보정 뒤: 층 {new.layer_mm} mm · 막 새는 빛 {new._membrane_leak(new.layer_ratio()):.2f}·E_red · 설계 점검 " +
@@ -217,5 +261,12 @@ def synthetic_measurements(path: str | Path, truth: Photo, spec: LightSculptorSp
     for i, d in enumerate(lad["C"]):
         dv = ef * (1 - math.exp(-d / truth.e_graft_mj_cm2)) * (1 + noise * rng.standard_normal())
         rows.append(f"C,{i + 1},{d:g},{dv:.2f},mV,")
+    from .electrodope import ElectroDope
+
+    ed = ElectroDope()
+    ef_n = HBAR * V_F * math.sqrt(math.pi * ed.n_max * 1e16) / E * 1000
+    for i, v in enumerate(EDOPE_V):
+        dv = ef_n * ed.frac(v) * (1 + noise * rng.standard_normal())
+        rows.append(f"D,{i + 1},{v:g},{dv:.2f},mV,전위 V")
     Path(path).write_text("\n".join(rows) + "\n", encoding="utf-8")
     return Path(path)

@@ -99,6 +99,7 @@
 | A 굳힘 | 없음 | 405 nm 30–1200 mJ/cm² | 굳은 두께 Cd | `Cd = Dp·ln(E/Ec)` 직선 → Dp · Ec, Dp → ε_GO |
 | B 광환원 | 모든 칸 굳힘 | 405 nm 50–4000 mJ/cm² | 2단자 저항 R | `log σ = a + b(1 − e^(−D/τ))` → E_red = τ·ln10 (로그 상승 90 %) |
 | C 초록 접목 | 모든 칸 다 환원 | 530 nm 30–1800 mJ/cm² | 개방 전위 차 ΔV | `ΔV = ΔV_max(1 − e^(−D/E_g))` → E_g, 정공 = (eΔV_max/ħv_F)²/π |
+| D 전기 도핑 (§10) | 모든 칸 다 환원 | PEI 도핑 통, 칸마다 −0.8…+0.4 V · 24 h | 개방 전위 차 ΔV | `ΔV = ΔV_max/(1 + e^((E − E½)/w))` → E½ · w · n_max |
 
 - 사다리 그림은 밝기 일정 · 칸마다 켜 두는 시간이 다른 회색조 한 장 (DLP 의 PWM 과 같은 방식).
 - θ(막 절연 문턱)는 맞춤값이 아니라 **정의**: 막 노출이 로그 전도도 상승의 50 % 를 넘지 않으면 (6 자릿수 상승이면 세포질보다 3 자릿수 낮음)
@@ -107,6 +108,8 @@
 - `python -m snss_battery light-cal coupon` → `sculpt_out/light_cal/` (coupon_A/B/C.png · measurements.csv · README.txt)
   → 측정값을 채워 `light-cal fit measurements.csv` → `sculpt_out/light_cal.json` → `light being --cal sculpt_out/light_cal.json`.
   웹 콘솔은 `light_cal.json` 이 있으면 그것을 씀. `light-cal demo` 는 참값을 아는 가상 측정으로 맞춤을 연습 (참값을 3 % 안에서 되찾음).
+- 웹 콘솔 '시험편 측정 → 빛 상수 보정': 사다리 네 개의 표에 측정값을 적고 **맞추기 · 저장** (서버 `/api/lightcal` 이
+  `sculpt_out/light_cal/measurements.csv` 와 `light_cal.json` 을 씀). **연습값 채우기**로 맞춘 것은 `light_cal.json` 에 저장하지 않음.
 
 ## 9. 실제 기계 묶음과 실행기 (`lightrun.py`, `light --export`, `light-run`)
 
@@ -131,4 +134,4 @@
   양자층은 세포 용량 가중 평균 도핑 하나로 어림.
 - 서 있는 존재: 24 h → n 세포 40 % 가 절반 이상 · 에너지 0.024 → 0.031 J (×1.29). − 망 세포 90 % 가 절반 이상 붙으려면 약 156 h (6.5 일) → ×1.36.
   도핑 없을 때(0.020 J)보다 ×1.55. **한계: 확산이 느려 몸 속 깊은 세포는 덜 도핑된다.**
-- 보정 시험 D (다음 단계): 사다리 C 처럼 다 환원한 칸 둘을 도핑 통에서 −0.6 V · +0.2 V 로 잡고 개방 전위 이동을 재면 E½ · w · n_max 를 맞출 수 있다.
+- 보정: 사다리 D (§8) → `light being --edope 24 --cal sculpt_out/light_cal.json` 이 맞춘 E½ · w · n_max 를 씀. 확산 계수 D 는 아직 가정 (두꺼운 덩어리를 잘라 단면으로 잴 것).

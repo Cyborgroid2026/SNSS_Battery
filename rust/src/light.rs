@@ -50,7 +50,7 @@ pub fn erfc(x: f64) -> f64 {
             term *= -x * x / n;
             let add = term / (2.0 * n + 1.0);
             sum += add;
-            if add.abs() < 1e-17 * sum.abs() {
+            if add.abs() <= 1e-17 * sum.abs() {
                 break;
             }
         }

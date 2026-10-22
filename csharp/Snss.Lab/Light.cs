@@ -24,7 +24,7 @@ public sealed record Light(double Go, double Pva, double Nacl, double EosinUm, d
                 term *= -x * x / n;
                 double add = term / (2 * n + 1);
                 sum += add;
-                if (Math.Abs(add) < 1e-17 * Math.Abs(sum)) break;
+                if (Math.Abs(add) <= 1e-17 * Math.Abs(sum)) break;
             }
             return 1.0 - 2.0 / Math.Sqrt(Math.PI) * sum;
         }

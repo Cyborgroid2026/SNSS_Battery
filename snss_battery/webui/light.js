@@ -25,6 +25,7 @@ if (D && L) {
     ["세포질 rGO · 막 샘", `${pct(D.cyto_reduced)} · ${pct(D.mem_leaky)}`],
     ["초록 p 도핑", `p 세포 ${pct(D.p_graft)} · n 세포 ${pct(D.n_graft)}`],
     ["에너지 (0.8 V)", `${(D.energy_j * 1000).toFixed(0)} mJ (도핑 없으면 ${(D.undoped_energy_j * 1000).toFixed(0)})`],
+    ["사후 전기 도핑 (n 세포)", `PEI 통 ${D.edope_hours} h → ${(D.edope_energy_j * 1000).toFixed(0)} mJ · 속까지 약 ${D.edope_t90_h.toFixed(0)} h`],
     ["잉크층", `${D.ink_density.toFixed(1)} < 배지 ${D.bath_density.toFixed(1)} kg/m³ · CCC ${D.ccc_mm.toFixed(0)} mM`],
     ["상온", `잉크 표면 +${D.surface_k.toFixed(2)} K · 배지 +${D.bath_k.toFixed(2)} K`],
     ["빛 상수", D.calibrated ? "시험편 보정값 (light_cal.json)" : "가정값 — ./tools.sh light-cal 로 시험편부터"],
@@ -291,6 +292,55 @@ if (D && L) {
   }
   Object.values(w).forEach((el) => (el.oninput = whatIf));
   whatIf();
+
+  // ---------- 시험편 측정 → 보정 (서버 /api/lightcal) ----------
+  const CAL_HEAD = { A: ["A 굳힘", "노출 mJ/cm²", "두께 mm"], B: ["B 광환원", "노출 mJ/cm²", "저항 Ω"],
+                     C: ["C 초록 접목", "노출 mJ/cm²", "ΔV mV"], D: ["D 전기 도핑", "전위 V", "ΔV mV"] };
+  let calRows = [];
+  let calDemo = false;
+  function drawCal() {
+    $("#lcCal").innerHTML = Object.entries(CAL_HEAD).map(([t, [h, xh, vh]]) =>
+      `<table><tr><th colspan="3">${h}</th></tr><tr><th>칸</th><th>${xh}</th><th>${vh}</th></tr>` +
+      calRows.filter((r) => r.test === t).map((r) =>
+        `<tr><td class="n">${r.i}</td><td class="n">${r.x}</td><td><input data-t="${t}" data-i="${r.i}" value="${esc(r.value)}" inputmode="decimal"></td></tr>`).join("") +
+      "</table>").join("");
+    $("#lcCal").querySelectorAll("input").forEach((el) => (el.oninput = () => {
+      const r = calRows.find((x) => x.test === el.dataset.t && x.i === +el.dataset.i);
+      if (r) r.value = el.value.trim();
+      calDemo = false; // 손으로 고치면 진짜 측정
+    }));
+  }
+  fetch("api/lightcal", { cache: "no-store" }).then((r) => (r.ok ? r.json() : Promise.reject(r.status))).then((st) => {
+    calRows = st.rows;
+    drawCal();
+    $("#lcCalText").textContent = st.text || "아직 보정값이 없습니다 (가정값으로 계산 중).";
+  }).catch(() => {
+    $("#lcCalText").textContent = "측정 저장은 서버에서만 됩니다 — ./tools.sh web 으로 열거나, measurements.csv 를 채워 python -m snss_battery light-cal fit …";
+    $("#lcCalFit").disabled = $("#lcCalDemo").disabled = true;
+  });
+  $("#lcCalFit").onclick = async () => {
+    $("#lcCalText").textContent = "맞추는 중…";
+    const r = await fetch("api/lightcal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rows: calRows, demo: calDemo }) });
+    const j = await r.json();
+    $("#lcCalText").textContent = j.error ? "오류: " + j.error : j.text;
+  };
+  $("#lcCalDemo").onclick = () => {  // lightcal.synthetic_measurements 와 같은 참값 (잡음 없음)
+    const HB = 1.054571817e-34, VF = 1e6, Q = 1.602176634e-19;
+    const dp = 10 / (Math.LN10 * (12 * K.go_mg_ml + K.a_sbq * K.pva_wt));
+    const ef = (n) => (HB * VF * Math.sqrt(Math.PI * n * 1e16)) / Q * 1000;
+    for (const r of calRows) {
+      const x = r.x;
+      r.value = String(+({
+        A: Math.max(0, dp * Math.log(x / 28)),
+        B: 10 ** -(-6 + 6 * (1 - Math.exp(-x / (1400 / Math.LN10)))),
+        C: ef(4.0) * (1 - Math.exp(-x / 380)),
+        D: ef(5.0) / (1 + Math.exp((x + 0.2) / 0.08)),
+      }[r.test]).toPrecision(4));
+    }
+    drawCal();
+    calDemo = true;
+    $("#lcCalText").textContent = "연습값 (참값 ε_GO 12 · Ec 28 · E_red 1400 · E_g 380 · 정공 4.0 · E½ −0.2 V) — 맞추기를 누르면 되찾는지 봄";
+  };
 
   setLayer(k);
   const start = () => { if (!renderer) initTank(); else resize(); };

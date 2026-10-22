@@ -53,7 +53,9 @@ class EITSpec:
     porosity: float = 0.97  # 젤 속 이온이 지나는 몫 (PVA · GO 1–2 %, 가정)
     sigma_e_s_m: float = 2.0  # 광환원 rGO 전자 전도 (sculpt.BodyModel 과 같은 가정)
     mem_ratio: float = 0.5  # 막 이온 전도 / 젤 이온 전도 (sculpt.BodyModel 과 같은 가정)
-    mu: float = 0.03  # 정규화 세기 (잡음 단위)
+    mu: float = 0.1  # 정규화 세기 (λ = μ · 평균 대각)
+    noser_p: float = 0.5  # R = diag(JᵀJ)^p — 1 이면 둔한 깊은 칸이 부풀어 위치가 틀어짐 (덧굳음 시험으로 고름)
+    roi_depth_mm: float = 80.0  # 되찾는 칸: 소매 안쪽 기둥, 수면에서 이만큼 아래까지
     probe_mm: tuple[float, float, float] = (-130.0, 136.0, 80.0)  # 기존 배지 전도도 전극 = 접지
 
     @property
@@ -140,7 +142,7 @@ class Scene:
     sigma_ink: float = field(default_factory=lambda: nacl_conductivity(0.010))
     piece: object = None  # sculpt.Piece
     layer: int | None = None
-    blobs: list = field(default_factory=list)  # (중심 xyz mm, 반지름 mm, σ S/m 또는 None = 잉크/배지로 되돌림)
+    blobs: list = field(default_factory=list)  # 배지 속 덧붙은 덩어리 (중심 xyz mm, 반지름 mm, σ S/m) — 존재와 겹치지 않는 곳
     bed: bool = True
 
     @property
@@ -184,11 +186,7 @@ def conductivity(grid: Grid, sc: Scene, es: EITSpec) -> np.ndarray:
         X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
         ins = X ** 2 + Y ** 2 + Z ** 2 <= r * r
         x, y, z = X[ins] + c[0], Y[ins] + c[1], Z[ins] + c[2]
-        si = sc.ion_sigma(x, y, z)
-        target = si if s is None else np.full_like(si, s)
-        # 지금 그 칸 값과의 차 (존재 안을 '빼내면' 그 칸의 존재 몫이 배지로)
-        cur = sig.ravel()[_cell_ids(grid, x, y, z)]
-        sig += _deposit(grid, x, y, z, (target - cur), vol)
+        sig += _deposit(grid, x, y, z, s - sc.ion_sigma(x, y, z), vol)
     if es.place == "sleeve":  # 전극 소매 = 잉크 우물 테를 아래로 내린 PETG 벽 (절연)
         a, b = es.sleeve_mm, es.sleeve_mm + es.sleeve_t_mm
         z0, z1 = es.sleeve_bottom_mm, sc.fill_mm + 5
@@ -351,7 +349,7 @@ class EIT:
         xc, yc, zc = self.grid.centers()
         es = self.es
         inx = np.nonzero(np.abs(xc) <= es.fine_xy_mm)[0]
-        inz = np.nonzero((zc >= es.fine_z_mm[0]) & (zc <= fill_mm))[0]
+        inz = np.nonzero((zc >= fill_mm - es.roi_depth_mm) & (zc <= fill_mm))[0]
         I, J_, K = np.meshgrid(inx, inx, inz, indexing="ij")
         self.roi = np.ravel_multi_index((I.ravel(), J_.ravel(), K.ravel()), self.grid.shape)
         self.current_a: float | None = None
@@ -386,7 +384,7 @@ class EIT:
         J = self._jac[id(ref)][1]
         s = self.noise_std(ref, n_avg)
         Jw, dv = J / s[:, None], (meas_v - ref.v) / s
-        r = np.einsum("ij,ij->j", Jw, Jw) + 1e-30  # NOSER
+        r = np.einsum("ij,ij->j", Jw, Jw) ** self.es.noser_p + 1e-30  # NOSER
         JR = Jw / r
         M = JR @ Jw.T
         lam = self.es.mu * np.trace(M) / len(M)
@@ -414,8 +412,6 @@ class EIT:
 
 # ---------- 보고서 ----------
 def _scenarios(eit: EIT, piece, layer: int, spec_light) -> list[dict]:
-    from .sculpt import NEG, POS
-
     fill = eit.fill_mm
     base = Scene(fill_mm=fill, well_mm=spec_light.ink.well_mm, ink_depth_mm=spec_light.ink.depth_mm, piece=piece, layer=layer)
     out = []
@@ -427,15 +423,22 @@ def _scenarios(eit: EIT, piece, layer: int, spec_light) -> list[dict]:
     out.append({"name": "덧굳은 덩어리 (지름 12 mm, 몸 옆)", "a": base,
                 "b": Scene(**{**base.__dict__, "blobs": [(c_blob, 6.0, s_cured)]}), "center": np.array(c_blob), "sign": 1.0,
                 "vol_ml": 4 / 3 * math.pi * 6 ** 3 / 1000})
-    # 2) 빠진 곳: 몸 속 세포질 지름 12 mm 가 굳지 않아 배지로
-    cyto = np.argwhere(np.isin(piece.material[:, :, : layer + 1], (POS, NEG)))
-    cz = np.median(cyto[:, 2])
-    pick = cyto[np.argmin(np.abs(cyto[:, 2] - cz) + 0 * cyto[:, 0])]
-    c_miss = ((piece.offset[0] + pick[0]) * piece.pitch[0], (piece.offset[1] + pick[1]) * piece.pitch[0],
-              (pick[2] + 0.5) * piece.pitch[1] + base.dz)
-    out.append({"name": "빠진 세포질 (지름 12 mm, 몸 속)", "a": base,
-                "b": Scene(**{**base.__dict__, "blobs": [(c_miss, 6.0, None)]}), "center": np.array(c_miss), "sign": -1.0,
-                "vol_ml": 4 / 3 * math.pi * 6 ** 3 / 1000})
+    # 2) 빠진 곳: 몸통 속 지름 12 mm 가 굳지 않음 → 그 칸들이 배지 (작업물 격자에서 지움)
+    from dataclasses import replace as _rep
+
+    from .sculpt import EMPTY
+
+    built = np.argwhere(piece.material[:, :, max(0, layer - 60): max(1, layer - 20)] != EMPTY)
+    ci = built.mean(axis=0) + np.array([0, 0, max(0, layer - 60)])
+    c_miss = np.array([(piece.offset[0] + ci[0]) * piece.pitch[0], (piece.offset[1] + ci[1]) * piece.pitch[0],
+                       (ci[2] + 0.5) * piece.pitch[1] + base.dz])
+    X, Y, Z = np.meshgrid(*[np.arange(n) for n in piece.material.shape], indexing="ij")
+    d2 = (((piece.offset[0] + X) * piece.pitch[0] - c_miss[0]) ** 2 + ((piece.offset[1] + Y) * piece.pitch[0] - c_miss[1]) ** 2
+          + ((Z + 0.5) * piece.pitch[1] + base.dz - c_miss[2]) ** 2)
+    holed = _rep(piece, material=np.where(d2 <= 36.0, EMPTY, piece.material).astype(piece.material.dtype))
+    removed = float((piece.material[d2 <= 36.0] != EMPTY).sum() * piece.pitch[0] ** 2 * piece.pitch[1] / 1000)
+    out.append({"name": "빠진 곳 (지름 12 mm, 몸통 속)", "a": base, "b": Scene(**{**base.__dict__, "piece": holed}),
+                "center": c_miss, "sign": 0.0, "vol_ml": removed})
     # 3) 자람: Δ = 10 층 (받침도 함께 내려감)
     d = 10
     prev = Scene(**{**base.__dict__, "layer": max(0, layer - d)})

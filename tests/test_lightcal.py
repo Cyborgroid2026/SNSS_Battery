@@ -22,6 +22,10 @@ class TestCalibration(unittest.TestCase):
         self.assertAlmostEqual(ph["e_graft_mj_cm2"], 380.0, delta=8)
         self.assertAlmostEqual(ph["n_graft_max"], 4.0, delta=0.1)
         self.assertAlmostEqual(ph["theta_mem"], 0.301, delta=0.005)  # 로그 상승 50 % 기준의 정의
+        ed = C.calibrated_edope(cal)
+        self.assertAlmostEqual(ed.e_half_v, -0.2, delta=0.02)
+        self.assertAlmostEqual(ed.width_v, 0.08, delta=0.01)
+        self.assertAlmostEqual(ed.n_max, 5.0, delta=0.3)
 
     def test_calibrated_spec_changes_layer(self):
         cal = {"photo": {"eps_go": 7.5}}
@@ -35,7 +39,7 @@ class TestCalibration(unittest.TestCase):
             for k in "ABC":
                 self.assertTrue((f / f"coupon_{k}.png").exists())
             rows = (f / "measurements.csv").read_text(encoding="utf-8").splitlines()
-            self.assertEqual(len(rows), 1 + 3 * 12)
+            self.assertEqual(len(rows), 1 + 4 * 12)
 
     def test_empty_measurements_rejected(self):
         with tempfile.TemporaryDirectory() as d:

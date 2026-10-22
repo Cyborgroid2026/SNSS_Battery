@@ -425,8 +425,18 @@ def _light_assets(folder: Path) -> dict:
                 renders.append(f"light/blender_{n}")
     lay = make_light_layout(spec)
     ph, ink, pj, tk = spec.photo, spec.ink, spec.projector, spec.tank
+    from .electrodope import ElectroDope, describe_edope, electro_dope
+
+    ed0 = ElectroDope(hours=24)
+    if cal_file.exists():
+        from .lightcal import calibrated_edope
+
+        ed0 = calibrated_edope(cal_file, ed0)
+    edope = electro_dope(job, ed0)
     return {
-        "machine": spec.describe(), "layout": lay.describe(), "job_text": describe_job(job), "check": spec.check(),
+        "machine": spec.describe(), "layout": lay.describe(), "job_text": describe_job(job) + "\n\n" + describe_edope(edope),
+        "check": spec.check(), "edope_energy_j": edope["prediction"]["energy_j"], "edope_hours": ed0.hours,
+        "edope_t90_h": edope["t90_h"],
         "calibrated": cal_file.exists(),
         "renders": renders, "fill_mm": tk.fill_mm, "gz": lay.gz, "well_mm": ink.well_mm, "ink_depth_mm": ink.depth_mm,
         "tank_mm": tk.inner_mm[0], "height_mm": p.height_mm, "n_cells": p.n_cells(), "layers": pl["layers"],
@@ -554,10 +564,21 @@ def _make_handler(site: Path, log_path: Path):
                 self._json(200, read_experiments(log_path))
             elif route == "/api/verdict":
                 self._json(200, verdict(log_path))
+            elif route == "/api/lightcal":
+                self._json(200, lightcal_state())
             else:
                 super().do_GET()
 
         def do_POST(self) -> None:
+            if self.path == "/api/lightcal":
+                try:
+                    n = int(self.headers.get("Content-Length", "0"))
+                    if n > 100_000:
+                        raise ValueError("요청이 너무 큽니다.")
+                    self._json(200, lightcal_fit(json.loads(self.rfile.read(n) or b"{}")))
+                except (ValueError, KeyError, json.JSONDecodeError) as e:
+                    self._json(400, {"error": str(e)})
+                return
             if self.path != "/api/experiments":
                 self._json(404, {"error": "not found"})
                 return
@@ -580,6 +601,59 @@ def _make_handler(site: Path, log_path: Path):
             self._json(200 if ok else 404, {"deleted": ok})
 
     return Handler
+
+
+LIGHT_CAL_DIR = ROOT / "sculpt_out" / "light_cal"
+
+
+def lightcal_state() -> dict:
+    """콘솔의 시험편 측정표: 사다리 노출(전위) · 지금까지 적은 측정값 · 보정 결과."""
+    import csv
+
+    from .lightcal import EDOPE_V, ladders
+
+    lad = ladders()
+    rows = [{"test": t, "i": i + 1, "x": float(x), "value": ""} for t in "ABC" for i, x in enumerate(lad[t])]
+    rows += [{"test": "D", "i": i + 1, "x": float(v), "value": ""} for i, v in enumerate(EDOPE_V)]
+    meas = LIGHT_CAL_DIR / "measurements.csv"
+    if meas.exists():
+        with open(meas, encoding="utf-8") as f:
+            have = {(r["시험"], int(r["칸"])): (r.get("측정값") or "").strip() for r in csv.DictReader(f)}
+        for r in rows:
+            r["value"] = have.get((r["test"], r["i"]), "")
+    cal = ROOT / "sculpt_out" / "light_cal.json"
+    out = {"rows": rows, "calibrated": cal.exists()}
+    if cal.exists():
+        from .lightcal import describe_calibration
+
+        out["text"] = describe_calibration(json.loads(cal.read_text(encoding="utf-8")))
+    return out
+
+
+def lightcal_fit(body: dict) -> dict:
+    """측정표 저장 → 맞춤 → sculpt_out/light_cal.json (웹 콘솔을 다시 만들면 보정값으로)."""
+    from .lightcal import describe_calibration, fit_calibration
+
+    unit = {"A": "mm", "B": "ohm", "C": "mV", "D": "mV"}
+    lines = ["시험,칸,노출_mJ_cm2,측정값,단위,메모"]
+    for r in body["rows"]:
+        t = str(r["test"])
+        if t not in unit:
+            raise ValueError(f"시험 이름이 이상합니다: {t}")
+        v = str(r.get("value", "")).strip()
+        if v:
+            float(v)  # 숫자인지
+        lines.append(f"{t},{int(r['i'])},{float(r['x']):g},{v},{unit[t]},{'전위 V' if t == 'D' else ''}")
+    LIGHT_CAL_DIR.mkdir(parents=True, exist_ok=True)
+    demo = bool(body.get("demo"))  # 연습값은 진짜 보정값으로 저장하지 않음
+    meas = LIGHT_CAL_DIR / ("demo_measurements.csv" if demo else "measurements.csv")
+    meas.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    cal = fit_calibration(meas)
+    if demo:
+        return {"text": describe_calibration(cal) + "\n(연습값 — light_cal.json 에 저장하지 않음)", "calibrated": False}
+    (ROOT / "sculpt_out" / "light_cal.json").write_text(json.dumps(cal, ensure_ascii=False, indent=1), encoding="utf-8")
+    return {"text": describe_calibration(cal) + "\n저장: sculpt_out/light_cal.json — 웹을 다시 만들면(./tools.sh web) 콘솔이 보정값으로 계산",
+            "calibrated": True}
 
 
 def verdict(log_path: Path) -> dict:
@@ -724,6 +798,8 @@ section { display: none; } section.on { display: block; }
 .lc-whatif { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 16px; margin-bottom: 10px; }
 .lc-whatif label { color: var(--muted); font-size: 13px; } .lc-whatif input { width: 100%; }
 @media (max-width: 1000px) { .lc-view { grid-template-columns: 1fr; } }
+.lc-cal { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin: 8px 0; }
+.lc-cal table { width: 100%; } .lc-cal input { width: 90px; font: inherit; }
 .card .k { color: var(--muted); font-size: 12px; } .card .v { font-size: 15px; font-weight: 600; margin-top: 2px; }
 .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
 .badge.ok { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
@@ -833,6 +909,13 @@ aside .panel { background: var(--panel); border: 1px solid var(--line); border-r
       <label>감광 PVA <input type="range" id="wPva" min="0.2" max="5" step="0.1"> <span id="wPvaV"></span></label>
     </div>
     <table id="lcWhatIf"></table>
+    <h2>시험편 측정 → 빛 상수 보정</h2>
+    <p class="sub">보정 시험편(<code>./tools.sh light-cal</code>)을 재서 측정값을 적고 <b>맞추기</b> — A 굳은 두께 mm · B 2단자 저항 Ω ·
+      C 개방 전위 차 mV · D 전기 도핑 개방 전위 차 mV. 빈 칸은 건너뜀 (A 3칸 · B C 4칸 · D 5칸 이상이면 그 시험을 맞춤). 서버(./tools.sh web)에서만 저장됩니다.</p>
+    <div class="row"><button class="primary" id="lcCalFit" type="button">맞추기 · 저장</button>
+      <button id="lcCalDemo" type="button">연습값 채우기 (참값을 아는 가상 측정)</button></div>
+    <div class="lc-cal" id="lcCal"></div>
+    <pre id="lcCalText"></pre>
     <div id="lcRenders"></div>
     <h2>기계 · 공간 배치 · 이 작업</h2>
     <pre id="lcText"></pre>
