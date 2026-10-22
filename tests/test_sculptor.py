@@ -370,3 +370,12 @@ class SubmergedMachineTest(unittest.TestCase):
         self.assertIn("LEAK_CHECK", g)
         keys = {p.key for p in printed_parts()}
         self.assertTrue({"motor_pod", "pod_lid", "coupler", "bushing"} <= keys)
+
+    def test_layout_keeps_work_and_harvest_space_clear(self):
+        from snss_battery.layout import make_layout
+
+        lay = make_layout(self.spec)
+        self.assertEqual(lay.problems(), [])
+        self.assertTrue(all(g >= 2.0 for _, _, g in lay.clearances()))
+        self.assertGreaterEqual(lay.gz - lay.z_tip, 100)  # 펜 끝은 고정 갠트리 아래 · 받침이 내려감
+        self.assertIn("통과", lay.describe())

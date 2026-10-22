@@ -1066,7 +1066,8 @@ def piece_meshes(piece: Piece, step: int = 1, wake: dict | None = None) -> dict:
 
 
 def write_job(job: Job, spec: SculptorSpec, folder: str | Path, meshes: bool = True) -> dict:
-    """작업 폴더: G-code · 경로 JSON · 요약 · (작업 뒤 조각) 기억 · 메시."""
+    """작업 폴더: G-code · 경로 JSON · 공간 배치 · 요약 · (작업 뒤 조각) 기억 · 메시."""
+    from .layout import make_layout
     from .mesh import write_stl
 
     folder = Path(folder)
@@ -1076,6 +1077,7 @@ def write_job(job: Job, spec: SculptorSpec, folder: str | Path, meshes: bool = T
     gc = write_gcode(job, plan, spec, folder / "job.gcode", preds[0] if preds else None)
     (folder / "printer.cfg").write_text(klipper_cfg(spec), encoding="utf-8")
     (folder / "passes.json").write_text(json.dumps(passes_json(job, plan, spec)), encoding="utf-8")
+    (folder / "layout.json").write_text(json.dumps(make_layout(spec).to_json(), ensure_ascii=False), encoding="utf-8")
     t = job_time(job, plan, spec)
     med = medium_plan(job, plan, spec)
     t["saline_ml"] = med["fill_ml"]

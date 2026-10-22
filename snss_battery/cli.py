@@ -251,16 +251,22 @@ def cmd_static(a: argparse.Namespace) -> None:
 def cmd_sculptor(a: argparse.Namespace) -> None:
     from pathlib import Path
 
+    import json
+
+    from .layout import make_layout
     from .printer import SculptorSpec, bom, klipper_cfg
 
     spec = SculptorSpec()
     print(spec.describe())
+    lay = make_layout(spec)
+    print("\n" + lay.describe())
     out = Path(a.out) / "machine"
     out.mkdir(parents=True, exist_ok=True)
     (out / "printer.cfg").write_text(klipper_cfg(spec), encoding="utf-8")
     rows = ["구분,품목,수량,사양,구입처"] + [f"{b.group},{b.part},{b.qty},\"{b.spec}\",{b.where}" for b in bom(spec)]
     (out / "bom.csv").write_text("\n".join(rows) + "\n", encoding="utf-8")
-    print(f"\n저장: {out / 'printer.cfg'} · {out / 'bom.csv'}")
+    (out / "layout.json").write_text(json.dumps(lay.to_json(), ensure_ascii=False), encoding="utf-8")
+    print(f"\n저장: {out / 'printer.cfg'} · {out / 'bom.csv'} · {out / 'layout.json'}")
 
 
 def _xy(text: str) -> tuple[float, ...]:

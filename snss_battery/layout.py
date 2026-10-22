@@ -47,7 +47,7 @@ class Layout:
         bad = []
         frame_static = [b for b in self.boxes if b.kind in ("frame", "static")]
         for z in self.zones:
-            for b in frame_static:
+            for b in {b.name: b for b in sorted(frame_static, key=z.gap, reverse=True)}.values():  # 이름마다 가장 가까운 것 하나
                 g = z.gap(b)
                 if g < 2.0:
                     bad.append(f"{z.name} ↔ {b.name}: {'겹침 ' + format(-g, '.1f') if g < 0 else '틈 ' + format(g, '.1f')} mm (2 mm 이상 필요)")
@@ -55,7 +55,12 @@ class Layout:
         for b in self.parked():
             if hand.gap(b) < 2.0:
                 bad.append(f"주차한 {b.name} 이(가) 손 · 수확 통로를 막음")
-        # 움직이는 갠트리 ↔ 고정 부품
+        # 움직이는 갠트리 ↔ 고정 부품 · 위쪽 XY 모터 방수 통
+        pods = [b for b in self.boxes if b.name == "XY 모터 방수 통"]
+        for g in (b for b in self.boxes if b.kind == "gantry" and "(쓸림)" in b.name):
+            for b in pods:
+                if g.gap(b) < 2.0:
+                    bad.append(f"{g.name} ↔ {b.name}: {g.gap(b):.1f} mm")
         for g in (b for b in self.boxes if b.kind == "gantry"):
             for b in frame_static:
                 if b.kind == "frame" and b.name.startswith("탄소섬유 봉 (가로, 위"):
@@ -73,7 +78,7 @@ class Layout:
         return bad
 
     def parked(self) -> list[Box]:
-        """주차 위치(펜 뒤쪽 구석)에 있을 때 움직이는 갠트리 부품."""
+        """주차 위치(뒤쪽 가운데 — 손 · 수확 통로 밖)에 있을 때 움직이는 갠트리 부품."""
         px, py = self.park
         gz = self.gz
         return [Box("캐리지 (주차)", (px - 35, py - 31, gz - 21), (px + 35, py + 31, gz + 9), "gantry"),
@@ -112,18 +117,20 @@ class Layout:
 PEN_STACK = 125.0  # 펜 끝 → 갠트리: 바늘 40 + 몸체 70 + 마운트 15
 PLATE = 6.0  # 배양 받침 두께
 BED_CARRIAGE = 10.0  # 받침 아래 나사봉 너트 판
+HAND = 70.0  # 손 · 수확 통로 반폭 (받침 손잡이 포함)
+Z_SCREW = 102.0  # Z 나사봉 · 모터 방수 통 중심 (펜 작업 공간 · 손 통로 밖, 프레임 꼭짓점 안)
 
 
 def make_layout(spec: SculptorSpec | None = None) -> Layout:
     sp = spec or SculptorSpec()
     FX, FY, FZ = sp.frame_mm
-    bx, by, bz = (v / 2 for v in sp.build_mm[:2]) + (sp.build_mm[2],) if False else (sp.build_mm[0] / 2, sp.build_mm[1] / 2, sp.build_mm[2])
+    bx, by, bz = sp.build_mm[0] / 2, sp.build_mm[1] / 2, sp.build_mm[2]
     h = FX / 2 - 18  # 세로 봉 중심
     bed_bottom_min = 2.0
     z_tip = bed_bottom_min + BED_CARRIAGE + PLATE + bz
     gz = z_tip + PEN_STACK
-    travel = (bx + 15, FY / 2 - 18 - 36 - 16 - 31 + 10)  # X: 출력 + 15 · Y: X 봉 끝단·캐리지 여유 안
-    park = (travel[0], travel[1])
+    park = (0.0, HAND + 2 + 31 + 2)  # 뒤쪽 가운데: 캐리지(반폭 31)가 손 통로 밖
+    travel = (bx + 15, park[1])  # X: 출력 + 15 · Y: 주차까지
     boxes: list[Box] = []
     # 프레임: PETG 꼭짓점 8 · 탄소섬유 봉 12 (금속 없음)
     for sx in (-1, 1):
@@ -137,7 +144,7 @@ def make_layout(spec: SculptorSpec | None = None) -> Layout:
             boxes.append(Box(f"탄소섬유 봉 (가로, {lab}, Y)", (s * h - 4, -h, zc - 4), (s * h + 4, h, zc + 4), "frame"))
     # Z: 나일론 나사봉 3 + 모터 방수 통 (바닥) — 받침 기둥 밖
     z_screw_top = z_tip - PLATE - BED_CARRIAGE + 8
-    for x, y in ((95, -95), (95, 95), (-95, -95)):
+    for x, y in ((Z_SCREW, -Z_SCREW), (Z_SCREW, Z_SCREW), (-Z_SCREW, -Z_SCREW)):
         boxes.append(_cyl("Z 나일론 나사봉", x, y, 4, 0, z_screw_top))
         boxes.append(_cyl("Z 모터 방수 통", x, y, 28, 0, 46))
     # 원료 펌프 3 (왼쪽 벽, 세로: 방수 통 아래 · 주사기 위)
@@ -151,7 +158,7 @@ def make_layout(spec: SculptorSpec | None = None) -> Layout:
     # 고정 갠트리 (위): Y 레일 · XY 모터 방수 통 — 움직이는 것은 쓸고 지나가는 범위로
     for s in (-1, 1):
         boxes.append(Box("Y 레일 (탄소섬유)", (s * 121 - 4, -127, gz - 4), (s * 121 + 4, 127, gz + 4), "gantry"))
-        boxes.append(_cyl("XY 모터 방수 통", s * 121, 121, 28, gz - 58, gz - 12, "gantry"))
+        boxes.append(_cyl("XY 모터 방수 통", s * 121, 121, 28, gz - 70, gz - 24, "gantry"))  # 캐리지 아래로 비켜 남
         boxes.append(Box("X 봉 끝단 (쓸림)", (s * 121 - 20, -127, gz - 15), (s * 121 + 20, 127, gz + 15), "gantry"))
     boxes.append(Box("X 빔 · 캐리지 (쓸림)", (-101, -travel[1] - 31, gz - 21), (101, travel[1] + 31, gz + 12), "gantry"))
     # 배양 받침 (Z 로 오르내림)
@@ -162,6 +169,6 @@ def make_layout(spec: SculptorSpec | None = None) -> Layout:
         Box("펜 작업 공간 (출력 중)", (-bx - 16, -by - 16, z_tip - bz), (bx + 16, by + 16, gz - 21), "zone"),
         Box("펜 이동 공간 (끝 높이 위)", (-travel[0] - 16, -travel[1] - 16, z_tip), (travel[0] + 16, travel[1] + 16, gz - 21), "zone"),
         Box("배양 받침 기둥", (-62, -62, bed_bottom_min), (62, 62, z_tip), "zone"),
-        Box("손 · 수확 통로 (주차 때)", (-70, -70, z_tip - bz - PLATE), (70, 70, sp.tank.inner_mm[2]), "zone"),
+        Box("손 · 수확 통로 (주차 때)", (-HAND, -HAND, z_tip - bz - PLATE), (HAND, HAND, sp.tank.inner_mm[2]), "zone"),
     ]
     return Layout(sp, z_tip, gz, bed_bottom_min, travel, park, boxes, zones)

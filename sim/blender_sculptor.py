@@ -193,38 +193,15 @@ def collection(name):
     return c
 
 
-# ---------- 기계 — 통째로 배지에 잠김 ----------
+# ---------- 기계 — 통째로 배지에 잠김 (공간 배치 = layout.json, snss_battery/layout.py) ----------
 collection("조각가 SC-1 (물속)")
-FX, FY, FZ = 330, 330, 300  # printer.SculptorSpec.frame_mm
+LAY = json.loads((JOB / "layout.json").read_text(encoding="utf-8"))
 TANK_IN, FILL_MM = 350, 330  # printer.Tank: 36 큐브 수조 안 350, 배지 330 mm
-Z0 = -8  # 수조 바닥
 MAT["cf"] = principled("탄소섬유 봉", (0.04, 0.04, 0.05), 0.3, metallic=0.2)
 MAT["petg"] = principled("PETG (출력 부품)", (0.95, 0.42, 0.08), 0.4)
 MAT["nylon"] = principled("나일론 나사봉", (0.92, 0.9, 0.84), 0.5)
-tank = box("배양조 — 36 큐브 유리 수조", (TANK_IN + 8, TANK_IN + 8, TANK_IN + 6), (0, 0, Z0 + TANK_IN / 2), MAT["acrylic"])
-box("수조 받침대", (TANK_IN + 40, TANK_IN + 40, 14), (0, 0, Z0 - 10), MAT["plate"])
-# 프레임: PETG 꼭짓점 8 + 탄소섬유 봉 12 (금속 없음)
-fz0, fz1 = Z0 + 4, Z0 + 4 + FZ
-hx, hy = FX / 2 - 18, FY / 2 - 18
-for sx in (-1, 1):
-    for sy in (-1, 1):
-        for z in (fz0 + 18, fz1 - 18):
-            box("꼭짓점 (PETG)", (36, 36, 36), (sx * hx, sy * hy, z), MAT["petg"])
-        cyl("탄소섬유 봉 (세로)", 4, FZ - 36, (sx * hx, sy * hy, (fz0 + fz1) / 2), MAT["cf"], verts=16)
-for z in (fz0 + 26, fz1 - 26):
-    for sy in (-1, 1):
-        cyl("탄소섬유 봉 (X)", 4, 2 * hx - 36, (0, sy * hy, z), MAT["cf"], rot=(0, math.pi / 2, 0), verts=16)
-    for sx in (-1, 1):
-        cyl("탄소섬유 봉 (Y)", 4, 2 * hy - 36, (sx * hx, 0, z), MAT["cf"], rot=(math.pi / 2, 0, 0), verts=16)
-# 배양 받침 + 흑연 패드 (왼발 +, 오른발 −) — 받침째 들어 올려 수확
-box("배양 받침", (50, 36, 6), (0, 2, -3), MAT["pen"])
-for sx in (-1, 1):
-    box("수확 손잡이", (14, 14, 6), (sx * 31, 2, -3), MAT["pen"])
-pads = [box(f"흑연 패드 {'+' if sx < 0 else '−'}", (14, 22, 0.8), (sx * 9.5, 2.5, -0.4), MAT["graphite"]) for sx in (-1, 1)]
-box("배지 전도도 전극 (연필심)", (3, 3, 40), (-hx + 30, hy - 10, 150), MAT["graphite"])
-box("누설 기준 전극 (흑연)", (3, 3, 40), (-hx + 40, hy - 10, 150), MAT["graphite"])
 
-# 펜 위치 = 마지막 경로 끝 (없으면 작업물 위)
+# 펜 위치 = 마지막 경로 끝 (없으면 작업물 위). 작업물 좌표는 받침 윗면 = 0.
 pen_xyz = (0.0, 0.0, 60.0)
 for op in reversed(passes["ops"]):
     ps = [p for p in op["passes"] if p["segs"]]
@@ -233,18 +210,57 @@ for op in reversed(passes["ops"]):
         pen_xyz = (s[2], s[3], ps[-1]["z"]) if ps[-1]["kind"] != "stroke" else tuple(s)
         break
 px_, py_, pz_ = pen_xyz
+# 갠트리는 고정, 받침이 내려감 → 펜 끝(배치 z_tip)이 지금 층 높이에 오도록 기계 전체를 작업물 기준으로 놓음
+MZ = pz_ - LAY["z_tip"]  # 배치 좌표(프레임 바닥 = 0) → 장면
+Z0 = MZ - 4  # 수조 바닥
+GZ = LAY["gz"] + MZ
 tip = (px_, py_, pz_)
-GZ = tip[2] + 125  # Z 갠트리 (XY 가 통째로 오르내림)
+
+
+def lay_mat(b):
+    n = b["name"]
+    for key, m in (("탄소섬유", "cf"), ("나일론", "nylon"), ("전극", "graphite"), ("케이블", "dark")):
+        if key in n:
+            return MAT[m]
+    for key, m in (("GO", "go"), ("SNSS", "snss"), ("PVA", "pva")):
+        if n.startswith("원료 주사기") and n.endswith(key):
+            return MAT[m]
+    return MAT["petg"]
+
+
+def lay_obj(b):
+    lo, hi = b["lo"], b["hi"]
+    c = [(lo[k] + hi[k]) / 2 for k in range(3)]
+    c[2] += MZ
+    size = [hi[k] - lo[k] for k in range(3)]
+    if b["shape"] == "cyl_z":
+        return cyl(b["name"], size[0] / 2, size[2], c, lay_mat(b), verts=32)
+    if "탄소섬유 봉" in b["name"] or "레일" in b["name"]:  # 가로 봉은 원기둥으로
+        ax = max(range(3), key=lambda k: size[k])
+        rot = {0: (0, math.pi / 2, 0), 1: (math.pi / 2, 0, 0), 2: (0, 0, 0)}[ax]
+        return cyl(b["name"], min(size) / 2, size[ax], c, lay_mat(b), rot=rot, verts=16)
+    return box(b["name"], size, c, lay_mat(b))
+
+
+tank = box("배양조 — 36 큐브 유리 수조", (TANK_IN + 8, TANK_IN + 8, TANK_IN + 6), (0, 0, Z0 + TANK_IN / 2), MAT["acrylic"])
+box("수조 받침대", (TANK_IN + 40, TANK_IN + 40, 14), (0, 0, Z0 - 10), MAT["plate"])
+# 고정 부품 (프레임 · Z 나사봉 · 방수 통 · 원료 · 전극 · 케이블 · Y 레일 · XY 모터) — 움직이는 '쓸림' 상자는 빼고
+for b in LAY["boxes"]:
+    if b["kind"] in ("frame", "static", "gantry") and "(쓸림)" not in b["name"]:
+        lay_obj(b)
+# 움직이는 갠트리: X 빔은 펜 Y 에, 캐리지는 펜 XY 에
 for sx in (-1, 1):
-    cyl("Y 안내 (탄소섬유)", 4, 2 * hy - 40, (sx * (hx - 22), 0, GZ), MAT["cf"], rot=(math.pi / 2, 0, 0), verts=16)
-    box("X 봉 끝단 (PETG)", (40, 32, 30), (sx * (hx - 22), py_, GZ), MAT["petg"])
-cyl("X 안내 (탄소섬유)", 4, 2 * hx - 80, (0, py_, GZ), MAT["cf"], rot=(0, math.pi / 2, 0), verts=16)
-box("펜 캐리지 (PETG)", (70, 62, 18), (px_, py_, GZ - 12), MAT["petg"])
-for zx, zy in ((-hx + 22, -hy + 22), (hx - 22, -hy + 22), (0, hy - 22)):  # Z 나일론 나사봉 3개
-    cyl("Z 나일론 나사봉", 4, FZ - 50, (zx, zy, (fz0 + fz1) / 2), MAT["nylon"], verts=16)
-    cyl("모터 방수 통 (Z)", 28, 46, (zx, zy, fz0 + 23), MAT["petg"])
-for sx in (-1, 1):  # XY 모터 방수 통 (뒤 모서리, 갠트리와 함께)
-    cyl("모터 방수 통 (XY)", 28, 46, (sx * (hx - 22), hy - 30, GZ + 20), MAT["petg"])
+    box("X 봉 끝단 (PETG)", (40, 32, 30), (sx * 121, py_, GZ), MAT["petg"])
+cyl("X 빔 (탄소섬유)", 4, 202, (0, py_, GZ), MAT["cf"], rot=(0, math.pi / 2, 0), verts=16)
+box("펜 캐리지 (PETG)", (70, 62, 30), (px_, py_, GZ - 6), MAT["petg"])
+# 배양 받침 (Z 나사봉 너트 판 위) + 흑연 패드 (왼발 +, 오른발 −) — 받침째 들어 올려 수확
+bed = next(b for b in LAY["boxes"] if b["kind"] == "bed")
+bw = bed["hi"][0] - bed["lo"][0]
+box("배양 받침", (bw, bw, 6), (0, 0, -3), MAT["pen"])
+box("받침 너트 판 (나사봉 3)", (bw, bw, 10), (0, 0, -11), MAT["petg"])
+for sx in (-1, 1):
+    box("수확 손잡이", (8, 30, 14), (sx * (bw / 2 + 4), 0, 4), MAT["pen"])
+pads = [box(f"흑연 패드 {'+' if sx < 0 else '−'}", (14, 22, 0.8), (sx * 9.5, 2.5, -0.4), MAT["graphite"]) for sx in (-1, 1)]
 # 펜 (물속): 바늘 + 몸체 + 실리콘에 묻힌 빛 고리
 cyl("바늘 22G", 0.5, 40, (tip[0], tip[1], tip[2] + 20), MAT["needle"], verts=16)
 cyl("펜 몸체", 11, 70, (tip[0], tip[1], tip[2] + 75), MAT["pen"])
@@ -252,19 +268,17 @@ cyl("혼합기", 5, 14, (tip[0], tip[1], tip[2] + 45), MAT["pen"])
 bpy.ops.mesh.primitive_torus_add(major_radius=9 * S, minor_radius=2 * S, location=(tip[0] * S, tip[1] * S, (tip[2] + 42) * S))
 bpy.context.object.name = "405 nm 빛 고리 (실리콘 속)"
 bpy.context.object.data.materials.append(MAT["led"])
-box("카메라 방수 통 (스캐너)", (40, 22, 30), (tip[0] + 45, tip[1], GZ - 30), MAT["petg"])
-# 원료 주사기 펌프 3 (방수 통 모터) — 왼쪽 벽, 물속
-for i, (key, lab) in enumerate((("go", "GO"), ("snss", "SNSS"), ("pva", "PVA"))):
-    py = hy - 60 - i * 50
-    cyl(f"원료 주사기 {lab}", 10, 110, (-hx + 40, py, 120), MAT[key])
-    cyl(f"주사기 펌프 방수 통 {lab}", 28, 46, (-hx + 40, py, 200), MAT["petg"])
-    tube(f"원료 관 {lab}", [(-hx + 40, py, 64), (-hx + 80, py - 10, 40), (tip[0] - 30, tip[1] + 10, tip[2] + 150),
-                            (tip[0] + (i - 1) * 5, tip[1], tip[2] + 110)], 1.2, MAT[key])
-# 전자 방수 통 + 방수 케이블 → 배양조 밖 단자판
-box("전자 방수 통 (파이 Zero · 보드)", (180, 120, 50), (40, hy - 70, fz0 + 30), MAT["petg"])
-tube("방수 케이블 (24 V + 이더넷)", [(120, hy - 40, fz0 + 40), (150, hy, 200), (TANK_IN / 2 - 10, TANK_IN / 2 - 20, FILL_MM + 30),
-                                 (TANK_IN / 2 + 60, TANK_IN / 2 - 20, FILL_MM + 10), (TANK_IN / 2 + 110, 40, 140)], 3, MAT["dark"])
-box("배양조 밖 단자판 (BNC · SMA · USB · RJ45)", (40, 170, 64), (TANK_IN / 2 + 120, 40, 120), MAT["petg"])
+box("카메라 방수 통 (스캐너)", (40, 22, 30), (tip[0] + 45, tip[1], GZ - 40), MAT["petg"])
+# 원료 관: 주사기 위 → 펜 몸체 위
+for key, lab in (("go", "GO"), ("snss", "SNSS"), ("pva", "PVA")):
+    sy = next(b for b in LAY["boxes"] if b["name"] == f"원료 주사기 {lab}")
+    x, y, top = (sy["lo"][0] + sy["hi"][0]) / 2, (sy["lo"][1] + sy["hi"][1]) / 2, sy["hi"][2] + MZ
+    tube(f"원료 관 {lab}", [(x, y, top), (x + 20, y, top + 40), (tip[0] - 30, tip[1] + 10, tip[2] + 150),
+                           (tip[0], tip[1], tip[2] + 110)], 1.2, MAT[key])
+# 방수 케이블 → 배양조 밖 단자판
+tube("방수 케이블 (24 V + 이더넷, 밖)", [(156, 0, Z0 + FILL_MM + 20), (TANK_IN / 2 + 30, 0, Z0 + FILL_MM + 40),
+                                     (TANK_IN / 2 + 110, 40, Z0 + 140)], 3, MAT["dark"])
+box("배양조 밖 단자판 (BNC · SMA · USB · RJ45)", (40, 170, 64), (TANK_IN / 2 + 120, 40, Z0 + 128), MAT["petg"])
 
 # 빛
 bpy.ops.object.light_add(type="AREA", location=(1.6, -2.4, 4.2))
@@ -341,7 +355,7 @@ def camera(name, loc, target, lens=50):
     return o
 
 
-hero = camera("전체", (760, -1050, 560), (40, 0, 150), 50)
+hero = camera("전체", (760, -1050, Z0 + 568), (40, 0, Z0 + 158), 50)
 close = camera("작업물", (center[0] + 2.1 * H, center[1] - 2.6 * H, H * 1.0), (center[0], center[1], H * 0.48), 60)
 
 if CYCLES:
