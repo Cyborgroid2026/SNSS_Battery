@@ -406,11 +406,33 @@ if ANIM:
     scene.camera = close
     scene.render.resolution_x, scene.render.resolution_y = 960, 960
     scene.render.fps = 24
-    scene.render.image_settings.file_format = "FFMPEG"
-    scene.render.ffmpeg.format = "MPEG4"
-    scene.render.ffmpeg.codec = "H264"
-    scene.render.filepath = str(OUT / "being.mp4")
-    bpy.ops.render.render(animation=True)
+    im = scene.render.image_settings
+    try:
+        if hasattr(im, "media_type"):  # Blender 5: 동영상은 media_type 부터
+            im.media_type = "VIDEO"
+        im.file_format = "FFMPEG"
+        scene.render.ffmpeg.format = "MPEG4"
+        scene.render.ffmpeg.codec = "H264"
+        scene.render.filepath = str(OUT / "being.mp4")
+        bpy.ops.render.render(animation=True)
+    except (TypeError, AttributeError):  # 동영상 출력이 없으면 PNG 프레임 → 시스템 ffmpeg
+        import shutil
+        import subprocess
+
+        if hasattr(im, "media_type"):
+            im.media_type = "IMAGE"
+        im.file_format = "PNG"
+        frames = OUT / "frames"
+        frames.mkdir(exist_ok=True)
+        scene.render.filepath = str(frames / "f_####")
+        bpy.ops.render.render(animation=True)
+        if shutil.which("ffmpeg"):
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-framerate", "24", "-i", str(frames / "f_%04d.png"),
+                            "-c:v", "libx264", "-pix_fmt", "yuv420p", str(OUT / "being.mp4")], check=True)
+            shutil.rmtree(frames)
+    if hasattr(im, "media_type"):
+        im.media_type = "IMAGE"
+    im.file_format = "PNG"
     print("동영상:", OUT / "being.mp4")
 
 set_clock(WAKE_MAX * 1.1)
