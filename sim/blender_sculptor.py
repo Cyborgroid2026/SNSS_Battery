@@ -370,41 +370,50 @@ for i, (t, lab) in enumerate(((0.0, "잠듦"), (WAKE_MED, "절반"), (WAKE_MAX *
     render(close, OUT / f"wake_{i}.png", (1000, 1000))
 
 if ANIM:
-    # 1~120: 아래에서 위로 쌓임 (지오메트리 노드로 높이 위를 지움) · 121~240: 발에서 깨어남
-    ng = bpy.data.node_groups.new("쌓기", "GeometryNodeTree")
-    ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
-    ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
-    n = ng.nodes
-    gi, go = n.new("NodeGroupInput"), n.new("NodeGroupOutput")
-    height = n.new("ShaderNodeValue")  # 모든 조각이 같은 높이를 씀 — 이 노드에 키프레임
-    height.name = height.label = "height"
-    pos_n, sep = n.new("GeometryNodeInputPosition"), n.new("ShaderNodeSeparateXYZ")
-    cmp_ = n.new("FunctionNodeCompare")
-    cmp_.data_type = "FLOAT"
-    cmp_.operation = "GREATER_THAN"
-    dele = n.new("GeometryNodeDeleteGeometry")
-    dele.domain = "FACE"
-    ng.links.new(pos_n.outputs[0], sep.inputs[0])
-    ng.links.new(sep.outputs["Z"], cmp_.inputs[0])
-    ng.links.new(height.outputs[0], cmp_.inputs[1])
-    ng.links.new(gi.outputs[0], dele.inputs["Geometry"])
-    ng.links.new(cmp_.outputs[0], dele.inputs["Selection"])
-    ng.links.new(dele.outputs[0], go.inputs[0])
-    scene.frame_start, scene.frame_end = 1, 240
-    for o in objs.values():
-        o.modifiers.new("쌓기", "NODES").node_group = ng
-    height.outputs[0].default_value = 0.0
-    height.outputs[0].keyframe_insert("default_value", frame=1)
-    height.outputs[0].default_value = float(H * S * 1.02)
-    height.outputs[0].keyframe_insert("default_value", frame=120)
+    # 1~72: 아래에서 위로 쌓임 · 73~144: 발에서 깨어남.
+    # 쌓기는 재질 안에서 높이 위를 투명하게 (형상을 다시 계산하지 않아 빠름)
+    FB, FE = 72, 144
+    scene.frame_start, scene.frame_end = 1, FE
+    for role in ("pos", "neg", "mem"):
+        nt = MAT[role].node_tree
+        out = nt.nodes["Material Output"]
+        shader = out.inputs["Surface"].links[0].from_socket
+        geo = nt.nodes.new("ShaderNodeNewGeometry")
+        sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+        h = nt.nodes.new("ShaderNodeValue")
+        h.name = h.label = "height"
+        cmp_ = nt.nodes.new("ShaderNodeMath")
+        cmp_.operation = "GREATER_THAN"
+        tr = nt.nodes.new("ShaderNodeBsdfTransparent")
+        mix = nt.nodes.new("ShaderNodeMixShader")
+        nt.links.new(geo.outputs["Position"], sep.inputs[0])
+        nt.links.new(sep.outputs["Z"], cmp_.inputs[0])
+        nt.links.new(h.outputs[0], cmp_.inputs[1])
+        nt.links.new(cmp_.outputs[0], mix.inputs["Fac"])
+        nt.links.new(shader, mix.inputs[1])
+        nt.links.new(tr.outputs[0], mix.inputs[2])
+        nt.links.new(mix.outputs[0], out.inputs["Surface"])
+        h.outputs[0].default_value = 0.0
+        h.outputs[0].keyframe_insert("default_value", frame=1)
+        h.outputs[0].default_value = float(H * S * 1.02)
+        h.outputs[0].keyframe_insert("default_value", frame=FB)
+        if role != "mem":
+            try:
+                MAT[role].surface_render_method = "DITHERED"
+            except (AttributeError, TypeError):
+                MAT[role].blend_method = "HASHED"
     for role in ("pos", "neg"):
         node = MAT[role].node_tree.nodes["clock"]
         node.outputs[0].default_value = 0.0
-        node.outputs[0].keyframe_insert("default_value", frame=120)
+        node.outputs[0].keyframe_insert("default_value", frame=FB)
         node.outputs[0].default_value = WAKE_MAX * 1.1
-        node.outputs[0].keyframe_insert("default_value", frame=240)
+        node.outputs[0].keyframe_insert("default_value", frame=FE)
     scene.camera = close
-    scene.render.resolution_x, scene.render.resolution_y = 960, 960
+    scene.render.resolution_x, scene.render.resolution_y = 720, 720
+    try:
+        scene.eevee.taa_render_samples = 16
+    except AttributeError:
+        pass
     scene.render.fps = 24
     im = scene.render.image_settings
     try:

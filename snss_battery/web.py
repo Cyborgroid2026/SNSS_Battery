@@ -262,7 +262,7 @@ def _sculptor_assets(folder: Path) -> dict:
     job = S.job_new(piece, spec)
     res = S.write_job(job, spec, out, meshes=False)
     pr = res["predictions"][0]
-    (out / "bom.csv").write_text("구분,부품,수량,사양\n" + "\n".join(f"{b.group},{b.part},{b.qty},\"{b.spec}\"" for b in bom(spec)) + "\n",
+    (out / "bom.csv").write_text("구분,품목,수량,사양,구입처\n" + "\n".join(f"{b.group},{b.part},{b.qty},\"{b.spec}\",{b.where}" for b in bom(spec)) + "\n",
                                  encoding="utf-8")
     # 3D 보기: 거칠게 (칸 3개씩) — 세포 경계가 보일 만큼
     ms = S.piece_meshes(piece, 3, pr["cells"])
@@ -336,7 +336,7 @@ def _sculptor_assets(folder: Path) -> dict:
     _save(fig_slices, out / "slices.png", size=(11, 4.0))
     # Blender 렌더 (./tools.sh blender 로 만든 것이 있으면)
     renders = []
-    jobs = sorted((ROOT / "sculpt_out" / "jobs").glob("*/blender"))
+    jobs = sorted(f.parent for f in (ROOT / "sculpt_out" / "jobs").glob("*/blender/sculptor.png"))
     if jobs:
         src = jobs[-1]
         for n in ("sculptor.png", "wake_0.png", "wake_1.png", "wake_2.png", "being.mp4"):
@@ -349,8 +349,22 @@ def _sculptor_assets(folder: Path) -> dict:
         recipes.append({"name": r.name, "go": r.go, "snss": r.snss, "pva": r.pva, "variant": r.go_variant, "light": r.light,
                         "color": r.color, "go_mg": g["go_mg_ml"], "nacl": g["nacl_mm"], "ccc": g["ccc_mm"],
                         "pva_wt": g["pva_wt"], "ok": g["ok"], "yield": g["yield_pa"]})
+    # 출력 부품 (부모 프린터) · 시중 구매 · 호환 단자 — STL 은 무거워 웹에 넣지 않음 (./tools.sh parts)
+    from .interfaces import ports_table
+    from .parts import PARENT_BED_MM, printed_parts
+
+    parts = []
+    for part in printed_parts():
+        parts.append({"name": part.name, "qty": part.qty, "material": part.material, "role": part.role,
+                      "size": [round(x, 1) for x in part.size], "fits": part.fits()})
+    parts_png = ROOT / "sculpt_out" / "parts" / "parts.png"
+    if parts_png.exists():
+        shutil.copy2(parts_png, out / "parts.png")
     t = res["time"]
     return {
+        "parts": parts, "parent_bed": PARENT_BED_MM, "parts_png": "sculpt/parts.png" if parts_png.exists() else None,
+        "buy": [{"group": b.group, "part": b.part, "qty": b.qty, "spec": b.spec, "where": b.where} for b in bom(spec)],
+        "ports": ports_table(),
         "machine": spec.describe(), "check": spec.check(), "recipes": recipes,
         "feeds": [{"name": f.name, "stock": f.stock} for f in spec.feeds],
         "prediction": {k: v for k, v in pr.items() if k not in ("cells", "series")},
@@ -626,6 +640,14 @@ main { padding: 20px 24px 40px; }
 section { display: none; } section.on { display: block; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-bottom: 18px; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.sc-view { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 12px; margin-bottom: 18px; }
+.sc-stage { position: relative; min-height: 460px; background: radial-gradient(circle at 50% 40%, #2a3340, #0f1318); border-radius: 10px; overflow: hidden; }
+.sc-stage canvas { display: block; width: 100%; height: 100%; }
+.sc-msg { position: absolute; inset: 0; display: grid; place-items: center; color: #c9d2dc; }
+.sc-side { display: flex; flex-direction: column; gap: 10px; }
+.sc-side input[type=range] { width: 100%; } .sc-side label { display: block; margin: 2px 0; }
+.sc-val { color: var(--muted); font-size: 12px; margin: 2px 0 6px; font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) { .sc-view { grid-template-columns: 1fr; } }
 .card .k { color: var(--muted); font-size: 12px; } .card .v { font-size: 15px; font-weight: 600; margin-top: 2px; }
 .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
 .badge.ok { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
@@ -727,6 +749,15 @@ aside .panel { background: var(--panel); border: 1px solid var(--line); border-r
     <h2>출력 단면 — 세포질 (p 빨강 · n 파랑) · 막 · 피부</h2>
     <img class="fig" src="sculpt/slices.png" alt="단면">
     <div id="scRenders"></div>
+    <h2>바깥 연결 — 아날로그 · 디지털 · 양자 공학기기 호환</h2>
+    <p class="sub">존재의 발 단자는 BNC 로 오실로스코프·멀티미터·포텐시오스탯에, 조각가 자체는 SCPI(TCP 5025)로 계측기처럼,
+      양자 계측기와는 10 MHz/1 PPS 시간 동기 · 층 트리거 · 양자 난수(세포 씨앗) · C–V 되먹임(페르미 준위 역산)으로 이어집니다.</p>
+    <table id="scPorts"></table>
+    <h2>만드는 법 — 부품은 3D 프린터로, 원료는 시중에서</h2>
+    <div id="scPartsImg"></div>
+    <table id="scParts"></table>
+    <h3>시중에서 사는 것</h3>
+    <table id="scBuy"></table>
     <h2>작업 · 파일</h2>
     <table id="scJob"></table>
     <pre id="scText"></pre>

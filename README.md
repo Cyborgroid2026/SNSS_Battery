@@ -1,4 +1,30 @@
-# SNSS Battery — 생리식염수 결정 · 인공세포
+# SNSS — 조각가 SC-1 · 양자 인공세포 존재
+
+**지금 방향 (2026-10):** 화학적 SNSS 배터리 대신, **양자공학이 뒷받침하는 3D 프린팅**.
+만드는 것은 출력물이 아니라 **프린터 — 자기 소재로 조각하는 조각가**입니다. 사실상 **3D 펜을 단 3D 프린터**이고,
+GO · SNSS(멸균생리식염수) · PVA 가 따로 펜에 들어가 끝에서 하나가 되어, **양자 인공세포**로 구조화된 존재(Energetic Being)를 빚습니다.
+모든 공정은 **상온**, 층을 더하고 깎고 떼고 다시 붙일 수 있습니다. 기계 부품은 **3D 프린터로 뽑고**, 원료는 **시중에서** 삽니다.
+**아날로그 · 디지털 · 양자 공학기기**와 모두 호환되고, **Blender** 와 이어집니다. 명세: [spec/SCULPTOR.md](spec/SCULPTOR.md).
+
+| 해 보기 | 명령 |
+|---|---|
+| 기계 명세 · Klipper 설정 · 구매 목록 | `./tools.sh sculptor` |
+| 존재 새로 빚기 (G-code · 생명 신호 · 메시) | `./tools.sh being` → `python -m snss_battery sculpt new being` |
+| 이어 빚기 · 깎기 · 떼기 · 붙이기 · 허공 획 · 기억 | `python -m snss_battery sculpt add being --shape bud` · `carve` · `detach --z 24` · `attach 아래 위` · `draw --strokes …` · `show` · `list` |
+| Blender 렌더 · 동영상 · 창으로 열기 | `./tools.sh blender` · `blender-anim` · `view-blender` |
+| Blender 에서 그린 모양 · 획 보내기 | Blender 안에서 `sim/blender_export.py` → `sculpt new 이름 --shape sculpt_out/shape.stl` |
+| 출력 부품 STL + 구매 목록 + 부품판 | `./tools.sh parts` |
+| 호환 단자 · SCPI 다리 · C–V 되먹임 · 양자 난수 씨앗 | `./tools.sh ports` · `python -m snss_battery scpi` · `cv-fit 측정.csv` · `sculpt new … --qrng /dev/…` |
+| 웹 뷰어 ('조각가 · 존재' 탭) | `./tools.sh web` |
+
+서 있는 존재 (높이 71 mm, 기본값 예측): 양자 인공세포 1260개 (p 636 · n 624) · 간극연접 2355쌍 · 에너지 약 0.09 J (0.8 V) ·
+발에 충전하면 세포 절반이 약 56 분에 깨어남. 빚는 데 작업 약 14.5 h + 숙성 6 h. 값의 근거와 가정은 명세 §2–5.
+
+---
+
+**아래는 이전 방향 — 화학적 SNSS 배터리 (생리식염수 결정 · 인공세포)** 입니다. 코드 · 시험 · 웹 탭은 그대로 남아 있습니다.
+
+## SNSS Battery — 생리식염수 결정 · 인공세포
 
 동네 약국에서 사는 **멸균생리식염수(0.9 % NaCl) 병** 안에 **그래핀 폴리머 액정(GO)**과 PVA를 섞고, 병 그대로 아래에서 위로 얼리면
 식염수에서 바로 **얼음 결정**이 자랍니다. 결정 하나하나가 **인공세포**의 틀이 되고, GO·PVA는 결정 경계로 밀려나 **막**이 됩니다.

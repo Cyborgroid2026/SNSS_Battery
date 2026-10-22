@@ -10,7 +10,9 @@
 - 출력은 투명한 지지 젤 욕조 안에서 — 펜이 3차원 어디든 획을 그으면 욕조가 그 자리에 붙잡음 (3D 펜)
 - 더하기(층 · 허공 획) · 깎기(흡입) · 붙이기(수소결합 자가치유) · 떼기(깎아 가름) — 전부 상온
 - 펜은 자석 마운트로 떼어 손으로도 씀 — 손으로 더한 것은 스캐너로 읽어 작업물 기억에 반영
-출력물은 금속 무함유. 기계 자체는 일반 3D 프린터처럼 금속 부품을 씀.
+- 기계 부품은 3D 프린터로 뽑고 (parts.py — RepRap 방식), 원료·소모품·전자부품은 시중에서 삼 (약국·마트·문구점·철물점·온라인)
+- 아날로그 · 디지털 · 양자 공학기기와 호환 (interfaces.py — BNC · SCPI · 10 MHz/PPS · 트리거 · QRNG · C–V 되먹임)
+출력물은 금속 무함유. 기계 자체는 일반 3D 프린터처럼 금속 부품(모터·봉·전자)을 씀.
 """
 
 from __future__ import annotations
@@ -86,9 +88,9 @@ class Bath:
     """지지 젤 욕조 — 항복응력 미세젤. 펜이 지나가면 흐르고, 멈추면 다시 굳어 획을 붙잡음."""
 
     size_mm: tuple[float, float, float] = (130.0, 130.0, 110.0)
-    gel: str = "카보폴 1.5 wt% (트라이에탄올아민 중화, 60 mM NaCl 로 잉크와 염 농도 맞춤)"
-    yield_pa: float = 25.0
-    rinse: str = "생리식염수(154 mM)로 헹굼 — 염이 미세젤을 무르게 해 씻겨 나감"
+    gel: str = "약국 초음파 젤 (카보머 · 무알코올) 을 그대로 — 항복응력 있는 투명 미세젤"
+    yield_pa: float = 25.0  # 초음파 젤 실측 범위 20–60 Pa (가정 — 첫 시험편으로 확인)
+    rinse: str = "생리식염수(154 mM)로 헹굼 — 염이 카보머 미세젤을 무르게 해 씻겨 나감"
     elements: frozenset[str] = frozenset({"C", "H", "O", "N"})
 
 
@@ -104,7 +106,8 @@ class SculptorSpec:
     name: str = "SNSS 조각가 SC-1"
     build_mm: tuple[float, float, float] = (120.0, 120.0, 100.0)
     frame_mm: tuple[float, float, float] = (420.0, 420.0, 560.0)
-    kinematics: str = "CoreXY (펜 XY) + 갠트리 Z (리드스크루 3개) — 욕조 안 허공 획은 XYZ 동시"
+    frame: str = "RepRap 방식 — 출력한 꼭짓점 8개 + 철물점 M8 나사봉 12개 (삼각 보강 없이 상자형)"
+    kinematics: str = "CoreXY (펜 XY, Ø8 매끈한 봉 + LM8UU) + 갠트리 Z (M8 나사봉 3개) — 욕조 안 허공 획은 XYZ 동시"
     print_speed_mm_s: float = 8.0
     stroke_speed_mm_s: float = 4.0
     travel_speed_mm_s: float = 60.0  # 욕조 안이라 느리게 (흔적이 남지 않게)
@@ -173,6 +176,7 @@ class SculptorSpec:
         b, p, bt = self.build_mm, self.pen, self.bath
         lines = [f"[{self.name} — 3D 펜을 단 상온 3D 프린터]",
                  f"  출력 공간 {b[0]:g}×{b[1]:g}×{b[2]:g} mm · 프레임 {self.frame_mm[0]:g}×{self.frame_mm[1]:g}×{self.frame_mm[2]:g} mm",
+                 f"  {self.frame}",
                  f"  {self.kinematics}",
                  f"  층 {self.layer_mm} mm · 선폭 {self.line_mm} mm · 쌓기 {self.print_speed_mm_s:g} mm/s · 허공 획 {self.stroke_speed_mm_s:g} mm/s",
                  f"  방: {self.chamber.note}",
@@ -227,30 +231,44 @@ class BomLine:
     part: str
     qty: str
     spec: str
+    where: str = ""  # 구입처 (일상에서 구할 수 있는 곳)
 
 
 def bom(spec: SculptorSpec | None = None) -> list[BomLine]:
+    """시중에서 사는 것 (출력할 수 없는 부품 · 원료 · 소모품). 출력 부품은 parts.printed_parts()."""
     s = spec or SculptorSpec()
     return [
-        BomLine("프레임", "알루미늄 2020 압출재", "12개", f"{s.frame_mm[0]:g}/{s.frame_mm[1]:g}/{s.frame_mm[2]:g} mm 각 4개"),
-        BomLine("프레임", "폴리카보네이트 덮개", "1식", "습도 유지, 앞문"),
-        BomLine("동작", "NEMA17 스테퍼 (XY CoreXY)", "2개", "0.9°"),
-        BomLine("동작", "NEMA17 + T8 리드스크루 (Z 갠트리)", "3개", "Z_TILT 자동 수평"),
-        BomLine("동작", "MGN12 리니어 레일", "3개", "X 1 · Y 2"),
-        BomLine("원료", "주사기 펌프 (NEMA17 + T8 2 mm)", "3개", "GO · SNSS · PVA, 20 mL 주사기"),
-        BomLine("원료", "핀치 밸브", "3개", "GO 줄 선택: 막용 · p형 · n형"),
-        BomLine("원료", "PTFE 관 Ø1/Ø2 mm", "3 m", "펌프 → 펜 (펜을 떼어도 연결 유지)"),
-        BomLine("펜", "SNSS 펜 몸체 (SLA 수지 출력)", "1개", s.pen.mixer),
-        BomLine("펜", "긴 블런트 노즐 22G × 40 mm", "5개", "욕조 안까지 닿음 (예비 포함)"),
-        BomLine("펜", "405 nm LED 링", "1개", s.pen.light),
-        BomLine("펜", "흡입 펌프 + 회수통", "1식", s.pen.carve),
-        BomLine("펜", "자석 키네마틱 마운트 + 포고핀", "1식", s.pen.mount),
-        BomLine("욕조", "아크릴 욕조", "1개", f"{s.bath.size_mm[0]:g}×{s.bath.size_mm[1]:g}×{s.bath.size_mm[2]:g} mm, 바닥 배수구"),
-        BomLine("욕조", "지지 젤", "약 1.5 L", s.bath.gel),
-        BomLine("환경", "초음파 가습기 + SHT45", "1식", s.chamber.note),
-        BomLine("감지", "레이저 선 프로파일러", "1개", s.scanner),
-        BomLine("제어", "Raspberry Pi 5 + BTT Octopus Pro", "1식", "Klipper, TMC2209 ×8"),
-        BomLine("전원", "24 V 200 W", "1개", "가열·냉각 장치 없음 (상온)"),
+        # 원료 — 펜에 들어가는 것
+        BomLine("원료", "멸균생리식염수 0.9 % (SNSS)", "500 mL × 2", "펜 SNSS 줄 · 헹굼", "약국"),
+        BomLine("원료", "PVA 세탁풀 / 슬라임용 PVA 풀", "500 mL", "폴리비닐알코올 — 붕사·향료 없는 것, 10 wt% 로 맞춤", "마트 · 문구점"),
+        BomLine("원료", "그래핀 산화물(GO) 수분산", "100 mL", "10 mg/mL, 판 크기 5–20 µm", "온라인 (재료·시약 쇼핑몰)"),
+        BomLine("원료", "폴리에틸렌이민 (PEI, 분지형)", "25 g", "n형 도펀트 — GO 통에 미리 흡착", "온라인 시약"),
+        BomLine("원료", "4-니트로벤젠디아조늄 테트라플루오로붕산염 (NBD)", "5 g", "p형 도펀트 — 차광 보관", "온라인 시약"),
+        BomLine("원료", "초음파 젤 (카보머, 무알코올)", "1 L", s.bath.gel, "약국 · 의료기기점"),
+        BomLine("원료", "정제수 (증류수)", "2 L", "원료 희석 · 세척", "마트 · 약국"),
+        # 소모품
+        BomLine("소모품", "일회용 주사기 20 mL", "6개", "원료 3줄 + 예비", "약국"),
+        BomLine("소모품", "블런트 바늘 22G (가능하면 40 mm)", "5개", "펜 노즐", "약국 · 의료기기점 · 온라인"),
+        BomLine("소모품", "실리콘 관 Ø1/Ø2 mm (수족관 에어호스 가는 것)", "3 m", "펌프 → 펜", "마트 (수족관 코너)"),
+        BomLine("소모품", "PETG 필라멘트 1.75 mm", "1 kg", "출력 부품 (parts.py)", "온라인 · 전자상가"),
+        # 기계 — 출력할 수 없는 것
+        BomLine("기계", "M8 나사봉 (전산볼트) 1 m", "4개", "프레임 12토막 · Z 3개", "철물점"),
+        BomLine("기계", "Ø8 스테인리스 환봉 1 m", "2개", "XY 안내봉 4토막", "철물점"),
+        BomLine("기계", "M8 너트 · 와셔", "60개", "프레임 꼭짓점 고정", "철물점"),
+        BomLine("기계", "LM8UU 직선 베어링", "8개", "XY 캐리지", "온라인 · 전자상가"),
+        BomLine("기계", "GT2 벨트 6 mm 2 m + 20T 풀리 2 · 아이들러 4", "1식", "CoreXY", "온라인 · 전자상가"),
+        BomLine("기계", "NEMA17 스테퍼", "8개", "XY 2 · Z 3 · 원료 펌프 3", "온라인 · 전자상가"),
+        BomLine("기계", "MG90S 서보", "3개", "핀치 밸브 (GO 통 선택)", "온라인 · 전자상가"),
+        BomLine("기계", "네오디뮴 자석 Ø10 × 3 + 쇠구슬 Ø8 × 3", "1식", "펜 키네마틱 마운트 (떼어 손으로 씀)", "문구점 · 철물점"),
+        BomLine("전자", "Raspberry Pi 5 + BTT Octopus Pro (TMC2209 × 8)", "1식", "Klipper + 다리(interfaces.py)", "온라인 · 전자상가"),
+        BomLine("전자", "405 nm LED 3 W × 4 + 정전류 드라이버", "1식", "펜 끝 광환원", "온라인 · 전자상가"),
+        BomLine("전자", "레이저 선 모듈 + USB 카메라", "1식", "스캐너 (작업물 겉면 읽기)", "온라인 · 전자상가"),
+        BomLine("전자", "SHT45 온습도 · 초음파 가습기 모듈", "1식", s.chamber.note, "온라인 · 전자상가"),
+        BomLine("전자", "ADS1115 (ADC) · MCP4728 (DAC) · XTR115 (4–20 mA)", "각 1개", "아날로그 단자 A1–A6", "온라인 · 전자상가"),
+        BomLine("전자", "BNC 판넬 잭 × 8 · SMA 판넬 잭 × 3", "1식", "아날로그 · 트리거 · 양자 동기 단자", "온라인 · 전자상가"),
+        BomLine("전자", "74HC390 × 4 + 비교기 (10 MHz → 1 PPS 분주)", "1식", "양자 계측기 시간 동기 (Q1)", "온라인 · 전자상가"),
+        BomLine("전자", "신호 릴레이 (DPDT)", "1개", "발 단자 ↔ 외부 충전원 A2 연결/분리", "온라인 · 전자상가"),
+        BomLine("전원", "24 V 200 W 어댑터", "1개", "가열·냉각 장치 없음 (상온)", "온라인 · 전자상가"),
     ]
 
 
@@ -281,6 +299,15 @@ def klipper_cfg(spec: SculptorSpec | None = None) -> str:
     out += ["[output_pin uv_light]  # 405 nm LED 링", "pin: PB7", "pwm: True", "value: 0", "",
             "[output_pin suction]  # 깎은 소재 흡입", "pin: PB9", "value: 0", "",
             "[output_pin humidifier]", "pin: PB10", "value: 1", "",
+            "[output_pin trig_layer]  # D3 TTL · Q3 LVTTL — 층·획·깎기 시작마다 뒤집힘 (움직임 큐와 동기)", "pin: PB11", "value: 0", "",
+            "[output_pin charge_relay]  # A2 외부 충전원 ↔ 발 단자", "pin: PB12", "value: 0", "",
+            "[gcode_macro TRIG]", "description: 트리거 출력 뒤집기 + 다리에 사건 알림 (시간 태거·카메라 동기)",
+            "variable_level: 0", "gcode:",
+            "  {% set v = 1 - printer['gcode_macro TRIG'].level %}",
+            "  SET_PIN PIN=trig_layer VALUE={v}", "  SET_GCODE_VARIABLE MACRO=TRIG VARIABLE=level VALUE={v}",
+            "  RESPOND PREFIX=snss MSG=\"TRIG {params.EVENT|default('layer')} {params.N|default(0)}\"", "",
+            "[gcode_macro CHARGE]", "description: 외부 충전원(A2)을 존재의 발 단자에 잇거나 뗌", "gcode:",
+            "  SET_PIN PIN=charge_relay VALUE={params.ON|default(1)|int}", "",
             "[gcode_macro MIX]",
             "description: 펜 끝 섞는 비율 GO:SNSS:PVA (합 1) · GO 통 선택 · 빛",
             "gcode:",

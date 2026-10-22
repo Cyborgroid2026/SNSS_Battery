@@ -21,6 +21,7 @@ _IMPORTMAP_LOCAL = '{ "imports": { "three": "./vendor/three/three.module.js", "t
 _IMPORTMAP_CDN = ('{ "imports": { "three": "%s/build/three.module.js", '
                   '"three/addons/OrbitControls.js": "%s/examples/jsm/controls/OrbitControls.js" } }' % (THREE_CDN, THREE_CDN))
 _WORKBENCH_TAG = '<script type="module" src="ui/workbench.js"></script>'
+_SCULPTOR_TAG = '<script type="module" src="ui/sculptor.js"></script>'
 
 
 def export_static(src: str | Path = "web_out", out: str | Path = "web_static", make_zip: bool = False) -> Path:
@@ -29,23 +30,27 @@ def export_static(src: str | Path = "web_out", out: str | Path = "web_static", m
         raise FileNotFoundError(f"{src}/index.html 이 없습니다 — 먼저 python -m snss_battery web --no-serve")
     if out.exists():
         shutil.rmtree(out)
-    shutil.copytree(src, out, ignore=shutil.ignore_patterns("vendor", "model.json", "model_tissue.json", "workbench.js"))
+    shutil.copytree(src, out, ignore=shutil.ignore_patterns("vendor", "model.json", "model_tissue.json", "workbench.js",
+                                                          "sculptor.js", "being_view.json"))
 
     (out / "data").mkdir(exist_ok=True)
-    for name, var in (("model.json", "SNSS_MODEL"), ("model_tissue.json", "SNSS_TISSUE")):
+    for name, var in (("model.json", "SNSS_MODEL"), ("model_tissue.json", "SNSS_TISSUE"), ("sculpt/being_view.json", "SNSS_BEING")):
         if (src / name).exists():
             body = json.dumps(json.loads((src / name).read_text(encoding="utf-8")), ensure_ascii=False, separators=(",", ":"))
-            (out / "data" / name.replace(".json", ".js")).write_text(f"window.{var}={body};\n", encoding="utf-8")
+            (out / "data" / Path(name).name.replace(".json", ".js")).write_text(f"window.{var}={body};\n", encoding="utf-8")
 
     html = (src / "index.html").read_text(encoding="utf-8")
     workbench = (src / "ui" / "workbench.js").read_text(encoding="utf-8").replace("</script", "<\\/script")
     for old in (_IMPORTMAP_LOCAL, _WORKBENCH_TAG):
         if old not in html:
             raise ValueError(f"index.html 에서 바꿀 부분을 찾지 못했습니다: {old[:40]}…")
-    data_tags = "".join(f'<script src="data/{n}"></script>\n' for n in ("model.js", "model_tissue.js")
+    data_tags = "".join(f'<script src="data/{n}"></script>\n' for n in ("model.js", "model_tissue.js", "being_view.js")
                         if (out / "data" / n).exists())
     html = html.replace(_IMPORTMAP_LOCAL, _IMPORTMAP_CDN)
     html = html.replace(_WORKBENCH_TAG, data_tags + '<script type="module">\n' + workbench + "\n</script>")
+    if _SCULPTOR_TAG in html and (src / "ui" / "sculptor.js").exists():
+        sc = (src / "ui" / "sculptor.js").read_text(encoding="utf-8").replace("</script", "<\\/script")
+        html = html.replace(_SCULPTOR_TAG, '<script type="module">\n' + sc + "\n</script>")
     (out / "index.html").write_text(html, encoding="utf-8")
 
     if make_zip:

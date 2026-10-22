@@ -6,6 +6,8 @@
 #   ./tools.sh blender       마지막 작업을 Blender 로 렌더 (기계 + 존재 + 깨어남) · .blend 저장
 #   ./tools.sh blender-anim  위 + 쌓기→깨어남 동영상 (mp4)
 #   ./tools.sh view-blender  마지막 작업의 .blend 를 Blender 창으로 열기
+#   ./tools.sh parts         조각가 출력 부품 STL (흔한 FDM 프린터로 뽑음) + 시중 구매 목록 + Blender 부품판
+#   ./tools.sh ports         아날로그 · 디지털 · 양자 공학기기 호환 단자
 #   ./tools.sh web           웹 뷰어 → http://127.0.0.1:8765/#tools (VS Code: Browser: Open Integrated Browser 에 붙여 넣기)
 #   ./tools.sh chem          용액 화학 (PHREEQC): 활동도, 어는점, 막전위 보정
 #   ./tools.sh pybamm        배터리 (PyBaMM): 충방전, 기존 모델과 비교
@@ -145,6 +147,8 @@ case "${1:-}" in
     blender) cmd_blender ;;
     blender-anim) cmd_blender --anim ;;
     view-blender) cmd_view_blender ;;
+    parts) "$PY" -m snss_battery parts && { command -v blender >/dev/null && blender -b --factory-startup --python sim/blender_parts.py -- sculpt_out/parts 2>&1 | grep -E "렌더|저장|Error" || true; } ;;
+    ports) "$PY" -m snss_battery ports ;;
     web) cmd_web ;;
     chem) cmd_chem ;;
     pybamm) cmd_pybamm ;;
@@ -157,5 +161,5 @@ case "${1:-}" in
     view-freeze) cmd_view_freeze ;;
     fem-movie) cmd_fem_movie ;;
     view-battery) cmd_view_battery ;;
-    *) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+    *) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

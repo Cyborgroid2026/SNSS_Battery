@@ -179,3 +179,99 @@ class SculptTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CompatibilityTest(unittest.TestCase):
+    """아날로그 · 디지털 · 양자 공학기기 호환."""
+
+    def test_all_three_domains_have_ports(self):
+        from snss_battery.interfaces import ANALOG, DIGITAL, PORTS, QUANTUM
+
+        doms = {p.domain for p in PORTS}
+        self.assertEqual(doms, {ANALOG, DIGITAL, QUANTUM})
+
+    def test_analog_scaling(self):
+        from snss_battery.interfaces import ma_to_value, value_to_ma, volts_to_share
+
+        self.assertEqual(volts_to_share(5.0), 0.5)
+        self.assertEqual(volts_to_share(12.0), 1.0)
+        self.assertAlmostEqual(ma_to_value(value_to_ma(60.0, 0, 100), 0, 100), 60.0)
+        with self.assertRaises(ValueError):
+            ma_to_value(1.0, 0, 100)  # 선 끊김
+
+    def test_scpi_drives_gcode(self):
+        from snss_battery.interfaces import Scpi
+
+        s = Scpi(measure=lambda w: 0.42)
+        self.assertIn("SC-1", s.send("*IDN?")[1])
+        g, _ = s.send("MIX:RAT 0.5,0.4,0.1,p,1")
+        self.assertEqual(g, ["MIX GO=0.500 SNSS=0.400 PVA=0.100 VARIANT=p LIGHT=1"])
+        self.assertEqual(s.send("MIX:RAT?")[1], "0.500,0.400,0.100,p,1")
+        self.assertEqual(s.send("CARV ON")[0], ["CARVE ON=1"])
+        self.assertEqual(s.send("MEAS:CQ?")[1], "0.42")
+        with self.assertRaises(ValueError):
+            s.send("MIX:RAT 0.5,0.5,0.5")
+
+    def test_quantum_cv_inversion_and_feedback(self):
+        from snss_battery.interfaces import doping_feedback, fit_carrier
+
+        e = np.linspace(-0.4, 0.4, 21)
+        c = QuantumElectrode("PEI", 7.0).c_total(e) * 100
+        r = fit_carrier(list(zip(e, c)), "PEI")
+        self.assertAlmostEqual(r["carrier_1e12"], 7.0, delta=0.05)
+        self.assertLess(doping_feedback(r["carrier_1e12"], 5.0, 0.5), 0.5)  # 너무 많이 도핑 → 몫을 줄임
+
+    def test_qrng_seed_from_file(self):
+        import tempfile
+
+        from snss_battery.interfaces import qrng_seed
+
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            f.write(bytes(range(16)))
+        seed, src = qrng_seed(f.name)
+        self.assertEqual(seed, int.from_bytes(bytes(range(8)), "big"))
+        self.assertIn("양자 난수", src)
+
+    def test_gcode_emits_triggers(self):
+        import tempfile
+        from pathlib import Path
+
+        spec = SculptorSpec()
+        job = S.job_new(S.design("coupon", 4.0, S.CellParams(), spec, "t"), spec)
+        with tempfile.TemporaryDirectory() as d:
+            g = S.write_gcode(job, S.plan_passes(job, spec), spec, Path(d) / "j.gcode").read_text(encoding="utf-8")
+        self.assertIn("TRIG EVENT=add", g)
+        self.assertIn("[gcode_macro TRIG]", klipper_cfg(spec))
+
+
+class PrintedPartsTest(unittest.TestCase):
+    """기계 부품은 출력, 원료는 시중 구매."""
+
+    def test_parts_fit_common_printer(self):
+        from snss_battery.parts import printed_parts
+
+        parts = printed_parts()
+        self.assertGreaterEqual(len(parts), 10)
+        for p in parts:
+            self.assertTrue(p.fits(), p.name)
+
+    def test_part_meshes_have_volume(self):
+        from snss_battery.parts import ROD, mesh_part, printed_parts
+
+        corner = next(p for p in printed_parts() if p.key == "corner")
+        v, t, vol = mesh_part(corner)
+        self.assertTrue(is_closed(t))
+        # 36 mm 정육면체 − 봉 구멍 3개 − 모서리 둥글림(r 3) 12개
+        analytic = 36 ** 3 - 3 * math.pi * (ROD / 2) ** 2 * 36 - 12 * (1 - math.pi / 4) * 9 * 30
+        self.assertAlmostEqual(vol * 1000 / analytic, 1.0, delta=0.03)
+        for p in printed_parts():
+            if p.key in ("port_panel", "pinch_valve"):
+                self.assertTrue(is_closed(mesh_part(p)[1]), p.name)
+
+    def test_feedstock_is_bought(self):
+        from snss_battery.printer import bom
+
+        raw = {b.part: b.where for b in bom() if b.group == "원료"}
+        self.assertTrue(any("약국" in w for w in raw.values()))  # 생리식염수
+        self.assertTrue(all(w for w in raw.values()))  # 모두 구입처가 있음
+        self.assertFalse(any("알루미늄" in b.part for b in bom()))  # 프레임은 출력 + 철물점 봉

@@ -258,7 +258,7 @@ def cmd_sculptor(a: argparse.Namespace) -> None:
     out = Path(a.out) / "machine"
     out.mkdir(parents=True, exist_ok=True)
     (out / "printer.cfg").write_text(klipper_cfg(spec), encoding="utf-8")
-    rows = ["구분,부품,수량,사양"] + [f"{b.group},{b.part},{b.qty},\"{b.spec}\"" for b in bom(spec)]
+    rows = ["구분,품목,수량,사양,구입처"] + [f"{b.group},{b.part},{b.qty},\"{b.spec}\",{b.where}" for b in bom(spec)]
     (out / "bom.csv").write_text("\n".join(rows) + "\n", encoding="utf-8")
     print(f"\n저장: {out / 'printer.cfg'} · {out / 'bom.csv'}")
 
@@ -278,7 +278,13 @@ def cmd_sculpt(a: argparse.Namespace) -> None:
     spec = SculptorSpec()
     root = Path(a.out)
     pieces = root / "pieces"
-    cp = S.CellParams(cell_mm=a.cell_mm, carrier_pos=a.carrier_p, carrier_neg=a.carrier_n, seed=a.seed)
+    seed = a.seed
+    if a.qrng is not None:  # 양자 난수 발생기(Q4) 로 세포 씨앗
+        from .interfaces import qrng_seed
+
+        seed, src = qrng_seed(a.qrng or None)
+        print(f"세포 씨앗: {seed} — {src}")
+    cp = S.CellParams(cell_mm=a.cell_mm, carrier_pos=a.carrier_p, carrier_neg=a.carrier_n, seed=seed)
 
     def load(name: str) -> S.Piece:
         f = pieces / f"{name}.npz"
@@ -331,6 +337,41 @@ def cmd_sculpt(a: argparse.Namespace) -> None:
         print(S.describe_prediction(pr))
     print(f"  G-code: {res['gcode']}")
     print(f"  기억 갱신: {', '.join(p.name for p in job.after)} → {pieces}")
+
+
+def cmd_parts(a: argparse.Namespace) -> None:
+    from .parts import describe, write_parts
+
+    rows = write_parts(a.out)
+    print(describe(rows))
+    print(f"저장: {a.out}/stl/*.stl · {a.out}/parts.csv · {a.out}/buy.csv (시중 구매: 약국·마트·문구점·철물점·온라인)")
+
+
+def cmd_ports(_: argparse.Namespace) -> None:
+    from .interfaces import describe
+
+    print(describe())
+
+
+def cmd_scpi(a: argparse.Namespace) -> None:
+    from .interfaces import serve_scpi
+
+    serve_scpi(a.host, a.port, execute=lambda g: print(f"  → G-code: {g}"))
+
+
+def cmd_cvfit(a: argparse.Namespace) -> None:
+    """C–V 측정 CSV (전위 V, 용량 µF/cm²) → 페르미 준위 역산 → 다음 층 도핑 몫."""
+    import csv
+
+    from .interfaces import doping_feedback, fit_carrier
+
+    with open(a.csv, encoding="utf-8") as fp:
+        pts = [(float(r[0]), float(r[1])) for r in csv.reader(fp) if r and r[0].strip()[:1] in "-+.0123456789"]
+    r = fit_carrier(pts, a.dopant)
+    nxt = doping_feedback(r["carrier_1e12"], a.target, a.ratio)
+    print(f"[C–V 맞춤 — {a.dopant}, 점 {len(pts)}개] 전하 밀도 {r['carrier_1e12']:.2f}×10¹² cm⁻² · "
+          f"페르미 준위 {r['ef_mev']:+.0f} meV · 잔차 {r['rms_uf_cm2']:.3f} µF/cm²")
+    print(f"  목표 {a.target:g}×10¹² → 다음 층 도펀트 몫 {a.ratio:.3f} → {nxt:.3f}")
 
 
 def cmd_gui(_: argparse.Namespace) -> None:
@@ -438,9 +479,25 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--carrier-p", type=float, default=5.0, help="p형 세포 도핑 10¹² cm⁻²")
     p.add_argument("--carrier-n", type=float, default=5.0, help="n형 세포 도핑 10¹² cm⁻²")
     p.add_argument("--seed", type=int, default=7)
+    p.add_argument("--qrng", nargs="?", const="", help="세포 씨앗을 양자 난수 발생기(장치·파일 경로)에서 — 경로 없으면 운영체제 난수")
     p.add_argument("--out", default="sculpt_out")
     p.add_argument("--no-mesh", action="store_true", help="메시(STL·Blender 용) 생략 — 빠름")
     p.set_defaults(func=cmd_sculpt)
+
+    p = sub.add_parser("parts", help="조각가 출력 부품 STL (부모 프린터로 뽑음) + 시중 구매 목록")
+    p.add_argument("--out", default="sculpt_out/parts")
+    p.set_defaults(func=cmd_parts)
+    sub.add_parser("ports", help="아날로그 · 디지털 · 양자 공학기기 호환 단자").set_defaults(func=cmd_ports)
+    p = sub.add_parser("scpi", help="SCPI 다리 (TCP 5025) — 계측기처럼 조각가를 다룸 (G-code 는 화면에 출력)")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=5025)
+    p.set_defaults(func=cmd_scpi)
+    p = sub.add_parser("cv-fit", help="C–V 측정 CSV → 양자 커패시턴스로 페르미 준위 역산 → 도핑 되먹임")
+    p.add_argument("csv", help="열: 전극 전위 V, 용량 µF/cm²")
+    p.add_argument("--dopant", default="PEI", choices=["PEI", "NBD", ""])
+    p.add_argument("--target", type=float, default=5.0, help="목표 전하 밀도 10¹² cm⁻²")
+    p.add_argument("--ratio", type=float, default=0.5, help="지금 도펀트 혼합 몫")
+    p.set_defaults(func=cmd_cvfit)
 
     p = sub.add_parser("static", help="서버 없이 동작하는 정적 웹 사이트 (web 출력 → web_static)")
     p.add_argument("--src", default="web_out", help="web 명령이 만든 사이트 폴더")

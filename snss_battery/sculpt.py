@@ -756,7 +756,11 @@ def write_gcode(job: Job, plan, spec: SculptorSpec, path: str | Path, pred: dict
         if op.kind == "rinse":
             out += [f"G0 Z{spec.build_mm[2] - 5:g} F600", f"M117 {op.note}", "M0  ; 욕조를 비우고 생리식염수로 헹굼"]
             continue
-        for p in passes:
+        last_z = None
+        for i_p, p in enumerate(passes):
+            if p.z != last_z:  # 층·획 시작 — 트리거 (아날로그/디지털/양자 계측기 동기)
+                out.append(f"TRIG EVENT={p.kind} N={i_p}")
+                last_z = p.z
             if p.role != last_role:
                 if p.role == "carve":
                     out += ["SET_PIN PIN=uv_light VALUE=0", "CARVE ON=1"]
@@ -948,7 +952,8 @@ def body_signs(piece: Piece, spec: SculptorSpec | None = None, bm: BodyModel | N
         frac_hist.append(frac)
         t_prev = t
     nonlin = cell_q.energy_area / (0.5 * cell_q.c_area * bm.u_max ** 2)
-    live = cap > 0  # 세포질이 없는 (피부만 있는) 작은 세포는 빼고 셈
+    live = cap > 0  # 세포질이 없는 (피부만 있는) 작은 세포는 빼고 셈 — 용량이 없으니 깨어남도 없음
+    wake[~live] = np.inf
     awake = np.isfinite(wake) & live
     top = cen_m[:, 2] >= np.percentile(cen_m[:, 2], 90)
     vol_ml = n_all.sum() * vvox * 1e6
