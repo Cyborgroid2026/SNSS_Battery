@@ -248,6 +248,91 @@ def cmd_static(a: argparse.Namespace) -> None:
     print(f"정적 사이트 생성: {index}  (더블클릭으로 열거나 폴더째 정적 호스팅에 올리면 됨)")
 
 
+def cmd_sculptor(a: argparse.Namespace) -> None:
+    from pathlib import Path
+
+    from .printer import SculptorSpec, bom, klipper_cfg
+
+    spec = SculptorSpec()
+    print(spec.describe())
+    out = Path(a.out) / "machine"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "printer.cfg").write_text(klipper_cfg(spec), encoding="utf-8")
+    rows = ["구분,부품,수량,사양"] + [f"{b.group},{b.part},{b.qty},\"{b.spec}\"" for b in bom(spec)]
+    (out / "bom.csv").write_text("\n".join(rows) + "\n", encoding="utf-8")
+    print(f"\n저장: {out / 'printer.cfg'} · {out / 'bom.csv'}")
+
+
+def _xy(text: str) -> tuple[float, ...]:
+    return tuple(float(v) for v in text.split(","))
+
+
+def cmd_sculpt(a: argparse.Namespace) -> None:
+    """조각가 작업: 작업물 기억(sculpt_out/pieces) 을 읽고, 작업 폴더(sculpt_out/jobs/NN_…) 를 만들고, 기억을 갱신."""
+    import json
+    from pathlib import Path
+
+    from . import sculpt as S
+    from .printer import SculptorSpec
+
+    spec = SculptorSpec()
+    root = Path(a.out)
+    pieces = root / "pieces"
+    cp = S.CellParams(cell_mm=a.cell_mm, carrier_pos=a.carrier_p, carrier_neg=a.carrier_n, seed=a.seed)
+
+    def load(name: str) -> S.Piece:
+        f = pieces / f"{name}.npz"
+        if not f.exists():
+            have = ", ".join(sorted(x.stem for x in pieces.glob("*.npz"))) or "없음"
+            raise ValueError(f"작업물 '{name}' 이(가) 기억에 없습니다 (있는 것: {have}).")
+        return S.Piece.load(f)
+
+    if a.op == "list":
+        for f in sorted(pieces.glob("*.npz")):
+            p = S.Piece.load(f)
+            print(f"  {p.name:<16} 세포 {p.n_cells():>5} · 높이 {p.height_mm:5.1f} mm · {' → '.join(p.history)}")
+        return
+    if a.op == "show":
+        p = load(a.name)
+        print(f"[{p.name}] " + " → ".join(p.history))
+        print(S.describe_prediction(S.body_signs(p, spec)))
+        return
+    if a.op == "new":
+        p = S.design(a.shape, a.height, cp, spec, a.name or "")
+        job = S.job_new(p, spec)
+    elif a.op == "add":
+        job = S.job_add(load(a.name), a.shape, a.height, cp, spec, _xy(a.at) if a.at else (0.0, 0.0))
+    elif a.op == "carve":
+        c = _xy(a.center)
+        job = S.job_carve(load(a.name), c, a.radius, cp, spec)
+    elif a.op == "detach":
+        job = S.job_detach(load(a.name), a.z, cp, spec)
+    elif a.op == "attach":
+        job = S.job_attach(load(a.name), load(a.upper), spec, _xy(a.at) if a.at else (0.0, 0.0))
+    elif a.op == "draw":
+        strokes = json.loads(Path(a.strokes).read_text(encoding="utf-8"))
+        job = S.job_strokes(load(a.name), strokes.get("strokes", strokes), cp, spec)
+    else:
+        raise ValueError(a.op)
+    jobs = root / "jobs"
+    n = len(list(jobs.glob("*"))) + 1 if jobs.exists() else 1
+    tag = job.after[0].name if job.after else "job"
+    res = S.write_job(job, spec, jobs / f"{n:02d}_{a.op}_{tag}", meshes=not a.no_mesh)
+    for p in job.after:
+        p.save(pieces / f"{p.name}.npz")
+    if a.op == "attach":
+        (pieces / f"{a.upper}.npz").unlink(missing_ok=True)  # 하나가 됨
+    t = res["time"]
+    print(f"[{job.title}]")
+    for op in job.ops:
+        print(f"  · {op.note}")
+    print(f"  작업 약 {t['work_s'] / 3600:.1f} h + 기다림 {t['wait_s'] / 3600:.1f} h · 재료 바꿈 {t['switches']}회")
+    for pr in res["predictions"]:
+        print(S.describe_prediction(pr))
+    print(f"  G-code: {res['gcode']}")
+    print(f"  기억 갱신: {', '.join(p.name for p in job.after)} → {pieces}")
+
+
 def cmd_gui(_: argparse.Namespace) -> None:
     from .gui import main as gui_main
 
@@ -332,6 +417,30 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--current", type=float, default=0.1, help="충방전 전류 mA")
     p.add_argument("--no-serve", action="store_true", help="사이트만 만들고 서버는 띄우지 않음")
     p.set_defaults(func=cmd_web)
+
+    p = sub.add_parser("sculptor", help="SNSS 조각가 SC-1 — 3D 펜을 단 상온 3D 프린터 명세 · 재료표 · Klipper 설정")
+    p.add_argument("--out", default="sculpt_out")
+    p.set_defaults(func=cmd_sculptor)
+
+    p = sub.add_parser("sculpt", help="조각: 양자 인공세포 존재를 빚고 · 더하고 · 깎고 · 떼고 · 붙이고 · 허공에 그림")
+    p.add_argument("op", choices=["new", "add", "carve", "detach", "attach", "draw", "show", "list"],
+                   help="new 새로 빚기 · add 이어 빚기 · carve 깎기 · detach 떼기 · attach 붙이기 · draw 허공 획 · show 생명 신호 · list 기억")
+    p.add_argument("name", nargs="?", default="being", help="작업물 이름 (new 는 새 이름)")
+    p.add_argument("upper", nargs="?", help="attach: 위에 올릴 조각 이름")
+    p.add_argument("--shape", default="being", help="모양: being · seed · coupon · bud 또는 Blender 에서 내보낸 .stl")
+    p.add_argument("--height", type=float, default=0.0, help="완성 높이 mm (0 = 기본)")
+    p.add_argument("--at", help="x,y mm — add/attach 위치 (기본 가운데)")
+    p.add_argument("--center", default="0,0,40", help="carve: 구 중심 x,y,z mm (출력 좌표)")
+    p.add_argument("--radius", type=float, default=5.0, help="carve: 구 반지름 mm")
+    p.add_argument("--z", type=float, default=24.0, help="detach: 자를 높이 mm")
+    p.add_argument("--strokes", default="sculpt_out/strokes.json", help="draw: Blender 에서 내보낸 획 JSON")
+    p.add_argument("--cell-mm", type=float, default=3.0, help="양자 인공세포 크기 mm")
+    p.add_argument("--carrier-p", type=float, default=5.0, help="p형 세포 도핑 10¹² cm⁻²")
+    p.add_argument("--carrier-n", type=float, default=5.0, help="n형 세포 도핑 10¹² cm⁻²")
+    p.add_argument("--seed", type=int, default=7)
+    p.add_argument("--out", default="sculpt_out")
+    p.add_argument("--no-mesh", action="store_true", help="메시(STL·Blender 용) 생략 — 빠름")
+    p.set_defaults(func=cmd_sculpt)
 
     p = sub.add_parser("static", help="서버 없이 동작하는 정적 웹 사이트 (web 출력 → web_static)")
     p.add_argument("--src", default="web_out", help="web 명령이 만든 사이트 폴더")
