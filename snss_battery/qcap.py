@@ -2,7 +2,9 @@
 
 그래핀은 디랙 원뿔 때문에 페르미 준위 근처 상태밀도가 0 에 가까워, 전하를 더 넣으려면 전자 에너지 자체가 올라가야 한다.
 이 '양자 커패시턴스' C_Q 가 전기이중층 C_EDL 과 직렬로 붙어 전극 전체 용량을 제한한다:  1/C = 1/C_Q + 1/C_EDL.
-양자공학 손잡이 = 질소(N) 도핑으로 페르미 준위를 디랙점에서 밀어내 C_Q 를 키우는 것 (금속 없이: C·N 만).
+양자공학 손잡이 = 상온 분자 전하이동 도핑으로 페르미 준위를 디랙점에서 밀어내 C_Q 를 키우는 것.
+양극은 p형(전자 받개), 음극은 n형(전자 주개) — 충전할 때 각 전극이 디랙점에서 더 멀어지는 쪽 (금속 없음).
+고온 소성 없이 젤 상태에서 되므로 SNSS 소재의 얼림–녹임 · 탈부착 성질을 그대로 둔다.
 
 단위: SI (F/m², C/m², V). 전위는 전자 화학퍼텐셜 / e.
 """
@@ -21,7 +23,6 @@ KB = 1.380649e-23
 HBAR = 1.054571817e-34
 EPS0 = 8.8541878128e-12
 V_F = 1.0e6  # 그래핀 페르미 속도 m/s
-GRAPHENE_ATOMS_M2 = 3.82e19  # 탄소 원자 면밀도
 EPS_WATER = 78.4
 
 _PHI = np.linspace(-2.0, 2.0, 8001)  # 채널 전위 격자 V
@@ -43,16 +44,20 @@ def cq_broadened(phi, temperature_k: float = 298.15, broadening_ev: float = 0.06
     return sum(w * cq_ideal(phi + broadening_ev * x, temperature_k) for x, w in zip(xs, ws))
 
 
-DOPANTS = {"": 0, "N": +1, "B": -1}  # 흑연형 질소 = 전자 주개(n형), 붕소 = 전자 받개(p형) — 둘 다 비금속
+# 상온 분자 도펀트 (물에 녹음, 금속 없음). 부호: + = 전자를 줌(n형), − = 전자를 받음(p형)
+DOPANTS = {
+    "": (0, "도핑 없음"),
+    "PEI": (+1, "폴리에틸렌이민 (C,H,N) — n형"),
+    "NBD": (-1, "4-니트로벤젠디아조늄 (C,H,N,O) — p형"),
+}
 
 
 @dataclass
 class QuantumElectrode:
-    """도핑한 환원 그래핀(N-rGO / B-rGO) 전극의 계면 (젖는 면적 기준)."""
+    """분자 도핑한 환원 그래핀(rGO) 전극의 계면 (젖는 면적 기준)."""
 
-    dopant: str = "N"  # "N" n형 · "B" p형 · "" 도핑 없음
-    doping_at: float = 1.0  # 격자에 들어간 도펀트 at%
-    donor_efficiency: float = 0.3  # 도펀트 하나가 내놓는(받는) 전하 수 (가정, 문헌 0.2~0.5)
+    dopant: str = "PEI"  # "PEI" n형 · "NBD" p형 · "" 도핑 없음
+    carrier_1e12: float = 5.0  # 도펀트가 그래핀에 넣는(빼는) 전하 밀도, 10¹² cm⁻² 단위
     temperature_k: float = 298.15
     broadening_ev: float = 0.06  # 전하 웅덩이 폭 (rGO 결함, 가정)
     c_stern_uf_cm2: float = 21.0  # 헬름홀츠(스턴)층 µF/cm² (흑연 기저면 문헌값)
@@ -60,8 +65,8 @@ class QuantumElectrode:
     wetted_faces: int = 2  # 한 장의 양면이 다 젖으면 상태밀도를 두 면이 나눠 씀 → 면적당 C_Q 절반
 
     def __post_init__(self) -> None:
-        if self.dopant not in DOPANTS or self.doping_at < 0 or self.wetted_faces not in (1, 2):
-            raise ValueError("도펀트는 N·B·없음, 도핑은 0 이상, 젖는 면은 1 또는 2 입니다.")
+        if self.dopant not in DOPANTS or self.carrier_1e12 < 0 or self.wetted_faces not in (1, 2):
+            raise ValueError(f"도펀트는 {', '.join(k or '없음' for k in DOPANTS)}, 전하 밀도는 0 이상, 젖는 면은 1 또는 2 입니다.")
         if self.fermi_shift_ev > 0.95:
             raise ValueError("도핑이 너무 큽니다 (페르미 준위 > 0.95 eV).")
         cq = cq_broadened(_PHI, self.temperature_k, self.broadening_ev)
@@ -77,11 +82,14 @@ class QuantumElectrode:
     # ---------- 물성 ----------
     @property
     def label(self) -> str:
-        return f"{self.dopant}-rGO {self.doping_at:g} at%" if self.dopant and self.doping_at else "rGO (도핑 없음)"
+        if not self.dopant or not self.carrier_1e12:
+            return "rGO (도핑 없음)"
+        kind = "n" if DOPANTS[self.dopant][0] > 0 else "p"
+        return f"{self.dopant}-rGO ({kind}형 {self.carrier_1e12:g}×10¹² cm⁻²)"
 
     @property
     def n0_m2(self) -> float:
-        return self.doping_at / 100 * GRAPHENE_ATOMS_M2 * self.donor_efficiency if self.dopant else 0.0
+        return self.carrier_1e12 * 1e16 if self.dopant else 0.0
 
     @property
     def fermi_shift_ev(self) -> float:
@@ -91,7 +99,7 @@ class QuantumElectrode:
     @property
     def mu0_ev(self) -> float:
         """부호 있는 평형 페르미 준위 (n형 +, p형 −)."""
-        return DOPANTS[self.dopant] * self.fermi_shift_ev
+        return DOPANTS[self.dopant][0] * self.fermi_shift_ev
 
     @property
     def c_diffuse(self) -> float:
@@ -136,8 +144,8 @@ class CellCurve:
 class QuantumCell:
     """양극 + 음극 (젖는 면적이 같다고 봄). 전위는 전하 중성 조건으로 비대칭하게 나뉨."""
 
-    positive: QuantumElectrode = field(default_factory=lambda: QuantumElectrode("B"))
-    negative: QuantumElectrode = field(default_factory=lambda: QuantumElectrode("N"))
+    positive: QuantumElectrode = field(default_factory=lambda: QuantumElectrode("NBD"))
+    negative: QuantumElectrode = field(default_factory=lambda: QuantumElectrode("PEI"))
     u_max: float = 0.8  # 중성 NaCl 수계 탄소 전극의 안전 전압창 (염소 발생 전)
 
     def __post_init__(self) -> None:
@@ -205,13 +213,13 @@ class QuantumCell:
         ])
 
 
-def doping_sweep(levels=(0.0, 0.25, 0.5, 1.0, 2.0, 3.0, 4.0), **kw) -> list[dict]:
-    """같은 도핑량에서 대칭(N/N) 과 비대칭(B/N) 셀 비교."""
+def doping_sweep(levels=(0.0, 1.0, 2.0, 5.0, 10.0, 15.0, 20.0), **kw) -> list[dict]:
+    """같은 전하 밀도에서 대칭(n/n) 과 비대칭(p/n) 셀 비교."""
     out = []
     for x in levels:
-        sym = QuantumCell.symmetric(QuantumElectrode("N", x, **kw))
-        asym = QuantumCell(QuantumElectrode("B", x, **kw), QuantumElectrode("N", x, **kw))
-        out.append({"doping_at": x, "ef_mev": sym.negative.fermi_shift_ev * 1000,
+        sym = QuantumCell.symmetric(QuantumElectrode("PEI", x, **kw))
+        asym = QuantumCell(QuantumElectrode("NBD", x, **kw), QuantumElectrode("PEI", x, **kw))
+        out.append({"carrier_1e12": x, "ef_mev": sym.negative.fermi_shift_ev * 1000,
                     "sym_c": sym.c_area * 100, "sym_e": sym.energy_area * 100, "sym_qf": sym.quantum_fraction,
                     "asym_c": asym.c_area * 100, "asym_e": asym.energy_area * 100, "asym_qf": asym.quantum_fraction})
     return out
