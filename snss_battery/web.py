@@ -94,6 +94,7 @@ def build_site(
     lighting = evaluate_lighting(battery)
     quantum = _quantum_assets(folder / "cad" / "step")
     recipes = _recipe_assets(folder / "cad")
+    sculptor = _sculptor_assets(folder)
 
     data = {
         "title": "SNSS 생리식염수 결정 배터리",
@@ -102,6 +103,7 @@ def build_site(
         "svgs": svgs,
         "crosscheck": cross,
         "quantum": quantum,
+        "sculptor": sculptor,
         "recipes": recipes,
         "samples": _samples(battery, folder),
         "tools": _standard_tools(folder),
@@ -242,6 +244,123 @@ def _recipe_assets(out: Path) -> list[dict]:
                       "height_mm": r.height_mm, "steps": r.steps(), "c_a": r.c_dilute_m * 1000, "c_b": r.c_conc_m * 1000,
                       "ratio": r.ratio, "amounts": r.amounts(), "predict": p})
     return items
+
+
+def _sculptor_assets(folder: Path) -> dict:
+    """'조각가 · 존재' 탭: SC-1 기계 · 펜 끝 레시피 · 양자층 · 존재 설계와 생명 신호 · 3D 보기용 메시 · Blender 렌더."""
+    import numpy as np
+
+    from . import sculpt as S
+    from .printer import SculptorSpec, bom, klipper_cfg
+    from .qcap import QuantumCell, QuantumElectrode, doping_sweep
+
+    out = folder / "sculpt"
+    out.mkdir(parents=True, exist_ok=True)
+    spec = SculptorSpec()
+    cp = S.CellParams()
+    piece = S.design("being", 0.0, cp, spec, "being")
+    job = S.job_new(piece, spec)
+    res = S.write_job(job, spec, out, meshes=False)
+    pr = res["predictions"][0]
+    (out / "bom.csv").write_text("구분,부품,수량,사양\n" + "\n".join(f"{b.group},{b.part},{b.qty},\"{b.spec}\"" for b in bom(spec)) + "\n",
+                                 encoding="utf-8")
+    # 3D 보기: 거칠게 (칸 3개씩) — 세포 경계가 보일 만큼
+    ms = S.piece_meshes(piece, 3, pr["cells"])
+    view = {"bounds": [float(piece.height_mm)]}
+    for role, (v, t, w) in ms.items():
+        view[role] = {"v": np.round(v, 1).ravel().tolist(), "f": t.ravel().tolist(),
+                      "w": (np.round(np.nan_to_num(w, nan=-1), 1).tolist() if w is not None else None)}
+    (out / "being_view.json").write_text(json.dumps(view, separators=(",", ":")), encoding="utf-8")
+    # 그림: 양자층 · 깨어남 · 단면
+    cell = QuantumCell(QuantumElectrode("NBD", cp.carrier_pos), QuantumElectrode("PEI", cp.carrier_neg))
+    sweep = doping_sweep()
+
+    def fig_quantum(fig):
+        ax1, ax2 = fig.subplots(1, 2)
+        e = np.linspace(-0.6, 0.6, 400)
+        for el, lab, col in ((QuantumElectrode("", 0.0), "도핑 없음", "#9aa7b4"), (cell.positive, "p형 (NBD)", "#e0344b"),
+                             (cell.negative, "n형 (PEI)", "#2f6db5")):
+            ax1.plot(e, el.c_total(e) * 100, color=col, label=lab)
+        ax1.axhline(cell.positive.c_edl * 100, color="#5d6673", ls="--", lw=1, label="전기이중층 한계")
+        ax1.set_xlabel("전극 전위 E (V, 영전하 기준)")
+        ax1.set_ylabel("면적당 용량 µF/cm²")
+        ax1.set_title("양자 커패시턴스가 깎는 용량: 1/C = 1/C_Q + 1/C_EDL")
+        ax1.legend(fontsize=8)
+        x = [r["carrier_1e12"] for r in sweep]
+        ax2.plot(x, [r["sym_c"] for r in sweep], "o-", color="#9aa7b4", label="같은 n형 두 전극")
+        ax2.plot(x, [r["asym_c"] for r in sweep], "o-", color="#7a5af8", label="양극 p형 · 음극 n형")
+        ax2.set_xlabel("도핑 전하 밀도 (10¹² cm⁻²)")
+        ax2.set_ylabel("셀 평균 용량 µF/cm²")
+        ax2.set_title("세포 유형마다 도핑을 다르게 — p·n 이 이김")
+        ax2.legend(fontsize=8)
+        ax2.grid(True)
+
+    def fig_wake(fig):
+        ax1, ax2 = fig.subplots(1, 2)
+        t = np.array(pr["series"]["t_s"]) / 60
+        ax1.semilogx(t, np.array(pr["series"]["energy_j"]) * 1000, color="#23a06b")
+        ax1.set_xlabel("발에 0.8 V 를 건 뒤 (분)")
+        ax1.set_ylabel("몸에 쌓인 에너지 mJ")
+        ax1.set_title("충전 = 깨어남")
+        ax1.grid(True)
+        w = np.array([x for x in pr["cells"]["wake_s"] if x is not None]) / 60
+        z = np.array([c[2] for c, x in zip(pr["cells"]["center_mm"], pr["cells"]["wake_s"]) if x is not None])
+        typ = np.array([ty for ty, x in zip(pr["cells"]["type"], pr["cells"]["wake_s"]) if x is not None])
+        ax2.scatter(w[typ > 0], z[typ > 0], s=5, color="#e0344b", label="p 세포")
+        ax2.scatter(w[typ < 0], z[typ < 0], s=5, color="#2f6db5", label="n 세포")
+        ax2.set_xlabel("깨어나는 시간 (분, 63 %)")
+        ax2.set_ylabel("세포 높이 mm")
+        ax2.set_title(f"세포 {pr['n_cells']}개 — 발에서 머리로")
+        ax2.legend(fontsize=8)
+
+    from matplotlib.colors import ListedColormap
+
+    cmap = ListedColormap(["#ffffff", "#e0344b", "#2f6db5", "#b9c3ce"])
+    mat = piece.material
+
+    def fig_slices(fig):
+        axs = fig.subplots(1, 4, gridspec_kw={"width_ratios": [1, 1, 1, 1.25]})
+        nz = mat.shape[2]
+        for ax, (k, lab) in zip(axs[:3], ((1, "발바닥 (단자)"), (int(nz * 0.5), "몸통"), (int(nz * 0.83), "머리"))):
+            ax.imshow(mat[:, :, k].T, origin="lower", cmap=cmap, vmin=0, vmax=3, interpolation="nearest")
+            ax.set_title(f"{lab} · 층 {k}", fontsize=9)
+            ax.axis("off")
+        j = mat.shape[1] // 2
+        axs[3].imshow(mat[:, j, :].T, origin="lower", cmap=cmap, vmin=0, vmax=3, interpolation="nearest",
+                      aspect=spec.layer_mm / spec.line_mm)
+        axs[3].set_title("세로 단면", fontsize=9)
+        axs[3].axis("off")
+
+    _save(fig_quantum, out / "quantum.png", size=(11, 4.2))
+    _save(fig_wake, out / "wake.png", size=(11, 4.2))
+    _save(fig_slices, out / "slices.png", size=(11, 4.0))
+    # Blender 렌더 (./tools.sh blender 로 만든 것이 있으면)
+    renders = []
+    jobs = sorted((ROOT / "sculpt_out" / "jobs").glob("*/blender"))
+    if jobs:
+        src = jobs[-1]
+        for n in ("sculptor.png", "wake_0.png", "wake_1.png", "wake_2.png", "being.mp4"):
+            if (src / n).exists():
+                shutil.copy2(src / n, out / f"blender_{n}")
+                renders.append(f"sculpt/blender_{n}")
+    recipes = []
+    for r in spec.recipes.values():
+        g = spec.gel_check(r)
+        recipes.append({"name": r.name, "go": r.go, "snss": r.snss, "pva": r.pva, "variant": r.go_variant, "light": r.light,
+                        "color": r.color, "go_mg": g["go_mg_ml"], "nacl": g["nacl_mm"], "ccc": g["ccc_mm"],
+                        "pva_wt": g["pva_wt"], "ok": g["ok"], "yield": g["yield_pa"]})
+    t = res["time"]
+    return {
+        "machine": spec.describe(), "check": spec.check(), "recipes": recipes,
+        "feeds": [{"name": f.name, "stock": f.stock} for f in spec.feeds],
+        "prediction": {k: v for k, v in pr.items() if k not in ("cells", "series")},
+        "prediction_text": S.describe_prediction(pr),
+        "job": {"work_h": t["work_s"] / 3600, "wait_h": t["wait_s"] / 3600, "switches": t["switches"],
+                "ops": [o.note for o in job.ops]},
+        "files": ["sculpt/job.gcode", "sculpt/printer.cfg", "sculpt/bom.csv", "sculpt/being.npz"],
+        "renders": renders, "cell_mm": cp.cell_mm,
+        "qcap_text": cell.describe(),
+    }
 
 
 def _quantum_assets(step_dir: Path) -> dict:
@@ -580,6 +699,38 @@ aside .panel { background: var(--panel); border: 1px solid var(--line); border-r
 </header>
 <nav id="tabs"></nav>
 <main>
+  <section data-id="sculptor" data-tab="조각가 · 존재">
+    <p class="sub"><b>SNSS 조각가 SC-1</b> — 3D 펜을 단 상온 3D 프린터. GO · SNSS(멸균생리식염수) · PVA 가 따로 펜에 들어가
+      펜 끝에서 처음 만나 하나가 되고, 그 젤로 <b>양자 인공세포</b>가 모인 존재를 빚습니다. 층을 더하고, 깎고, 떼고, 다시 붙일 수 있습니다 (전부 상온).</p>
+    <div class="cards" id="scCards"></div>
+    <div class="sc-view">
+      <div class="sc-stage" id="scView"><div class="sc-msg" id="scMsg">3D 불러오는 중…</div></div>
+      <aside class="sc-side">
+        <div class="lab-card"><h3>깨어남</h3>
+          <input type="range" id="scTime" min="0" max="1000" value="1000"><div class="sc-val" id="scTimeV"></div>
+          <button class="primary" id="scWake" type="button">▶ 발에 0.8 V — 깨우기</button></div>
+        <div class="lab-card"><h3>빚기 (아래에서 위로)</h3>
+          <input type="range" id="scHeight" min="0" max="1000" value="1000"><div class="sc-val" id="scHeightV"></div>
+          <button id="scBuild" type="button">▶ 쌓기 재생</button></div>
+        <div class="lab-card"><h3>보기</h3>
+          <label><input type="checkbox" id="scSkin" checked> 막 · 피부</label>
+          <label><input type="checkbox" id="scPos" checked> p 세포 (+)</label>
+          <label><input type="checkbox" id="scNeg" checked> n 세포 (−)</label></div>
+      </aside>
+    </div>
+    <h2>펜 끝 — 세 원료가 하나가 되는 비율</h2>
+    <table id="scRecipes"></table>
+    <h2>양자층 — 그래핀 양자 커패시턴스와 세포별 도핑</h2>
+    <img class="fig" src="sculpt/quantum.png" alt="양자층">
+    <h2>생명 신호 — 세포 단위 두 회로망 (전자 + 전해질)</h2>
+    <img class="fig" src="sculpt/wake.png" alt="깨어남">
+    <h2>출력 단면 — 세포질 (p 빨강 · n 파랑) · 막 · 피부</h2>
+    <img class="fig" src="sculpt/slices.png" alt="단면">
+    <div id="scRenders"></div>
+    <h2>작업 · 파일</h2>
+    <table id="scJob"></table>
+    <pre id="scText"></pre>
+  </section>
   <section data-id="lab" data-tab="실험대">
     <div class="lab">
       <div class="lab-bar">
@@ -941,11 +1092,11 @@ function show(name) {
   const sec = sections.find((s) => s.dataset.tab === name);
   if (sec) { history.replaceState(null, "", location.search + "#" + sec.dataset.id); (tabHooks[sec.dataset.id] || (() => {}))(); }
 }
-const GROUPS = [["작업", ["lab", "cad", "process", "recipe"]], ["검증", ["tools", "verify", "log"]],
+const GROUPS = [["조각가", ["sculptor"]], ["작업", ["lab", "cad", "process", "recipe"]], ["검증", ["tools", "verify", "log"]],
                 ["자료", ["overview", "drawing", "bom", "files", "quantum"]], ["비교 · 층 모델", ["fractal", "light", "sim"]]];
-const ICONS = { lab: "⚗", cad: "⬡", process: "❄", recipe: "☰", fractal: "⬢", light: "💡", sim: "∿", quantum: "⚛",
+const ICONS = { sculptor: "✒", lab: "⚗", cad: "⬡", process: "❄", recipe: "☰", fractal: "⬢", light: "💡", sim: "∿", quantum: "⚛",
                 tools: "▶", verify: "✓", log: "✎", overview: "◎", drawing: "📐", bom: "▤", files: "⇩" };
-const NEW = new Set(["lab", "cad", "tools"]);
+const NEW = new Set(["sculptor"]);
 const grouped = new Set(GROUPS.flatMap(([, ids]) => ids));
 for (const [label, ids] of [...GROUPS, ["기타", sections.map((s) => s.dataset.id).filter((id) => !grouped.has(id))]]) {
   const secs = ids.map((id) => sections.find((s) => s.dataset.id === id)).filter(Boolean);
@@ -1590,7 +1741,7 @@ try { (function process() {
 let saved = null;
 try { saved = localStorage.getItem("snss-tab"); } catch (e) {}
 const fromHash = fromHashSec();
-show(fromHash ? fromHash.dataset.tab : sections.some((s) => s.dataset.tab === saved) ? saved : "실험대");
+show(fromHash ? fromHash.dataset.tab : sections.some((s) => s.dataset.tab === saved) ? saved : "조각가 · 존재");
 </script>
 <script src="ui/lab.js"></script>
 <script src="ui/tools.js"></script>
@@ -1598,6 +1749,7 @@ show(fromHash ? fromHash.dataset.tab : sections.some((s) => s.dataset.tab === sa
 { "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/" } }
 </script>
 <script type="module" src="ui/workbench.js"></script>
+<script type="module" src="ui/sculptor.js"></script>
 </body>
 </html>
 """
