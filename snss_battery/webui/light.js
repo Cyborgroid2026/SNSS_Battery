@@ -35,9 +35,13 @@ if (D && L) {
   $("#lcTools").innerHTML = `<tr><th>도구</th><th>이름</th><th>끝 (물속, 금속 없음)</th><th>쓰임</th></tr>` +
     D.tools.map((t) => `<tr><td>${esc(t.key)}</td><td>${esc(t.name)}</td><td>${esc(t.tip)}</td><td>${esc(t.use)}</td></tr>`).join("") +
     `<tr><td colspan="4" class="sub">도구 면 ${D.inject.tip_z} mm (멸균생리식염수 속) · 도구 작업은 작업물 ${D.inject.max_h.toFixed(0)} mm 까지</td></tr>`;
+  $("#lcEit").innerHTML = D.eit ? (D.eit.figure ? `<img class="fig" src="${esc(D.eit.figure)}" alt="EIT">` : "") +
+    `<pre>${esc(D.eit.text)}</pre>` : "";
   $("#lcText").textContent = [D.machine, "", D.layout, "", D.job_text].join("\n");
   $("#lcRenders").innerHTML = D.renders.length
-    ? `<h2>Blender 렌더 (./tools.sh light-blender)</h2>` + D.renders.map((f) => `<img class="fig" src="${esc(f)}" alt="Blender 렌더" style="max-width:49%">`).join(" ")
+    ? `<h2>Blender 렌더 (./tools.sh light-blender [--anim])</h2>` + D.renders.map((f) => f.endsWith(".mp4")
+      ? `<video class="fig" src="${esc(f)}" controls loop muted style="max-width:70%"></video>`
+      : `<img class="fig" src="${esc(f)}" alt="Blender 렌더" style="max-width:49%">`).join(" ")
     : '<p class="sub">Blender 렌더가 아직 없습니다 — <code>./tools.sh light-blender</code> 를 실행한 뒤 웹을 다시 만드세요.</p>';
 
   const { nx, ny, nz, pitch, offset } = L;
@@ -126,7 +130,7 @@ if (D && L) {
   // ---------- 수조 3D ----------
   const view = $("#lcTank");
   let tex = null;
-  let renderer, scene, cam, controls, being, plane;
+  let renderer, scene, cam, controls, being, plane, gantry, clip;
   const FILL = D.fill_mm;
   function initTank() {
     $("#lcMsg").remove();
@@ -180,7 +184,7 @@ if (D && L) {
     plane.position.set((offset[0] + nx / 2) * px, (offset[1] + ny / 2) * px, FILL + 0.3);
     scene.add(plane);
     // 존재 + 받침 (함께 내려감), 수면 위는 아직 빚지 않음 → 잘라 냄
-    const clip = new THREE.Plane(new THREE.Vector3(0, 0, -1), FILL);
+    clip = new THREE.Plane(new THREE.Vector3(0, 0, -1), FILL);  // 지금 층 위(아직 빚지 않은 곳)는 잘라 냄 — 높이는 setLayer 가 맞춤
     being = new THREE.Group();
     const colors = { pos: 0xe0344b, neg: 0x3d7bd6, mem: 0xb9c3ce };
     for (const role of ["pos", "neg", "mem"]) {
@@ -200,6 +204,19 @@ if (D && L) {
     riser.position.z = -26;
     being.add(bed, riser);
     scene.add(being);
+    // 도구 작업 순간: 물속 갠트리가 펴지고 받침이 도구 면으로 (보통은 뒤쪽에 주차 — 여기서는 도구 작업 층에서만 보임)
+    gantry = new THREE.Group();
+    const gz = D.inject.tip_z + 21 + 85;
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(202, 24, 24), new THREE.MeshPhongMaterial({ color: 0x222831 }));
+    beam.position.set(0, 0, gz);
+    const carriage = new THREE.Mesh(new THREE.BoxGeometry(70, 62, 33), new THREE.MeshPhongMaterial({ color: 0xf08a3c }));
+    carriage.position.set(0, 0, gz - 4);
+    const pip = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 3, 85, 12), new THREE.MeshPhongMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0.8 }));
+    pip.rotation.x = Math.PI / 2;
+    pip.position.set(0, 0, gz - 21 - 42);
+    gantry.add(beam, carriage, pip);
+    gantry.visible = false;
+    scene.add(gantry);
     resetCam();
     new ResizeObserver(resize).observe(view);
     resize();
@@ -221,15 +238,29 @@ if (D && L) {
   const slider = $("#lcLayer");
   slider.min = firstK;
   slider.max = lastK;
+  // 시간표: 잉크 갈기 · 도구 작업 (lightrun.plan_schedule 과 같은 계산) — 슬라이더 아래 눈금
+  const TL = D.timeline;
+  const marks = TL ? TL.marks : [];
+  const bar = document.createElement("div");
+  bar.className = "lc-marks";
+  bar.innerHTML = marks.map((m) => `<span class="${m.swap ? "swap" : ""}${m.tool ? " tool" : ""}" style="left:${(100 * (m.k - firstK)) / (lastK - firstK)}%"
+      title="층 ${m.k} 앞: ${[m.swap ? "잉크 갈기" : "", m.tool ? `도구 작업 (n 세포 ${m.tool}개 주입)` : ""].filter(Boolean).join(" · ")}"></span>`).join("");
+  slider.after(bar);
+  const startH = (i) => (TL && TL.start_h[i] != null ? TL.start_h[i] : cum[i] / 3600);
   function setLayer(v) {
     k = Math.max(firstK, Math.min(lastK, v));
     slider.value = k;
-    const t = cum[k] / 3600;
-    const swaps = Math.floor(t / D.ink_life_h);
+    const t = startH(k);
+    const done = marks.filter((m) => m.k <= k);
+    const here = marks.find((m) => m.k === k);
     $("#lcLayerV").textContent = `층 ${k} · z ${((k + 1) * pz).toFixed(1)} mm`;
-    $("#lcTimeV").textContent = `${t.toFixed(1)} h 지남 / ${(cum[lastK] / 3600).toFixed(1)} h · 이 층 ${(L.layer_s[k] / 60).toFixed(1)} 분` +
-      (swaps ? ` · 잉크 ${swaps}번 갈았음` : "");
-    if (being) being.position.z = FILL - (k + 1) * pz;
+    $("#lcTimeV").textContent = `${t.toFixed(1)} h 지남 / ${(TL ? TL.total_h : cum[lastK] / 3600).toFixed(1)} h · 이 층 ${(L.layer_s[k] / 60).toFixed(1)} 분` +
+      ` · 잉크 갈기 ${done.filter((m) => m.swap).length}번 · 주입 ${done.reduce((a, m) => a + m.tool, 0)}세포` +
+      (here ? ` — 이 층 앞: ${[here.swap ? "잉크 갈기" : "", here.tool ? `도구 작업 (n 세포 ${here.tool}개)` : ""].filter(Boolean).join(" · ")}` : "");
+    if (gantry) gantry.visible = !!(here && here.tool);
+    const topZ = gantry && gantry.visible ? D.inject.tip_z : FILL;  // 도구 작업이면 꼭대기가 도구 면
+    if (being) being.position.z = topZ - (k + 1) * pz;
+    if (clip) clip.constant = topZ;
     if (pinned) $("#lcHover").textContent = cellInfo(...pinned);
     paintFrame();
   }
@@ -299,7 +330,8 @@ if (D && L) {
 
   // ---------- 시험편 측정 → 보정 (서버 /api/lightcal) ----------
   const CAL_HEAD = { A: ["A 굳힘", "노출 mJ/cm²", "두께 mm"], B: ["B 광환원", "노출 mJ/cm²", "저항 Ω"],
-                     C: ["C 초록 접목", "노출 mJ/cm²", "ΔV mV"], D: ["D 전기 도핑", "전위 V", "ΔV mV"] };
+                     C: ["C 초록 접목", "노출 mJ/cm²", "ΔV mV"], D: ["D 전기 도핑", "전위 V", "ΔV mV"],
+                     E: ["E 주입량 (T1)", "PEI:GO", "ΔV mV"], F: ["F 막 너머 샘", "주입 1 · 이웃 0", "ΔV mV"] };
   let calRows = [];
   let calDemo = false;
   function drawCal() {
@@ -339,11 +371,13 @@ if (D && L) {
         B: 10 ** -(-6 + 6 * (1 - Math.exp(-x / (1400 / Math.LN10)))),
         C: ef(4.0) * (1 - Math.exp(-x / 380)),
         D: ef(5.0) / (1 + Math.exp((x + 0.2) / 0.08)),
+        E: ef(5.0 * (1 - Math.exp(-x * Math.LN10 / 0.5))),
+        F: ef(4.5 * (x ? 1 : 0.05)),
       }[r.test]).toPrecision(4));
     }
     drawCal();
     calDemo = true;
-    $("#lcCalText").textContent = "연습값 (참값 ε_GO 12 · Ec 28 · E_red 1400 · E_g 380 · 정공 4.0 · E½ −0.2 V) — 맞추기를 누르면 되찾는지 봄";
+    $("#lcCalText").textContent = "연습값 (참값 ε_GO 12 · Ec 28 · E_red 1400 · E_g 380 · 정공 4.0 · E½ −0.2 V · 주입 포화 0.5 · 샘 5 %) — 맞추기를 누르면 되찾는지 봄";
   };
 
   setLayer(k);

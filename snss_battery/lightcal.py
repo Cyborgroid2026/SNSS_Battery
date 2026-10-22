@@ -16,6 +16,10 @@ D. 전기 도핑 사다리 (사후, PEI 도핑 통): 다 환원한 칸마다 다
    씻은 뒤 배지 속 개방 전위 차 ΔV_i (n형이면 +). ΔV = ΔV_max / (1 + e^((E − E½)/w)) 맞춤 → E½ · w, ΔV_max → n_max.
    (얇은 칸이라 확산은 다 됨 — 확산 계수는 따로, 두꺼운 덩어리를 잘라 단면으로)
 
+E. 주입량 사다리 (T1 유리 피펫): 다 환원한 칸(8 mm)마다 PEI:GO 질량비 r_i 만큼 PEI 1 % 를 가운데 주입 → 24 h 뒤 흑연 탐침(T5)으로 ΔV.
+   ΔV → 전자 밀도 n = (eΔV/ħv_F)²/π, n = n_max·(1 − e^(−r·ln10/r_sat)) 맞춤 → r_sat (90 % 붙는 비) · n_max.
+F. 막 너머 샘: 막(굳힘만) 한 줄을 사이에 둔 두 칸 중 하나에만 주입 → 두 칸의 ΔV. 샘 = n_이웃/n_주입 = (ΔV_이웃/ΔV_주입)².
+
 결과는 sculpt_out/light_cal.json 에 쓰고, `LightSculptorSpec.calibrated(path)` · `light --cal` 이 읽는다.
 """
 
@@ -48,6 +52,55 @@ def ladders(spec: LightSculptorSpec | None = None) -> dict:
 
 
 EDOPE_V = [round(float(v), 2) for v in np.linspace(-0.8, 0.4, 12)]  # 사다리 D 의 칸 전위 (V, 흑연 기준)
+INJ_RATIO = [round(float(v), 3) for v in np.geomspace(0.02, 1.5, 10)]  # 사다리 E 의 PEI:GO 질량비
+LEAK_PAIRS = 2  # 시험 F 의 칸 짝
+
+
+def _n_from_mv(dv_mv):
+    from .qcap import E, HBAR, V_F
+
+    return (np.abs(np.asarray(dv_mv, float)) / 1000 * E / (HBAR * V_F)) ** 2 / math.pi / 1e16
+
+
+def _mv_from_n(n):
+    from .qcap import E, HBAR, V_F
+
+    return HBAR * V_F * math.sqrt(math.pi * max(n, 0.0) * 1e16) / E * 1000
+
+
+def inject_coupon(spec: LightSculptorSpec | None = None, ts=None, px_mm: float = 0.05) -> dict:
+    """시험 E · F 의 빛 그림 (다 환원한 칸 + F 짝 사이 막) 과 T1 주입 자리 (가운데 = 좌표 0)."""
+    from .lighttools import ToolSpec
+
+    spec = spec or LightSculptorSpec()
+    ts = ts or ToolSpec()
+    pitch = SQUARE_MM + GAP_MM
+    e_cyto, e_mem = spec.photo.e_red_mj_cm2 * 1.5, spec.e_cure()
+    cd = spec.layer_mm * (1 + spec.photo.overcure)  # 한 번 노출로 굳는 두께
+    go_mg = SQUARE_MM ** 2 * cd / 1000 * spec.ink.go_mg_ml  # 칸 하나의 GO (mg)
+    squares = [("E", i + 1, r) for i, r in enumerate(INJ_RATIO)]
+    w_mm, h_mm = COLS * pitch + GAP_MM, 4 * pitch + GAP_MM
+    img = np.zeros((int(round(h_mm / px_mm)), int(round(w_mm / px_mm))), dtype=np.float32)
+    s = int(round(SQUARE_MM / px_mm))
+    targets = []
+
+    def put(r, c, x_off=0.0):
+        y0, x0 = int(round((GAP_MM + r * pitch) / px_mm)), int(round((GAP_MM + c * pitch + x_off) / px_mm))
+        img[y0:y0 + s, x0:x0 + s] = 1.0
+        return (GAP_MM + c * pitch + x_off + SQUARE_MM / 2 - w_mm / 2, GAP_MM + r * pitch + SQUARE_MM / 2 - h_mm / 2)
+
+    for n, (t, i, r) in enumerate(squares):
+        x, y = put(*divmod(n, COLS))
+        targets.append((t, i, x, y, r * go_mg / (ts.inj.pei_wt * 10) * 1000))  # µL = mg / (mg/mL) × 1000
+    for j in range(LEAK_PAIRS):  # F: 두 칸을 막 한 줄(0.41 mm)로 붙여 놓음
+        r_row, c0 = 2 + j, 0
+        xa, y = put(r_row, c0)
+        put(r_row, c0, SQUARE_MM + 0.41)
+        y0 = int(round((GAP_MM + r_row * pitch) / px_mm))
+        xm = int(round((GAP_MM + c0 * pitch + SQUARE_MM) / px_mm))
+        img[y0:y0 + s, xm:xm + int(round(0.41 / px_mm))] = e_mem / e_cyto
+        targets.append(("F", 2 * j + 1, xa, y, ts.inj.pei_go_saturate * go_mg / (ts.inj.pei_wt * 10) * 1000))
+    return {"gray": img, "seconds": e_cyto / spec.projector.irradiance_mw_cm2, "targets": targets, "thick_mm": cd}
 
 
 def coupon_frames(spec: LightSculptorSpec | None = None, px_mm: float = 0.05) -> dict:
@@ -94,6 +147,22 @@ def write_coupon(folder: str | Path, spec: LightSculptorSpec | None = None) -> P
     for i, v in enumerate(EDOPE_V):  # 전기 도핑: 노출 칸에 전위(V)를 적음
         rows.append(f"D,{i + 1},{v:g},,mV,전위 V")
     guide.append(f"  D. 전기 도핑 (사후) — 다 환원한 칸 12개를 도핑 통(배지 + PEI 0.1 %)에서 {EDOPE_V[0]:g}…{EDOPE_V[-1]:g} V 로 24 h → 개방 전위 차 (mV)")
+    ic = inject_coupon(spec)
+    Image.fromarray(np.round(ic["gray"] * 255).astype(np.uint8)[::-1]).save(folder / "coupon_EF.png")
+    from .lighttools import _tool_footer, _tool_header, ToolSpec
+
+    ts = ToolSpec()
+    g = _tool_header("시험 E · F — 주입량 사다리 · 막 너머 샘", ic["thick_mm"], ts) + ["TOOL_PICK T=T1  ; 유리 미세 피펫", "PRIME T=T1 UL=2"]
+    for t, i, x, y, ul in ic["targets"]:
+        g += [f"; {t}{i}", f"G0 X{x:.2f} Y{y:.2f} Z{ic['thick_mm'] + 3:.2f}", f"G1 Z{ic['thick_mm'] / 2:.2f} F120",
+              f"INJECT UL={ul:.3f} RATE={ts.head.inj_flow_ul_s:g}", f"G1 Z{ic['thick_mm'] + 3:.2f} F120"]
+    (folder / "coupon_EF_inject.gcode").write_text("\n".join(g + _tool_footer()) + "\n", encoding="utf-8")
+    for i, r in enumerate(INJ_RATIO):
+        rows.append(f"E,{i + 1},{r:g},,mV,PEI:GO 질량비")
+    for j in range(LEAK_PAIRS):
+        rows += [f"F,{2 * j + 1},1,,mV,주입한 칸", f"F,{2 * j + 2},0,,mV,막 너머 이웃 칸"]
+    guide.append(f"  E · F. 주입 — coupon_EF.png 를 405 nm 로 {ic['seconds']:.0f} s (다 환원 · F 짝 사이는 막) → 받침째 도구 면으로 → "
+                 f"coupon_EF_inject.gcode (T1, PEI 1 %) → 24 h → T5 흑연 탐침으로 칸마다 개방 전위 차 (mV, 도핑 안 한 칸 기준)")
     guide += ["  측정 → measurements.csv 의 '측정값' 칸을 채우고: python -m snss_battery light-cal fit measurements.csv",
               "  B: 칸 양 끝에 흑연 시트 패드를 대고 멀티미터 저항 (배지에서 꺼내 표면 물기만 닦고, 같은 간격으로)",
               "  C: 배지 속에서 흑연 기준 전극 ↔ 칸 사이 개방 전위 (도핑 안 한 칸과의 차, mV) — 30 초 안정 뒤"]
@@ -163,7 +232,7 @@ def fit_edope(e_v: np.ndarray, dv_mv: np.ndarray) -> dict:
 
 def fit_calibration(csv_path: str | Path, spec: LightSculptorSpec | None = None) -> dict:
     spec = spec or LightSculptorSpec()
-    data: dict[str, list[tuple[float, float]]] = {"A": [], "B": [], "C": [], "D": []}
+    data: dict[str, list[tuple[float, float]]] = {"A": [], "B": [], "C": [], "D": [], "E": [], "F": []}
     with open(csv_path, encoding="utf-8") as f:
         for row in csv.DictReader(f):
             v = (row.get("측정값") or "").strip()
@@ -195,7 +264,20 @@ def fit_calibration(csv_path: str | Path, spec: LightSculptorSpec | None = None)
         fd = fit_edope(e, y)
         out["fits"]["D"] = fd
         out["edope"] = {k: fd[k] for k in ("e_half_v", "width_v", "n_max")}
-    if not out["photo"] and "edope" not in out:
+    if len(data["E"]) >= 4:
+        r, y = np.array(data["E"]).T
+        n = _n_from_mv(y)
+        a, b, tau, res = _fit_saturating(r, n)
+        out["fits"]["E"] = {"r_sat": tau * math.log(10), "n_max": a + b, "rms_n": math.sqrt(res / len(r))}
+        out.setdefault("inject", {}).update({"pei_go_saturate": tau * math.log(10), "n_max": a + b})
+    if len(data["F"]) >= 2:
+        pairs = [(data["F"][i][1], data["F"][i + 1][1]) for i in range(0, len(data["F"]) - 1, 2)
+                 if data["F"][i][0] == 1 and data["F"][i + 1][0] == 0]
+        if pairs:
+            leak = float(np.mean([(nb / inj) ** 2 for inj, nb in pairs if inj]))
+            out["fits"]["F"] = {"leak": leak, "pairs": len(pairs)}
+            out.setdefault("inject", {})["leak"] = leak
+    if not out["photo"] and "edope" not in out and "inject" not in out:
         raise ValueError("측정값이 채워진 시험이 없습니다 (measurements.csv 의 '측정값' 칸).")
     return out
 
@@ -218,6 +300,16 @@ def calibrated_edope(cal: dict | str | Path, ed=None):
     return replace(ed, **{k: float(v) for k, v in cal.get("edope", {}).items()})
 
 
+def calibrated_toolspec(cal: dict | str | Path, ts=None):
+    """주입 상수 (시험 E · F) 를 ToolSpec 에."""
+    from .lighttools import ToolSpec
+
+    if not isinstance(cal, dict):
+        cal = json.loads(Path(cal).read_text(encoding="utf-8"))
+    ts = ts or ToolSpec()
+    return replace(ts, inj=replace(ts.inj, **{k: float(v) for k, v in cal.get("inject", {}).items()}))
+
+
 def describe_calibration(cal: dict, spec: LightSculptorSpec | None = None) -> str:
     spec = spec or LightSculptorSpec()
     base = asdict(Photo())
@@ -231,6 +323,10 @@ def describe_calibration(cal: dict, spec: LightSculptorSpec | None = None) -> st
         lines.append(f"  C 초록 접목: E_g {f['C']['e_graft_mj_cm2']:.0f} mJ/cm² · ΔV {f['C']['dv_max_mv']:.0f} mV → 정공 {f['C']['n_graft_max']:.1f}×10¹² cm⁻²")
     if "D" in f:
         lines.append(f"  D 전기 도핑: E½ {f['D']['e_half_v']:+.2f} V · w {f['D']['width_v']:.3f} V · ΔV {f['D']['dv_max_mv']:.0f} mV → 전자 {f['D']['n_max']:.1f}×10¹² cm⁻²")
+    if "E" in f:
+        lines.append(f"  E 주입량: PEI:GO {f['E']['r_sat']:.2f} 에서 90 % · 전자 {f['E']['n_max']:.1f}×10¹² cm⁻²")
+    if "F" in f:
+        lines.append(f"  F 막 너머 샘: {f['F']['leak'] * 100:.1f} % (짝 {f['F']['pairs']}개)")
     lines.append("  바뀐 상수: " + " · ".join(f"{k} {base[k]:g} → {v:.4g}" for k, v in cal.get("photo", {}).items()))
     new = calibrated_spec(cal, spec)
     bad = new.check()
@@ -268,5 +364,15 @@ def synthetic_measurements(path: str | Path, truth: Photo, spec: LightSculptorSp
     for i, v in enumerate(EDOPE_V):
         dv = ef_n * ed.frac(v) * (1 + noise * rng.standard_normal())
         rows.append(f"D,{i + 1},{v:g},{dv:.2f},mV,전위 V")
+    from .lighttools import Injection
+
+    inj = Injection()
+    for i, r in enumerate(INJ_RATIO):
+        n = inj.n_max * (1 - math.exp(-r * math.log(10) / inj.pei_go_saturate))
+        rows.append(f"E,{i + 1},{r:g},{_mv_from_n(n) * (1 + noise * rng.standard_normal()):.2f},mV,PEI:GO 질량비")
+    for j in range(LEAK_PAIRS):
+        n_inj = inj.n_max * (1 - math.exp(-math.log(10)))
+        rows += [f"F,{2 * j + 1},1,{_mv_from_n(n_inj):.2f},mV,주입한 칸",
+                 f"F,{2 * j + 2},0,{_mv_from_n(n_inj * inj.leak) * (1 + noise * rng.standard_normal()):.2f},mV,막 너머 이웃 칸"]
     Path(path).write_text("\n".join(rows) + "\n", encoding="utf-8")
     return Path(path)

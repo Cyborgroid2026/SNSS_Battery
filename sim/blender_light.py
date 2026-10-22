@@ -1,6 +1,9 @@
 """Blender 장면: SNSS 빛 조각가 SC-2 — 배지가 모니터. 수조 위 두 색 프로젝터 · 잉크 우물 · 자라는 존재 · 물속 도구 갠트리(주차) · 수조 아래 데스크톱.
 
-    blender -b --factory-startup --python sim/blender_light.py -- <빛 작업 폴더> <출력 폴더> [--layer K] [--cycles]
+    blender -b --factory-startup --python sim/blender_light.py -- <빛 작업 폴더> <출력 폴더> [--layer K] [--cycles] [--anim]
+
+--anim: 한 주기 동영상 (light_cycle.mp4) — 빛 쬠 → 빛 끔 · 갠트리가 펴지고 받침이 도구 면으로 → 유리 피펫이 n 세포에 PEI 주입 →
+갠트리 주차 · 받침이 빛 면으로 → 다음 층 빛.
 
 빛 작업 폴더 = python -m snss_battery light … 가 만든 sculpt_out/light_jobs/NN_… (summary.json · layout.json · exposure.npz · <이름>_mesh.npz).
 좌표: mm × 0.01 = Blender 단위, 프레임 바닥 가운데가 원점 (layout.json 과 같음). 노광면 = 배지 수면.
@@ -19,6 +22,7 @@ argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 JOB = Path(argv[0]) if argv else Path("sculpt_out/light_jobs/01_being")
 OUT = Path(argv[1]) if len(argv) > 1 and not argv[1].startswith("--") else JOB / "blender"
 CYCLES = "--cycles" in argv
+ANIM = "--anim" in argv
 S = 0.01
 OUT.mkdir(parents=True, exist_ok=True)
 
@@ -69,16 +73,16 @@ def hexrgb(h):
 
 
 def above_surface_hidden(m):
-    """수면 위(아직 빚지 않은 층)는 투명 — 형상을 다시 계산하지 않고 재질에서 자름."""
+    """아직 빚지 않은 층(작업물 좌표 K 층 위)은 투명 — 재질에서 자름. 물체 좌표라 받침과 함께 오르내려도 맞음."""
     nt = m.node_tree
     out = nt.nodes["Material Output"]
     shader = out.inputs["Surface"].links[0].from_socket
-    geo, sep = nt.nodes.new("ShaderNodeNewGeometry"), nt.nodes.new("ShaderNodeSeparateXYZ")
+    geo, sep = nt.nodes.new("ShaderNodeTexCoord"), nt.nodes.new("ShaderNodeSeparateXYZ")
     cmp_ = nt.nodes.new("ShaderNodeMath")
     cmp_.operation = "GREATER_THAN"
-    cmp_.inputs[1].default_value = FILL * S
+    cmp_.inputs[1].default_value = (K + 1) * PZ * S
     tr, mix = nt.nodes.new("ShaderNodeBsdfTransparent"), nt.nodes.new("ShaderNodeMixShader")
-    nt.links.new(geo.outputs["Position"], sep.inputs[0])
+    nt.links.new(geo.outputs["Object"], sep.inputs[0])
     nt.links.new(sep.outputs["Z"], cmp_.inputs[0])
     nt.links.new(cmp_.outputs[0], mix.inputs["Fac"])
     nt.links.new(shader, mix.inputs[1])
@@ -176,21 +180,37 @@ def lay_obj(b, dz=0.0):
 collection("빛 조각가 SC-2")
 tank = box("배양조 — 36 큐브 유리 수조", (TANK_IN + 8, TANK_IN + 8, TANK_IN + 6), (0, 0, Z0 + TANK_IN / 2 - 3), MAT["glass"])
 bath = box("배지 (멸균생리식염수)", (TANK_IN - 2, TANK_IN - 2, FILL - Z0), (0, 0, (FILL + Z0) / 2), MAT["bath"])
+PARKED = {}
 for b in LAY["boxes"]:
     if b["kind"] in ("frame", "static") and "프로젝터" not in b["name"]:
         lay_obj(b)
     elif b["kind"] == "well":
         lay_obj(b)
     elif b["kind"] == "gantry" and "(쓸림)" not in b["name"]:  # 물속 도구 갠트리 — 빛을 쬐는 동안 뒤쪽에 주차
-        lay_obj(b)
+        o = lay_obj(b)
+        if "(주차)" in b["name"]:
+            PARKED[b["name"]] = o
+TOOL_TIP = 198.0  # lighttools.ToolHead.tip_z (도구 면)
+carriage = PARKED.get("캐리지 (주차)")
+if carriage is not None:  # 캐리지에 단 주입 주사기 (유리 미세 피펫) — 캐리지와 함께 움직임
+    MAT["pipette"] = principled("유리 미세 피펫 (붕규산)", (0.85, 0.93, 1.0), 0.05, alpha=0.55)
+    gz_c = carriage.location.z / S
+    pip = cyl("T1 유리 미세 피펫", 1.2, gz_c - 16 - TOOL_TIP, (carriage.location.x / S, carriage.location.y / S, (gz_c - 16 + TOOL_TIP) / 2),
+              MAT["pipette"], verts=16)
+    pip.parent = carriage
+    pip.matrix_parent_inverse = carriage.matrix_world.inverted()
 # 받침이 내려간 만큼: 받침 · 기둥 · 너트 판 (layout 은 가장 높을 때)
 nut = next(b for b in LAY["boxes"] if b["name"].startswith("받침 너트 판"))
 drop = FILL - PZ - DZ  # 처음(첫 층이 수면) 에서 지금까지 내려간 거리
-lay_obj(nut, -drop)
-box("배양 받침", (120, 120, 6), (0, 0, DZ - 3), MAT["bed"])
-box("받침 기둥", (40, 40, 40), (0, 0, DZ - 26), MAT["petg"])
+bpy.ops.object.empty_add(location=(0, 0, 0))
+BED = bpy.context.object
+BED.name = "받침 무리 (Z 로 오르내림)"
+bed_parts = [lay_obj(nut, -drop), box("배양 받침", (120, 120, 6), (0, 0, DZ - 3), MAT["bed"]),
+             box("받침 기둥", (40, 40, 52), (0, 0, DZ - 32), MAT["petg"])]
 for sx in (-1, 1):
-    box(f"흑연 패드 {'+' if sx < 0 else '−'}", (14, 22, 0.8), (sx * 9.5, 2.5, DZ - 0.4), MAT["graphite"])
+    bed_parts.append(box(f"흑연 패드 {'+' if sx < 0 else '−'}", (14, 22, 0.8), (sx * 9.5, 2.5, DZ - 0.4), MAT["graphite"]))
+for o in bed_parts:
+    o.parent = BED
 # 잉크층 (테 안, 수면에서 아래로)
 well = [b for b in LAY["boxes"] if b["kind"] == "well"]
 w_in = min(abs(b["lo"][1]) for b in well if "(X)" in b["name"] and b["lo"][1] > 0) if well else 75
@@ -249,8 +269,7 @@ mz = np.load(JOB / f"{NAME}_mesh.npz")
 for role, label in (("pos", "p 세포질"), ("neg", "n 세포질"), ("mem", "막 · 피부")):
     if f"{role}_v" not in mz.files:
         continue
-    v = mz[f"{role}_v"].astype(np.float64)
-    v[:, 2] += DZ
+    v = mz[f"{role}_v"].astype(np.float64)  # 작업물 좌표 (받침 윗면 = 0) — 물체 위치로 DZ 만큼 올림
     f = mz[f"{role}_f"]
     me = bpy.data.meshes.new(label)
     me.vertices.add(len(v))
@@ -261,7 +280,10 @@ for role, label in (("pos", "p 세포질"), ("neg", "n 세포질"), ("mem", "막
     me.polygons.foreach_set("loop_start", np.arange(0, len(f) * 3, 3, dtype=np.int32))
     me.update(calc_edges=True)
     me.materials.append(MAT[role])
-    bpy.context.collection.objects.link(bpy.data.objects.new(label, me))
+    ob = bpy.data.objects.new(label, me)
+    bpy.context.collection.objects.link(ob)
+    ob.location = (0, 0, DZ * S)
+    ob.parent = BED
 
 # ---------- 수조 아래 데스크톱 · 방수 키보드 · 마우스 (모니터 없음 — 수조가 모니터) ----------
 collection("데스크톱 (수조 아래)")
@@ -341,6 +363,67 @@ render(close, OUT / "light_surface.png", (1200, 1000))
 for o in (tank, bath, ink):
     o.hide_render = False
 bg[0].default_value, bg[1].default_value = (0.93, 0.94, 0.96, 1), 0.6
+if ANIM and carriage is not None:
+    # 한 주기: 1–40 빛 · 41–80 빛 끔 + 갠트리 폄 + 받침 내림 · 81–140 주입 (세포 둘) · 141–180 주차 + 받침 올림 · 181–200 다음 층 빛
+    beam = bpy.data.objects["빛길 (프로젝터 → 수면)"]
+    xbeam = PARKED.get("X 빔 (주차)")
+    down = (FILL - TOOL_TIP) * S  # 작업물 꼭대기를 수면 → 도구 면
+    y_park = carriage.location.y
+    targets = [(-4.0, -2.0), (6.0, 3.0)]  # 주입할 n 세포 (출력 좌표 mm, 어림)
+
+    def key(o, path, frame, value=None, idx=None):
+        if value is not None:
+            if idx is None:
+                setattr(o, path, value)
+            else:
+                getattr(o, path)[idx] = value
+        o.keyframe_insert(path, frame=frame, index=-1 if idx is None else idx)
+
+    for f, on in ((1, True), (40, True), (41, False), (180, False), (181, True)):
+        for o in (frame, beam):
+            o.hide_render = not on
+            o.hide_viewport = not on
+            o.keyframe_insert("hide_render", frame=f)
+            o.keyframe_insert("hide_viewport", frame=f)
+    for f, z in ((40, 0.0), (80, -down), (140, -down), (180, -down * 0 - PZ * S)):
+        key(BED, "location", f, z, 2)
+    for f, y, x in ((44, y_park, 0.0), (80, targets[0][1] * S, targets[0][0] * S), (110, targets[1][1] * S, targets[1][0] * S),
+                    (140, targets[1][1] * S, targets[1][0] * S), (176, y_park, 0.0)):
+        key(carriage, "location", f, y, 1)
+        key(carriage, "location", f, x, 0)
+        if xbeam is not None:
+            key(xbeam, "location", f, y, 1)
+    pip_dz = 6 * S  # 세포 가운데까지 찌름 (어림)
+    for f0 in (84, 114):
+        for f, dz in ((f0, 0.0), (f0 + 8, -pip_dz), (f0 + 20, -pip_dz), (f0 + 26, 0.0)):
+            key(carriage, "location", f, (gz_c + 0) * S + dz, 2)
+    cyc = camera("한 주기", (520, -720, 360), (0, 0, 240), 38)
+    scene.frame_start, scene.frame_end = 1, 200
+    scene.camera = cyc
+    scene.render.resolution_x, scene.render.resolution_y = 960, 720
+    scene.render.fps = 24
+    try:
+        scene.eevee.taa_render_samples = 16
+    except AttributeError:
+        pass
+    im = scene.render.image_settings
+    frames = OUT / "cycle_frames"
+    frames.mkdir(exist_ok=True)
+    im.file_format = "PNG"
+    scene.render.filepath = str(frames / "f_####")
+    bpy.ops.render.render(animation=True)
+    import shutil
+    import subprocess
+
+    if shutil.which("ffmpeg"):
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-framerate", "24", "-i", str(frames / "f_%04d.png"),
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", str(OUT / "light_cycle.mp4")], check=True)
+        shutil.rmtree(frames)
+        print("동영상:", OUT / "light_cycle.mp4")
+    else:
+        print("동영상 프레임:", frames, "(ffmpeg 가 없어 mp4 는 만들지 않음)")
+    scene.frame_set(1)
+
 scene.camera = hero
 bpy.ops.wm.save_as_mainfile(filepath=str((OUT / "light.blend").resolve()))
 print("저장:", OUT / "light.blend", f"(층 {K})")

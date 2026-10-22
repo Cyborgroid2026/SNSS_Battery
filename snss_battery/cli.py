@@ -318,7 +318,12 @@ def cmd_light(a: argparse.Namespace) -> None:
     if a.tools:  # 물속 갠트리 + 주사기 · 조각 도구 — 띠마다 n 세포 PEI 주입
         from .lighttools import describe_tools, plan_tools
 
-        tools = plan_tools(job)
+        ts = None
+        if a.cal:
+            from .lightcal import calibrated_toolspec
+
+            ts = calibrated_toolspec(a.cal)
+        tools = plan_tools(job, ts)
         print("\n" + describe_tools(tools))
     out = write_light_job(job, jobs / f"{n:02d}_{job['piece'].name}")
     print(f"\n저장: {out['folder']} (exposure.npz · frames/ · summary.json · layout.json)")
@@ -393,6 +398,19 @@ def cmd_light_tool(a: argparse.Namespace) -> None:
 
         print(describe_prediction(res["predictions"][0]))
     print(f"저장: {res['folder']} (job.gcode — 도구 면 · 도구 집기 포함) · 기억 갱신: {folder}")
+
+
+def cmd_light_eit(a: argparse.Namespace) -> None:
+    """배지 속 전극 감지 (EIT): 빚는 동안 자람 · 덧굳음 · 빠짐을 전기장으로 — 데스크톱이 층마다 봄."""
+    from pathlib import Path
+
+    from .eit import EITSpec, eit_report
+
+    r = eit_report(job_or_shape=a.shape, layer=a.layer, out_dir=Path(a.out) / "eit", es=EITSpec(place=a.place),
+                   compare=a.compare)
+    print(r["text"])
+    if r.get("figure"):
+        print(f"그림: {r['figure']}")
 
 
 def cmd_light_run(a: argparse.Namespace) -> None:
@@ -630,6 +648,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--upper", help="attach: 위 조각 .npz")
     p.add_argument("--out", default="sculpt_out")
     p.set_defaults(func=cmd_light_tool)
+
+    p = sub.add_parser("light-eit", help="SC-2 전극 감지 (EIT) — 배지 속 전기장으로 빚는 몸을 봄 (자람 · 덧굳음 · 빠짐)")
+    p.add_argument("shape", nargs="?", default="being")
+    p.add_argument("--layer", type=int, help="층 (기본: 높이의 62 %%)")
+    p.add_argument("--place", default="collar_bed", choices=["collar_bed", "collar_riser", "sleeve", "walls"],
+                   help="전극 자리 (기본: 테 아래 + 받침 가장자리 — 도구 갠트리와 안 부딪힘)")
+    p.add_argument("--compare", action="store_true", help="전극 자리 네 가지를 표로 비교 (약 90 s)")
+    p.add_argument("--out", default="sculpt_out")
+    p.set_defaults(func=cmd_light_eit)
 
     p = sub.add_parser("light-run", help="SC-2 실행기 — 기계 묶음을 시간표대로 (기본: 시간표만, --window: 프로젝터 창)")
     p.add_argument("folder", help="light --export 가 만든 machine 폴더")

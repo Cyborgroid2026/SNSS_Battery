@@ -22,6 +22,10 @@ class TestCalibration(unittest.TestCase):
         self.assertAlmostEqual(ph["e_graft_mj_cm2"], 380.0, delta=8)
         self.assertAlmostEqual(ph["n_graft_max"], 4.0, delta=0.1)
         self.assertAlmostEqual(ph["theta_mem"], 0.301, delta=0.005)  # 로그 상승 50 % 기준의 정의
+        ts = C.calibrated_toolspec(cal)  # 시험 E · F: 주입 포화비 · 전자 밀도 · 막 너머 샘
+        self.assertAlmostEqual(ts.inj.pei_go_saturate, 0.5, delta=0.03)
+        self.assertAlmostEqual(ts.inj.n_max, 5.0, delta=0.2)
+        self.assertAlmostEqual(ts.inj.leak, 0.05, delta=0.005)
         ed = C.calibrated_edope(cal)
         self.assertAlmostEqual(ed.e_half_v, -0.2, delta=0.02)
         self.assertAlmostEqual(ed.width_v, 0.08, delta=0.01)
@@ -39,7 +43,8 @@ class TestCalibration(unittest.TestCase):
             for k in "ABC":
                 self.assertTrue((f / f"coupon_{k}.png").exists())
             rows = (f / "measurements.csv").read_text(encoding="utf-8").splitlines()
-            self.assertEqual(len(rows), 1 + 4 * 12)
+            self.assertEqual(len(rows), 1 + 4 * 12 + len(C.INJ_RATIO) + 2 * C.LEAK_PAIRS)
+            self.assertIn("INJECT UL=", (f / "coupon_EF_inject.gcode").read_text(encoding="utf-8"))
 
     def test_empty_measurements_rejected(self):
         with tempfile.TemporaryDirectory() as d:

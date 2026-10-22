@@ -73,10 +73,10 @@ class ToolHead:
 @dataclass
 class Injection:
     pei_wt: float = 1.0  # 주입액: 멸균생리식염수 + 분지형 PEI
-    vol_frac: float = 0.10  # 세포질 부피의 10 % 를 주입
-    pei_go_saturate: float = 0.5  # PEI : GO 질량비가 이만큼이면 다 붙음 (가정)
+    vol_frac: float = 0.15  # 세포질 부피의 15 % 를 주입 (PEI:GO 0.75 → 97 % 붙음)
+    pei_go_saturate: float = 0.5  # PEI : GO 질량비가 이만큼이면 90 % 붙음 (가정, 시험 E 로 잼)
     d_m2_s: float = 5e-11  # PEI 확산 (electrodope 와 같음, 가정)
-    leak: float = 0.05  # 막을 넘어 이웃(p) 세포로 새는 몫 — GO 막이 PEI 를 붙잡음 (가정)
+    leak: float = 0.05  # 막을 넘어 이웃(p) 세포로 새는 몫 — GO 막이 PEI 를 붙잡음 (가정, 시험 F 로 잼)
     n_max: float = 5.0
     band_mm: float = 9.0  # 빛으로 이만큼 쌓을 때마다 도구 작업 (세포 3개 높이)
     lag_bands: int = 1  # 잉크에 닿지 않게 한 띠 아래 세포만 주입
@@ -150,7 +150,7 @@ def plan_tools(job: dict, ts: ToolSpec | None = None) -> dict:
     # 도핑: 주입량이 PEI:GO 포화비를 넘으면 다 붙음 · 세포 반지름만큼 스밈 (구의 첫 모드)
     r_m = (3 * np.maximum(v_cyto, 1e-9) / (4 * math.pi)) ** (1 / 3) / 1000
     ratio = inj.vol_frac * inj.pei_wt * 10 / spec.ink.go_mg_ml
-    sat = min(1.0, ratio / inj.pei_go_saturate)
+    sat = 1 - math.exp(-ratio * math.log(10) / inj.pei_go_saturate)  # 포화비에서 90 % (lightcal 시험 E 와 같은 식)
     light_band_s = pl["expose_s"] / n_bands  # 다 빚기 전에 주입한 세포는 다음 띠를 빛으로 쌓는 동안 스밈
     tau = r_m ** 2 / (math.pi ** 2 * inj.d_m2_s)
     final_soak = float(3 * np.percentile(tau[neg], 90)) if neg.any() else 0.0

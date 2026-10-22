@@ -81,45 +81,53 @@ def schedule(layer_s405: list[float], layer_s530: list[float], spec: LightSculpt
     return rows
 
 
+def plan_schedule(job: dict, tools: dict | None = None) -> dict:
+    """층 시간 (405 · 530 = 층 최대 노출 / 세기) + 도구 작업 자리 + 잉크 갈기 → 시간표 (기계 묶음 · 웹 콘솔 같이 씀)."""
+    spec, pl = job["spec"], job["plan"]
+    E, G = pl["E"], pl["G"]
+    pj = spec.projector
+    t405 = [float(E[:, :, k].max()) / pj.irradiance_mw_cm2 for k in range(E.shape[2])]
+    t530 = [float(G[:, :, k].max()) / pj.green_mw_cm2 for k in range(E.shape[2])]
+    phases = []
+    for i, ph in enumerate((tools or {}).get("phases", [])):
+        phases.append({"after_mm": ph["after_mm"], "seconds": ph["inject_s"] + ph["overhead_s"], "cells": ph["cells"],
+                       "file": f"tools/inject_{i:02d}.gcode", "final": ph["final"], "src": ph})
+    last_z = max((k for k in range(E.shape[2]) if t405[k] > 0), default=0) * spec.layer_mm
+    for ph in phases:  # 마지막 띠에서 끝나는 주입은 다 빚은 뒤로
+        ph["final"] = ph["final"] or ph["after_mm"] > last_z + 1e-9
+    rows = schedule(t405, t530, spec, phases)
+    finals = [x for x in phases if x["final"]]
+    total = rows[-1]["start_s"] + rows[-1]["t405_s"] + rows[-1]["t530_s"] + spec.recoat_s if rows else 0.0
+    total += sum(x["seconds"] for x in finals)
+    return {"rows": rows, "phases": phases, "finals": finals, "total_s": total}
+
+
 def export_job(job: dict, folder: str | Path, slices: bool = True, tools: dict | None = None) -> dict:
     """실제 기계용 묶음 — 프로젝터 화면 · 시간표 · Klipper 기록. tools(lighttools.plan_tools) 면 주입 G-code 와 도구 작업 자리까지."""
     from PIL import Image
 
     spec, p, pl = job["spec"], job["piece"], job["plan"]
     folder = Path(folder)
-    E, G = pl["E"], pl["G"]
     pj = spec.projector
-    t405, t530 = [0.0] * E.shape[2], [0.0] * E.shape[2]
     if slices:
         for c in ("405", "530"):
             (folder / "slices" / c).mkdir(parents=True, exist_ok=True)
-    for k, a, g, ma, mg in layer_images(E, G, p.offset, p.pitch[0]):
-        t405[k] = ma / pj.irradiance_mw_cm2
-        t530[k] = mg / pj.green_mw_cm2
-        if slices and ma > 0:
-            Image.fromarray(a).save(folder / "slices" / "405" / f"L{k:04d}.png", optimize=True)
+        for k, a, g, ma, mg in layer_images(pl["E"], pl["G"], p.offset, p.pitch[0]):
+            if ma > 0:
+                Image.fromarray(a).save(folder / "slices" / "405" / f"L{k:04d}.png", optimize=True)
             if mg > 0:
                 Image.fromarray(g).save(folder / "slices" / "530" / f"L{k:04d}.png", optimize=True)
-    phases = []
+    sch = plan_schedule(job, tools)
     if tools:
         from .lighttools import inject_gcode
 
         (folder / "tools").mkdir(parents=True, exist_ok=True)
-        for i, ph in enumerate(tools["phases"]):
-            f = f"tools/inject_{i:02d}.gcode"
-            (folder / f).write_text(inject_gcode(ph, ph["after_mm"], tools["ts"]), encoding="utf-8")
-            phases.append({"after_mm": ph["after_mm"], "seconds": ph["inject_s"] + ph["overhead_s"], "cells": ph["cells"],
-                           "file": f, "final": ph["final"]})
-    last_z = max((k for k in range(E.shape[2]) if t405[k] > 0), default=0) * spec.layer_mm
-    for ph in phases:  # 마지막 띠에서 끝나는 주입은 다 빚은 뒤로
-        ph["final"] = ph["final"] or ph["after_mm"] > last_z + 1e-9
-    rows = schedule(t405, t530, spec, phases)
-    total = rows[-1]["start_s"] + rows[-1]["t405_s"] + rows[-1]["t530_s"] + spec.recoat_s if rows else 0.0
-    finals = [x for x in phases if x["final"]]
-    total += sum(x["seconds"] for x in finals)
+        for ph in sch["phases"]:
+            (folder / ph["file"]).write_text(inject_gcode(ph["src"], ph["src"]["after_mm"], tools["ts"]), encoding="utf-8")
+    rows, finals = sch["rows"], sch["finals"]
     meta = {"machine": spec.name, "piece": p.name, "px_mm": PX_MM, "field_mm": FIELD_MM, "size_px": int(round(FIELD_MM / PX_MM)),
             "flip": {"x": False, "y": False}, "irradiance_mw_cm2": {"405": pj.irradiance_mw_cm2, "530": pj.green_mw_cm2},
-            "layer_mm": spec.layer_mm, "ink_life_h": spec.ink_life_h(), "total_h": total / 3600,
+            "layer_mm": spec.layer_mm, "ink_life_h": spec.ink_life_h(), "total_h": sch["total_s"] / 3600,
             "ink_swaps": sum(r["swap_ink"] for r in rows), "layers": rows,
             "tool_after": [{"file": x["file"], "seconds": round(x["seconds"], 1), "cells": x["cells"]} for x in finals]}
     folder.mkdir(parents=True, exist_ok=True)

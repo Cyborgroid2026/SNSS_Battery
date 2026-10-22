@@ -419,7 +419,7 @@ def _light_assets(folder: Path) -> dict:
     renders = []
     jobs = sorted(f.parent for f in (ROOT / "sculpt_out" / "light_jobs").glob("*/blender/light_scene.png"))
     if jobs:
-        for n in ("light_scene.png", "light_surface.png"):
+        for n in ("light_scene.png", "light_surface.png", "light_cycle.mp4"):
             if (jobs[-1] / n).exists():
                 shutil.copy2(jobs[-1] / n, out / f"blender_{n}")
                 renders.append(f"light/blender_{n}")
@@ -435,8 +435,33 @@ def _light_assets(folder: Path) -> dict:
     edope = electro_dope(job, ed0)
     from .lighttools import describe_tools, plan_tools
 
-    tools = plan_tools(job)
+    if cal_file.exists():
+        from .lightcal import calibrated_toolspec
+
+        tools = plan_tools(job, calibrated_toolspec(cal_file))
+    else:
+        tools = plan_tools(job)
+    eit = None
+    try:  # 배지 속 전극 감지 — 약 20 s
+        from .eit import eit_report
+
+        er = eit_report(job, out_dir=out / "eit")
+        eit = {"text": er["text"], "figure": "light/eit/eit.png" if er.get("figure") else None}
+    except Exception as e:  # noqa: BLE001 — 웹은 EIT 없이도 만들어져야 함
+        eit = {"text": f"EIT 계산 실패: {e}", "figure": None}
+    from .lightrun import plan_schedule
+
+    sch = plan_schedule(job, tools)
+    start_h = [None] * pl["E"].shape[2]
+    marks = []
+    for r in sch["rows"]:
+        start_h[r["k"]] = round(r["start_s"] / 3600, 3)
+        if r["swap_ink"] or r["tool_before"]:
+            marks.append({"k": r["k"], "swap": r["swap_ink"], "tool": r["tool_before"]["cells"] if r["tool_before"] else 0})
     return {
+        "eit": eit,
+        "timeline": {"start_h": start_h, "marks": marks, "total_h": sch["total_s"] / 3600,
+                     "after_cells": sum(x["cells"] for x in sch["finals"])},
         "machine": spec.describe(), "layout": lay.describe(), "job_text": describe_job(job) + "\n\n" + describe_tools(tools) + "\n\n" + describe_edope(edope),
         "tools": [{"key": t.key, "name": t.name, "tip": t.tip, "use": t.use} for t in tools["ts"].tools],
         "inject": {"cells": tools["n_inject"], "phases": len(tools["phases"]), "hours": tools["tool_h"],
@@ -616,11 +641,13 @@ def lightcal_state() -> dict:
     """콘솔의 시험편 측정표: 사다리 노출(전위) · 지금까지 적은 측정값 · 보정 결과."""
     import csv
 
-    from .lightcal import EDOPE_V, ladders
+    from .lightcal import EDOPE_V, INJ_RATIO, LEAK_PAIRS, ladders
 
     lad = ladders()
     rows = [{"test": t, "i": i + 1, "x": float(x), "value": ""} for t in "ABC" for i, x in enumerate(lad[t])]
     rows += [{"test": "D", "i": i + 1, "x": float(v), "value": ""} for i, v in enumerate(EDOPE_V)]
+    rows += [{"test": "E", "i": i + 1, "x": float(r), "value": ""} for i, r in enumerate(INJ_RATIO)]
+    rows += [{"test": "F", "i": i + 1, "x": float(1 - i % 2), "value": ""} for i in range(2 * LEAK_PAIRS)]
     meas = LIGHT_CAL_DIR / "measurements.csv"
     if meas.exists():
         with open(meas, encoding="utf-8") as f:
@@ -640,7 +667,7 @@ def lightcal_fit(body: dict) -> dict:
     """측정표 저장 → 맞춤 → sculpt_out/light_cal.json (웹 콘솔을 다시 만들면 보정값으로)."""
     from .lightcal import describe_calibration, fit_calibration
 
-    unit = {"A": "mm", "B": "ohm", "C": "mV", "D": "mV"}
+    unit = {"A": "mm", "B": "ohm", "C": "mV", "D": "mV", "E": "mV", "F": "mV"}
     lines = ["시험,칸,노출_mJ_cm2,측정값,단위,메모"]
     for r in body["rows"]:
         t = str(r["test"])
@@ -649,7 +676,8 @@ def lightcal_fit(body: dict) -> dict:
         v = str(r.get("value", "")).strip()
         if v:
             float(v)  # 숫자인지
-        lines.append(f"{t},{int(r['i'])},{float(r['x']):g},{v},{unit[t]},{'전위 V' if t == 'D' else ''}")
+        memo = {"D": "전위 V", "E": "PEI:GO 질량비", "F": "주입한 칸" if float(r["x"]) else "막 너머 이웃 칸"}.get(t, "")
+        lines.append(f"{t},{int(r['i'])},{float(r['x']):g},{v},{unit[t]},{memo}")
     LIGHT_CAL_DIR.mkdir(parents=True, exist_ok=True)
     demo = bool(body.get("demo"))  # 연습값은 진짜 보정값으로 저장하지 않음
     meas = LIGHT_CAL_DIR / ("demo_measurements.csv" if demo else "measurements.csv")
@@ -801,6 +829,9 @@ section { display: none; } section.on { display: block; }
 .lc-frame canvas:focus { outline: 2px solid var(--accent); }
 .lc-head { display: flex; gap: 8px; align-items: baseline; }
 .lc-stage { min-height: 420px; }
+.lc-marks { position: relative; height: 10px; margin: 0 8px 4px; }
+.lc-marks span { position: absolute; top: 0; width: 4px; height: 10px; margin-left: -2px; border-radius: 2px; background: var(--muted); }
+.lc-marks span.tool { background: #2f9e5a; } .lc-marks span.swap { background: #c47f17; } .lc-marks span.swap.tool { background: linear-gradient(#c47f17, #2f9e5a); }
 .lc-whatif { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 16px; margin-bottom: 10px; }
 .lc-whatif label { color: var(--muted); font-size: 13px; } .lc-whatif input { width: 100%; }
 @media (max-width: 1000px) { .lc-view { grid-template-columns: 1fr; } }
@@ -926,6 +957,10 @@ aside .panel { background: var(--panel); border: 1px solid var(--line); border-r
       <button id="lcCalDemo" type="button">연습값 채우기 (참값을 아는 가상 측정)</button></div>
     <div class="lc-cal" id="lcCal"></div>
     <pre id="lcCalText"></pre>
+    <h2>배지 속 전극 감지 (EIT) — 빚는 동안 전기장으로 봄</h2>
+    <p class="sub">흑연 전극 32개 (잉크 우물 테 아래 한 줄 + 받침 가장자리 한 줄, 도구 갠트리와 안 부딪힘) · 교류 10 kHz 20 mV ·
+      갠트리가 주차했을 때만. 자람은 한 층마다 보이고, 덧굳은 덩어리는 16 mm 부터 (10층 평균이면 11 mm). 명령: <code>./tools.sh light-eit</code></p>
+    <div id="lcEit"></div>
     <div id="lcRenders"></div>
     <h2>기계 · 공간 배치 · 이 작업</h2>
     <pre id="lcText"></pre>

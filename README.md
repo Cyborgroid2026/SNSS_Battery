@@ -19,6 +19,8 @@ GO · SNSS(멸균생리식염수) · PVA 가 따로 펜에 들어가 끝에서 �
 | 호환 단자 · SCPI 다리 · C–V 되먹임 · 양자 난수 씨앗 | `./tools.sh ports` · `python -m snss_battery scpi` · `cv-fit 측정.csv` · `sculpt new … --qrng /dev/…` |
 | 웹 뷰어 ('조각가 · 존재' 탭) | `./tools.sh web` |
 | **빛 조각가 SC-2** — 펜 없이 잉크층 + 405 nm 빛, 배지가 모니터 ([spec/LIGHT.md](spec/LIGHT.md)) | `./tools.sh light` → `python -m snss_battery light being [--go 2 --irradiance 6]` · Blender `./tools.sh light-blender` · 웹 '빛 조각가 · 콘솔' 탭 |
+| SC-2 배지 속 전극 감지 (EIT) — 빚는 동안 자람 · 덧굳음 · 빠짐 | `./tools.sh light-eit` (`--compare` 전극 자리 비교) |
+| SC-2 한 주기 동영상 (빛 → 도구 주입 → 빛) | `./tools.sh light-blender --anim` |
 | SC-2 조각 도구 (물속 갠트리 · 주사기 6종) — n 세포 PEI 주입 · 허공 획 · 덧붙이기 · 깎기 · 떼기 · 붙이기 | `python -m snss_battery light being --tools` · `./tools.sh light-tool carve --center 0,0,60 --radius 4` |
 | SC-2 빛 상수 보정 (시험편 사다리 → 맞춤) · 실제 기계 묶음 · 실행기 | `./tools.sh light-cal` (coupon · `fit 측정.csv` · demo) · `./tools.sh light-export` → `python -m snss_battery light-run …/machine --window` |
 

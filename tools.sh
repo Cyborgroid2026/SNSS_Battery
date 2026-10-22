@@ -4,10 +4,11 @@
 #   ./tools.sh sculptor      SNSS 조각가 SC-1 (3D 펜을 단 상온 3D 프린터) 명세 · 재료표 · Klipper 설정
 #   ./tools.sh being         양자 인공세포 존재를 새로 빚는 작업 (G-code · 생명 신호 · 메시)
 #   ./tools.sh light         빛 조각가 SC-2 — 펜 없이 빛으로 (명세 · 배치 · 층별 빛 그림 · 생명 신호)
-#   ./tools.sh light-blender 마지막 빛 작업을 Blender 로 (수조 · 프로젝터 · 수면의 빛 그림 · 데스크톱) [--layer K]
+#   ./tools.sh light-blender 마지막 빛 작업을 Blender 로 (수조 · 프로젝터 · 수면의 빛 그림 · 데스크톱) [--layer K] [--anim 한 주기 동영상]
 #   ./tools.sh light-cal     빛 상수 보정 시험편 (coupon) · 측정 맞춤 (fit 측정.csv) · 가상 연습 (demo)
 #   ./tools.sh light-export  빛 작업 + 도구(주입) + 실제 기계 묶음 (프로젝터 화면 · 시간표 · Klipper · 주입 G-code) → light-run
 #   ./tools.sh light-tool    빛으로 빚은 몸에 주사기 · 조각 도구: add · carve · detach · draw · attach
+#   ./tools.sh light-eit     배지 속 전극 감지 (EIT) — 자람 · 덧굳음 · 빠짐 [--compare 전극 자리 비교]
 #   ./tools.sh blender       마지막 작업을 Blender 로 렌더 (기계 + 존재 + 깨어남) · .blend 저장
 #   ./tools.sh blender-anim  위 + 쌓기→깨어남 동영상 (mp4)
 #   ./tools.sh view-blender  마지막 작업의 .blend 를 Blender 창으로 열기
@@ -143,7 +144,7 @@ cmd_light_blender() {
     need_blender
     local j; j=$(last_light_job)
     [[ -n "$j" ]] || { "$PY" -m snss_battery light being >/dev/null; j=$(last_light_job); }
-    blender -b --factory-startup --python sim/blender_light.py -- "$j" "$j/blender" "$@" 2>&1 | grep -E "렌더|저장|Error|Traceback" || true
+    blender -b --factory-startup --python sim/blender_light.py -- "$j" "$j/blender" "$@" 2>&1 | grep -E "렌더|저장|동영상|Error|Traceback" || true
 }
 cmd_view_blender() {
     need_blender
@@ -161,6 +162,7 @@ case "${1:-}" in
     light-cal) shift; "$PY" -m snss_battery light-cal "${@:-coupon}" ;;
     light-export) "$PY" -m snss_battery light being --tools --export ;;
     light-tool) shift; "$PY" -m snss_battery light-tool "$@" ;;
+    light-eit) shift; "$PY" -m snss_battery light-eit "$@" ;;
     blender) cmd_blender ;;
     blender-anim) cmd_blender --anim ;;
     view-blender) cmd_view_blender ;;

@@ -620,7 +620,7 @@ def describe(r: dict, es: EITSpec) -> str:
              f"  전극: {es.rod}",
              f"    {PLACES[es.place]} · {r['n_rings']}줄 × 16 = {r['n_electrodes']}개 · 높이 {', '.join(f'{z:g}' for z in r['electrode_z_mm'])} mm · "
              f"접지 = 배지 전도도 전극 자리",
-             f"    도구 갠트리(빔 · 캐리지 z 283–316) 와 겹치지 않음 — EIT 는 갠트리가 주차했을 때만 잼 (빔 · 레일은 절연체로 넣음)"
+             "    도구 갠트리(빔 · 캐리지 z 283–316) 와 겹치지 않음 — EIT 는 갠트리가 주차했을 때만 잼 (빔 · 레일은 절연체로 넣음)"
              if es.place in ("collar_bed", "collar_riser") else
              f"    {'⚠ 소매는 도구 갠트리 쓸림(z 283–316) 과 겹침 — 도구 단계 전에 소매를 들어 올려야 함' if es.place == 'sleeve' else '수조 벽 — 몸에서 약 15 cm'}",
              f"  교류 {es.freq_hz / 1000:g} kHz · 전류 {r['current_ua']:.0f} µA · 구동 쌍 {r['drive_mv']:.0f} mV (상한 {es.v_cap_mv:g} mV, 탄소 안전창 800 mV) · "
