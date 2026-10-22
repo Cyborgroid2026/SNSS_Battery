@@ -22,6 +22,7 @@ _IMPORTMAP_CDN = ('{ "imports": { "three": "%s/build/three.module.js", '
                   '"three/addons/OrbitControls.js": "%s/examples/jsm/controls/OrbitControls.js" } }' % (THREE_CDN, THREE_CDN))
 _WORKBENCH_TAG = '<script type="module" src="ui/workbench.js"></script>'
 _SCULPTOR_TAG = '<script type="module" src="ui/sculptor.js"></script>'
+_LIGHT_TAG = '<script type="module" src="ui/light.js"></script>'
 
 
 def export_static(src: str | Path = "web_out", out: str | Path = "web_static", make_zip: bool = False) -> Path:
@@ -31,7 +32,7 @@ def export_static(src: str | Path = "web_out", out: str | Path = "web_static", m
     if out.exists():
         shutil.rmtree(out)
     shutil.copytree(src, out, ignore=shutil.ignore_patterns("vendor", "model.json", "model_tissue.json", "workbench.js",
-                                                          "sculptor.js", "being_view.json"))
+                                                          "sculptor.js", "light.js", "being_view.json"))
 
     (out / "data").mkdir(exist_ok=True)
     for name, var in (("model.json", "SNSS_MODEL"), ("model_tissue.json", "SNSS_TISSUE"), ("sculpt/being_view.json", "SNSS_BEING")):
@@ -51,6 +52,9 @@ def export_static(src: str | Path = "web_out", out: str | Path = "web_static", m
     if _SCULPTOR_TAG in html and (src / "ui" / "sculptor.js").exists():
         sc = (src / "ui" / "sculptor.js").read_text(encoding="utf-8").replace("</script", "<\\/script")
         html = html.replace(_SCULPTOR_TAG, '<script type="module">\n' + sc + "\n</script>")
+    if _LIGHT_TAG in html and (src / "ui" / "light.js").exists():  # 층 빛 그림 · 존재는 light/*.js (일반 스크립트) 로 이미 내장
+        lt = (src / "ui" / "light.js").read_text(encoding="utf-8").replace("</script", "<\\/script")
+        html = html.replace(_LIGHT_TAG, '<script type="module">\n' + lt + "\n</script>")
     (out / "index.html").write_text(html, encoding="utf-8")
 
     if make_zip:

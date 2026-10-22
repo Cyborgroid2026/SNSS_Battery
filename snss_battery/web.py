@@ -95,6 +95,7 @@ def build_site(
     quantum = _quantum_assets(folder / "cad" / "step")
     recipes = _recipe_assets(folder / "cad")
     sculptor = _sculptor_assets(folder)
+    light = _light_assets(folder)
 
     data = {
         "title": "SNSS 생리식염수 결정 배터리",
@@ -104,6 +105,7 @@ def build_site(
         "crosscheck": cross,
         "quantum": quantum,
         "sculptor": sculptor,
+        "light": light,
         "recipes": recipes,
         "samples": _samples(battery, folder),
         "tools": _standard_tools(folder),
@@ -299,6 +301,9 @@ def _sculptor_assets(folder: Path) -> dict:
         ax1, ax2 = fig.subplots(1, 2)
         t = np.array(pr["series"]["t_s"]) / 60
         ax1.semilogx(t, np.array(pr["series"]["energy_j"]) * 1000, color="#23a06b")
+        from matplotlib.ticker import FuncFormatter
+
+        ax1.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))  # 10^-1 수식 눈금은 한글 글꼴에 − 가 없어 경고
         ax1.set_xlabel("발에 0.8 V 를 건 뒤 (분)")
         ax1.set_ylabel("몸에 쌓인 에너지 mJ")
         ax1.set_title("충전 = 깨어남")
@@ -374,6 +379,62 @@ def _sculptor_assets(folder: Path) -> dict:
         "files": ["sculpt/job.gcode", "sculpt/printer.cfg", "sculpt/bom.csv", "sculpt/being.npz"],
         "renders": renders, "cell_mm": cp.cell_mm,
         "qcap_text": cell.describe(),
+    }
+
+
+def _light_assets(folder: Path) -> dict:
+    """'빛 조각가 · 콘솔' 탭: SC-2 명세 · 공간 배치 · 층별 빛 그림(압축) · 존재 3D · Blender 렌더 · 어림 계산용 상수."""
+    import base64
+    import gzip
+
+    import numpy as np
+
+    from .layout import make_light_layout
+    from .lightsculpt import LightSculptorSpec, describe_job, light_job
+    from .sculpt import piece_meshes
+
+    out = folder / "light"
+    out.mkdir(parents=True, exist_ok=True)
+    spec = LightSculptorSpec()
+    job = light_job("being", 0.0, spec, name="being")
+    p, pl, pr = job["piece"], job["plan"], job["prediction"]
+    E, G = pl["E"], pl["G"]
+    e_max, g_max = float(E.max()) or 1.0, float(G.max()) or 1.0
+    q = lambda a, m: np.round(a / m * 255).astype(np.uint8)  # noqa: E731
+    vox = np.stack([p.material.astype(np.uint8), q(E, e_max), q(G, g_max)], -1).transpose(2, 1, 0, 3)  # (층, y, x, 3)
+    nz, ny, nx, _ = vox.shape
+    blob = {"nx": nx, "ny": ny, "nz": nz, "pitch": list(p.pitch), "offset": list(p.offset), "e_max": e_max, "g_max": g_max,
+            "layer_s": [round(float(t), 1) for t in pl["layer_s"]],
+            "gz": base64.b64encode(gzip.compress(vox.tobytes(), 9)).decode()}
+    (out / "exposure.js").write_text("window.SNSS_LIGHT = " + json.dumps(blob, separators=(",", ":")) + ";\n", encoding="utf-8")
+    view = {"height": float(p.height_mm)}
+    for role, (v, t, _) in piece_meshes(p, 3, None).items():
+        view[role] = {"v": np.round(v, 1).ravel().tolist(), "f": t.ravel().tolist()}
+    (out / "being.js").write_text("window.SNSS_LIGHT_BEING = " + json.dumps(view, separators=(",", ":")) + ";\n", encoding="utf-8")
+    renders = []
+    jobs = sorted(f.parent for f in (ROOT / "sculpt_out" / "light_jobs").glob("*/blender/light_scene.png"))
+    if jobs:
+        for n in ("light_scene.png", "light_surface.png"):
+            if (jobs[-1] / n).exists():
+                shutil.copy2(jobs[-1] / n, out / f"blender_{n}")
+                renders.append(f"light/blender_{n}")
+    lay = make_light_layout(spec)
+    ph, ink, pj, tk = spec.photo, spec.ink, spec.projector, spec.tank
+    return {
+        "machine": spec.describe(), "layout": lay.describe(), "job_text": describe_job(job), "check": spec.check(),
+        "renders": renders, "fill_mm": tk.fill_mm, "gz": lay.gz, "well_mm": ink.well_mm, "ink_depth_mm": ink.depth_mm,
+        "tank_mm": tk.inner_mm[0], "height_mm": p.height_mm, "n_cells": p.n_cells(), "layers": pl["layers"],
+        "layer_mm": spec.layer_mm, "dp_mm": spec.dp_mm(), "dp_green_mm": spec.dp_green_mm(),
+        "expose_h": pl["expose_s"] / 3600, "cure_h": spec.cure_h, "ink_life_h": spec.ink_life_h(),
+        "cyto_reduced": pl["cyto_reduced"], "mem_leaky": pl["mem_leaky"], "p_graft": pl["p_graft"], "n_graft": pl["n_graft"],
+        "energy_j": pr["energy_j"], "undoped_energy_j": job["undoped_energy_j"], "surface_k": spec.surface_rise_k(), "bath_k": spec.heat_rise_k(),
+        "ink_density": spec.ink_density(), "bath_density": tk.density, "ccc_mm": spec.ccc_mm(),
+        # 어림 계산 (lightsculpt 와 같은 식) 에 쓰는 상수
+        "k": {"eps_go": ph.eps_go, "a_sbq": ph.a_sbq, "ec": ph.ec_mj_cm2, "e_red": ph.e_red_mj_cm2, "theta": ph.theta_mem,
+              "overcure": ph.overcure, "eps_go_530": ph.eps_go_530, "eps_eosin": ph.eps_eosin, "eosin_um": ink.eosin_um,
+              "e_graft_target": spec.e_graft_target(), "pva_wt": ink.pva_wt, "nacl_mm": ink.nacl_mm, "nbd_mm": ink.nbd_mm,
+              "go_mg_ml": ink.go_mg_ml, "irr": pj.irradiance_mw_cm2, "irr_g": pj.green_mw_cm2, "reflect": pj.reflect,
+              "recoat_s": spec.recoat_s, "rho_water": 997.05, "loss_w_k": tk.heat_loss_w_k},
     }
 
 
@@ -648,6 +709,15 @@ section { display: none; } section.on { display: block; }
 .sc-side input[type=range] { width: 100%; } .sc-side label { display: block; margin: 2px 0; }
 .sc-val { color: var(--muted); font-size: 12px; margin: 2px 0 6px; font-variant-numeric: tabular-nums; }
 @media (max-width: 760px) { .sc-view { grid-template-columns: 1fr; } }
+.lc-view { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) 230px; gap: 12px; margin-bottom: 18px; }
+.lc-frame { display: flex; flex-direction: column; gap: 6px; }
+.lc-frame canvas { width: 100%; aspect-ratio: 640 / 400; background: #000; border-radius: 10px; image-rendering: pixelated; cursor: crosshair; }
+.lc-frame canvas:focus { outline: 2px solid var(--accent); }
+.lc-head { display: flex; gap: 8px; align-items: baseline; }
+.lc-stage { min-height: 420px; }
+.lc-whatif { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 16px; margin-bottom: 10px; }
+.lc-whatif label { color: var(--muted); font-size: 13px; } .lc-whatif input { width: 100%; }
+@media (max-width: 1000px) { .lc-view { grid-template-columns: 1fr; } }
 .card .k { color: var(--muted); font-size: 12px; } .card .v { font-size: 15px; font-weight: 600; margin-top: 2px; }
 .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
 .badge.ok { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
@@ -721,6 +791,46 @@ aside .panel { background: var(--panel); border: 1px solid var(--line); border-r
 </header>
 <nav id="tabs"></nav>
 <main>
+  <section data-id="console" data-tab="빛 조각가 · 콘솔">
+    <p class="sub"><b>SNSS 빛 조각가 SC-2</b> — 펜이 없습니다. <b>배양조 속 멸균생리식염수가 곧 모니터</b>이고, 수조 아래 데스크톱이 설계를 층마다
+      빛 그림으로 바꿔 수조 위 두 색 프로젝터로 비춥니다. 배지 위에 뜬 잉크층(염 10 mM · GO · 감광 PVA · NBD · 에오신 Y)에서
+      <b style="color:#8a4dff">405 nm</b> 가 닿은 곳이 굳고(세게 받으면 rGO 세포질), <b style="color:#2f9e5a">530 nm</b> 가 닿은 곳만 p 도핑 —
+      받침이 한 층 내려가면 그 층이 멸균생리식염수에 닿아 엉기며 고정됩니다. 조작은 방수 키보드 · 마우스로 (아래 단축키).</p>
+    <div class="cards" id="lcCards"></div>
+    <div class="lc-view">
+      <div class="lc-frame">
+        <div class="lc-head"><b>프로젝터 화면</b> <span id="lcLayerV" class="sc-val"></span></div>
+        <canvas id="lcFrame" width="640" height="400" tabindex="0" aria-label="층 빛 그림"></canvas>
+        <div class="sc-val" id="lcHover">칸에 마우스를 올리면 노출량 · 재료</div>
+      </div>
+      <div class="sc-stage lc-stage" id="lcTank"><div class="sc-msg" id="lcMsg">3D 불러오는 중…</div></div>
+      <aside class="sc-side">
+        <div class="lab-card"><h3>층</h3>
+          <input type="range" id="lcLayer" min="0" max="1" value="0">
+          <div class="sc-val" id="lcTimeV"></div>
+          <button class="primary" id="lcPlay" type="button">▶ 빚기 재생 (Space)</button></div>
+        <div class="lab-card"><h3>빛 (1 · 2 · 3)</h3>
+          <label><input type="radio" name="lcCh" value="both" checked> 둘 다</label>
+          <label><input type="radio" name="lcCh" value="v"> 405 nm 굳힘 · 광환원</label>
+          <label><input type="radio" name="lcCh" value="g"> 530 nm p 도핑</label></div>
+        <div class="lab-card"><h3>방수 키보드 · 마우스</h3>
+          <div class="sc-val">← → 한 층 · ↑ ↓ 열 층 · Home End 처음 · 끝<br>Space 재생 · 1 2 3 빛 · R 시점<br>
+            화면 위 휠 = 층 · 클릭 = 칸 고정 · 3D 끌기 = 돌려 보기</div></div>
+      </aside>
+    </div>
+    <h2>데스크톱 어림 — 잉크 · 빛을 바꾸면</h2>
+    <p class="sub">lightsculpt.py 와 같은 식으로 바로 어림합니다 (층 그림 전체는 <code>python -m snss_battery light being --go … --irradiance …</code>).</p>
+    <div class="lc-whatif">
+      <label>잉크 GO <input type="range" id="wGo" min="0.5" max="5" step="0.1"> <span id="wGoV"></span></label>
+      <label>405 nm 세기 <input type="range" id="wI" min="2" max="20" step="0.5"> <span id="wIV"></span></label>
+      <label>530 nm 세기 <input type="range" id="wIg" min="2" max="20" step="0.5"> <span id="wIgV"></span></label>
+      <label>감광 PVA <input type="range" id="wPva" min="0.2" max="5" step="0.1"> <span id="wPvaV"></span></label>
+    </div>
+    <table id="lcWhatIf"></table>
+    <div id="lcRenders"></div>
+    <h2>기계 · 공간 배치 · 이 작업</h2>
+    <pre id="lcText"></pre>
+  </section>
   <section data-id="sculptor" data-tab="조각가 · 존재">
     <p class="sub"><b>SNSS 조각가 SC-1</b> — 3D 펜을 단 상온 3D 프린터. GO · SNSS(멸균생리식염수) · PVA 가 따로 펜에 들어가
       펜 끝에서 처음 만나 하나가 되고, 그 젤로 <b>양자 인공세포</b>가 모인 존재를 빚습니다. <b>수중 환경</b> — 기계까지 통째로 멸균생리식염수(배지) 배양조에 잠겨
@@ -1124,11 +1234,11 @@ function show(name) {
   const sec = sections.find((s) => s.dataset.tab === name);
   if (sec) { history.replaceState(null, "", location.search + "#" + sec.dataset.id); (tabHooks[sec.dataset.id] || (() => {}))(); }
 }
-const GROUPS = [["조각가", ["sculptor"]], ["작업", ["lab", "cad", "process", "recipe"]], ["검증", ["tools", "verify", "log"]],
+const GROUPS = [["조각가", ["console", "sculptor"]], ["작업", ["lab", "cad", "process", "recipe"]], ["검증", ["tools", "verify", "log"]],
                 ["자료", ["overview", "drawing", "bom", "files", "quantum"]], ["비교 · 층 모델", ["fractal", "light", "sim"]]];
-const ICONS = { sculptor: "✒", lab: "⚗", cad: "⬡", process: "❄", recipe: "☰", fractal: "⬢", light: "💡", sim: "∿", quantum: "⚛",
+const ICONS = { console: "◉", sculptor: "✒", lab: "⚗", cad: "⬡", process: "❄", recipe: "☰", fractal: "⬢", light: "💡", sim: "∿", quantum: "⚛",
                 tools: "▶", verify: "✓", log: "✎", overview: "◎", drawing: "📐", bom: "▤", files: "⇩" };
-const NEW = new Set(["sculptor"]);
+const NEW = new Set(["console"]);
 const grouped = new Set(GROUPS.flatMap(([, ids]) => ids));
 for (const [label, ids] of [...GROUPS, ["기타", sections.map((s) => s.dataset.id).filter((id) => !grouped.has(id))]]) {
   const secs = ids.map((id) => sections.find((s) => s.dataset.id === id)).filter(Boolean);
@@ -1773,7 +1883,7 @@ try { (function process() {
 let saved = null;
 try { saved = localStorage.getItem("snss-tab"); } catch (e) {}
 const fromHash = fromHashSec();
-show(fromHash ? fromHash.dataset.tab : sections.some((s) => s.dataset.tab === saved) ? saved : "조각가 · 존재");
+show(fromHash ? fromHash.dataset.tab : sections.some((s) => s.dataset.tab === saved) ? saved : "빛 조각가 · 콘솔");
 </script>
 <script src="ui/lab.js"></script>
 <script src="ui/tools.js"></script>
@@ -1782,6 +1892,9 @@ show(fromHash ? fromHash.dataset.tab : sections.some((s) => s.dataset.tab === sa
 </script>
 <script type="module" src="ui/workbench.js"></script>
 <script type="module" src="ui/sculptor.js"></script>
+<script src="light/exposure.js"></script>
+<script src="light/being.js"></script>
+<script type="module" src="ui/light.js"></script>
 </body>
 </html>
 """

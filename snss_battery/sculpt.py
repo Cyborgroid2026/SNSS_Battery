@@ -865,6 +865,7 @@ class BodyModel:
     sigma_e_s_m: float = 2.0  # 광환원 rGO 젤 전기전도도 (가정, 저밀도)
     mem_kappa_ratio: float = 0.5  # 막 이온전도도 / 젤 이온전도도
     contact_s_m2: float = 1e4  # 발바닥 흑연 패드 접촉 (1 Ω·cm²)
+    neg_dopant: str = "PEI"  # − 망 세포의 도펀트 (빛 조각가는 "NBD" 약간 · 또는 "")
 
 
 def body_signs(piece: Piece, spec: SculptorSpec | None = None, bm: BodyModel | None = None) -> dict:
@@ -894,7 +895,7 @@ def body_signs(piece: Piece, spec: SculptorSpec | None = None, bm: BodyModel | N
     cen = np.stack([np.bincount(c[c >= 0], weights=pos[:, d], minlength=n) for d in range(3)], 1) / np.maximum(n_all, 1)[:, None]
     cen_m = cen * np.array([px, px, pz]) + np.array([piece.offset[0] * px, piece.offset[1] * px, pz / 2])
     # 양자층
-    cell_q = QuantumCell(QuantumElectrode("NBD", piece.carriers[0]), QuantumElectrode("PEI", piece.carriers[1]), bm.u_max)
+    cell_q = QuantumCell(QuantumElectrode("NBD", piece.carriers[0]), QuantumElectrode(bm.neg_dopant, piece.carriers[1]), bm.u_max)
     cp_, cn_ = cell_q.electrode_caps()  # F/m²
     area = n_cyto * vvox * 1e6 * bm.go_in_cell_mg_ml * bm.retention * 1e-3 * bm.ssa_m2_g  # m²
     cap = area * np.where(ctype > 0, cp_, cn_)

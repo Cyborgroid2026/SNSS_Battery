@@ -31,7 +31,9 @@ for k, (name, title) in enumerate(CASES):
     if not os.path.exists(path):
         raise SystemExit(f"{path} 가 없습니다. 먼저 ./tools.sh fem-movie 를 실행하세요.")
     src = Xdmf3ReaderT(registrationName=name, FileName=[path])  # dolfinx XDMF 는 Xdmf3 리더 (옛 XDMFReader 는 죽음)
-    full = Reflect(registrationName=f"단면 {k}", Input=src)
+    # 시간 묶음이 둘 (fem.py 가 temperature_C → ice_fraction 순으로 씀) — 얼음 묶음만 써야 Contour 가 빈 배열을 안 만남
+    ice = ExtractBlock(registrationName=f"얼음 묶음 {k}", Input=src, Selectors=["/Root/Block1"])
+    full = Reflect(registrationName=f"단면 {k}", Input=ice)
     full.Plane = "X"  # r = 0 축으로 뒤집어 붙임
     view = first if k == 0 else CreateView("RenderView")
     if k:

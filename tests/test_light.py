@@ -66,3 +66,18 @@ class TestLightSculptor(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestGreenDoping(unittest.TestCase):
+    def test_green_dopes_p_cells_only(self):
+        spec = LightSculptorSpec()
+        job = light_job("coupon", 6.0, spec)
+        pl = job["plan"]
+        self.assertGreaterEqual(pl["p_graft"], spec.photo.graft_target - 0.01)
+        self.assertEqual(pl["n_graft_over"], 0.0)
+        self.assertLess(pl["n_graft"], pl["p_graft"] / 3)
+        self.assertGreater(job["prediction"]["energy_j"], job["undoped_energy_j"])
+
+    def test_dopant_keeps_ink_below_ccc(self):
+        s = LightSculptorSpec(ink=Ink(nbd_mm=45.0))
+        self.assertTrue(any("NBD" in b for b in s.check()))

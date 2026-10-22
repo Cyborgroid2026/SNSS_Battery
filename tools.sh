@@ -4,6 +4,7 @@
 #   ./tools.sh sculptor      SNSS 조각가 SC-1 (3D 펜을 단 상온 3D 프린터) 명세 · 재료표 · Klipper 설정
 #   ./tools.sh being         양자 인공세포 존재를 새로 빚는 작업 (G-code · 생명 신호 · 메시)
 #   ./tools.sh light         빛 조각가 SC-2 — 펜 없이 빛으로 (명세 · 배치 · 층별 빛 그림 · 생명 신호)
+#   ./tools.sh light-blender 마지막 빛 작업을 Blender 로 (수조 · 프로젝터 · 수면의 빛 그림 · 데스크톱) [--layer K]
 #   ./tools.sh blender       마지막 작업을 Blender 로 렌더 (기계 + 존재 + 깨어남) · .blend 저장
 #   ./tools.sh blender-anim  위 + 쌓기→깨어남 동영상 (mp4)
 #   ./tools.sh view-blender  마지막 작업의 .blend 를 Blender 창으로 열기
@@ -114,7 +115,7 @@ cmd_fem_movie() {  # FEniCSx 로 애니메이션 데이터 → ParaView(pvbatch)
 }
 cmd_view_battery() { need_venv; "$VPY" -c "from snss_battery import pybamm_cell; pybamm_cell.view()"; }
 cmd_web() {
-    echo "웹 뷰어 → http://127.0.0.1:8765/#tools  (VS Code: Ctrl+Shift+P → 'Browser: Open Integrated Browser' → 주소 붙여 넣기)"
+    echo "웹 뷰어 → http://127.0.0.1:8765/#console  (VS Code: Ctrl+Shift+P → 'Browser: Open Integrated Browser' → 주소 붙여 넣기)"
     "$PY" -m snss_battery web --port 8765
 }
 cmd_elab_push() { need_elab_env; "$PY" -m snss_battery elab; }
@@ -134,6 +135,13 @@ cmd_blender() {
     [[ -n "$j" ]] || { cmd_being; j=$(last_job); }
     blender -b --factory-startup --python sim/blender_sculptor.py -- "$j" "$j/blender" "$@" 2>&1 | grep -E "렌더|저장|동영상|Error|Traceback" || true
 }
+last_light_job() { ls -d sculpt_out/light_jobs/*/ 2>/dev/null | sort | tail -1 | sed 's:/$::'; }
+cmd_light_blender() {
+    need_blender
+    local j; j=$(last_light_job)
+    [[ -n "$j" ]] || { "$PY" -m snss_battery light being >/dev/null; j=$(last_light_job); }
+    blender -b --factory-startup --python sim/blender_light.py -- "$j" "$j/blender" "$@" 2>&1 | grep -E "렌더|저장|Error|Traceback" || true
+}
 cmd_view_blender() {
     need_blender
     local j; j=$(last_job)
@@ -146,6 +154,7 @@ case "${1:-}" in
     sculptor) "$PY" -m snss_battery sculptor ;;
     being) cmd_being ;;
     light) "$PY" -m snss_battery light ;;
+    light-blender) shift; cmd_light_blender "$@" ;;
     blender) cmd_blender ;;
     blender-anim) cmd_blender --anim ;;
     view-blender) cmd_view_blender ;;
