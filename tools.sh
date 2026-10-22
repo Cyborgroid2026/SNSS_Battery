@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-# 표준 시뮬레이션 도구 실행 — PHREEQC · PyBaMM · FEniCSx · eLabFTW
+# 표준 시뮬레이션 도구 실행 — 조각가(SC-1) · Blender · PHREEQC · PyBaMM · FEniCSx · eLabFTW
 #
+#   ./tools.sh sculptor      SNSS 조각가 SC-1 (3D 펜을 단 상온 3D 프린터) 명세 · 재료표 · Klipper 설정
+#   ./tools.sh being         양자 인공세포 존재를 새로 빚는 작업 (G-code · 생명 신호 · 메시)
+#   ./tools.sh blender       마지막 작업을 Blender 로 렌더 (기계 + 존재 + 깨어남) · .blend 저장
+#   ./tools.sh blender-anim  위 + 쌓기→깨어남 동영상 (mp4)
+#   ./tools.sh view-blender  마지막 작업의 .blend 를 Blender 창으로 열기
 #   ./tools.sh web           웹 뷰어 → http://127.0.0.1:8765/#tools (VS Code: Browser: Open Integrated Browser 에 붙여 넣기)
 #   ./tools.sh chem          용액 화학 (PHREEQC): 활동도, 어는점, 막전위 보정
 #   ./tools.sh pybamm        배터리 (PyBaMM): 충방전, 기존 모델과 비교
@@ -112,7 +117,34 @@ cmd_web() {
 cmd_elab_push() { need_elab_env; "$PY" -m snss_battery elab; }
 cmd_elab_down() { need_docker; need_elab_env; "${COMPOSE[@]}" down; }
 
+last_job() {  # 메시가 있는 가장 최근 작업 폴더
+    local d
+    for d in $(ls -d sculpt_out/jobs/*/ 2>/dev/null | sort -r); do
+        compgen -G "${d}*_mesh.npz" >/dev/null && { echo "${d%/}"; return; }
+    done
+}
+need_blender() { command -v blender >/dev/null || { echo "Blender 가 없습니다 (sudo snap install blender --classic)" >&2; exit 1; }; }
+cmd_being() { "$PY" -m snss_battery sculpt new being; }
+cmd_blender() {
+    need_blender
+    local j; j=$(last_job)
+    [[ -n "$j" ]] || { cmd_being; j=$(last_job); }
+    blender -b --factory-startup --python sim/blender_sculptor.py -- "$j" "$j/blender" "$@" 2>&1 | grep -E "렌더|저장|동영상|Error|Traceback" || true
+}
+cmd_view_blender() {
+    need_blender
+    local j; j=$(last_job)
+    [[ -f "$j/blender/sculptor.blend" ]] || cmd_blender
+    blender "$j/blender/sculptor.blend" >/dev/null 2>&1 &
+    echo "Blender 를 열었습니다: $j/blender/sculptor.blend  (모양·획 보내기: Scripting 탭에서 sim/blender_export.py 실행)"
+}
+
 case "${1:-}" in
+    sculptor) "$PY" -m snss_battery sculptor ;;
+    being) cmd_being ;;
+    blender) cmd_blender ;;
+    blender-anim) cmd_blender --anim ;;
+    view-blender) cmd_view_blender ;;
     web) cmd_web ;;
     chem) cmd_chem ;;
     pybamm) cmd_pybamm ;;
@@ -125,5 +157,5 @@ case "${1:-}" in
     view-freeze) cmd_view_freeze ;;
     fem-movie) cmd_fem_movie ;;
     view-battery) cmd_view_battery ;;
-    *) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+    *) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

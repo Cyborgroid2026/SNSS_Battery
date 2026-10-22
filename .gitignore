@@ -13,3 +13,4 @@ elab/.env
 elab/certs/
 elab/data/
 results/
+sculpt_out/

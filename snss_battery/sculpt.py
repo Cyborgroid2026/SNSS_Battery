@@ -314,6 +314,17 @@ def _fix_types(cell: np.ndarray, ctype: np.ndarray, sole_left: np.ndarray, sole_
     return ctype
 
 
+def separate(mat: np.ndarray) -> np.ndarray:
+    """p 세포질과 n 세포질이 직접 닿는 곳(전기 단락)은 막으로 바꿈 — 늘 막이 사이에 있게."""
+    for ax in range(3):
+        a = np.moveaxis(mat, ax, 0)
+        u, v = a[:-1], a[1:]
+        clash = ((u == POS) & (v == NEG)) | ((u == NEG) & (v == POS))
+        u[clash & (u == POS)] = MEM  # 한쪽(p 쪽)을 막으로
+        v[clash & (v == POS)] = MEM
+    return mat
+
+
 def materialize(cell: np.ndarray, ctype: np.ndarray, pitch, scale, cp: CellParams) -> np.ndarray:
     """세포 번호 · 유형 → 재료: 세포질(p/n) · 막(유형이 다른 이웃 사이, 같은 유형이면 구멍만 남김) · 피부."""
     inside = cell >= 0
@@ -350,7 +361,7 @@ def materialize(cell: np.ndarray, ctype: np.ndarray, pitch, scale, cp: CellParam
     # 피부: 겉면에서 skin 안쪽 (바닥은 열어 둠 — 단자 · 붙이는 자리)
     depth = ndimage.distance_transform_edt(np.pad(inside, ((1, 1), (1, 1), (0, 1))), sampling=(px, px, pz))[1:-1, 1:-1, :-1]
     mat[inside & (depth < cp.skin_mm * scale)] = MEM
-    return mat
+    return separate(mat)
 
 
 def _soles(cell: np.ndarray, offset, pitch) -> tuple[np.ndarray, np.ndarray]:
@@ -556,6 +567,8 @@ def job_attach(lower: Piece, upper: Piece, spec: SculptorSpec, at=(0.0, 0.0)) ->
     sl = slice(k_up, shp2[2])
     mat[:, :, sl] = np.where(um != EMPTY, um, mat[:, :, sl])
     cell[:, :, sl] = np.where(uc >= 0, uc + n_low, cell[:, :, sl])
+    mat = separate(mat)
+    bead = np.where(fp & (bead != EMPTY), mat[:, :, k_seat + 1], bead)  # 구슬도 단락 없이
     after = Piece(lower.name, mat, cell, ctype, (ox, oy), lower.pitch, lower.scale, lower.carriers,
                   lower.history + [f"붙이기: {upper.name} (자리 높이 {(k_seat + 1) * pz:.1f} mm, 이어진 간극연접 {int(match.sum())}칸)"])
     bead_grid = np.zeros(shp, dtype=np.uint8)
@@ -626,6 +639,7 @@ def job_strokes(piece: Piece, strokes: list[dict], cp: CellParams, spec: Sculpto
     roles = {len(piece.ctype) + i: CODE[s.get("material", "pos")] for i, s in enumerate(strokes)}
     for cid, code in roles.items():
         tgt[cell == cid] = code
+    tgt = separate(tgt)
     after = Piece(piece.name, tgt, cell, ctype, (ox, oy), piece.pitch, piece.scale, piece.carriers,
                   piece.history + [f"허공 획 {len(paths)}개"])
     window = (cur_mat != EMPTY) & (cur_mat != tgt) & ~in_stroke
