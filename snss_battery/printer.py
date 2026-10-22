@@ -79,7 +79,7 @@ class Recipe:
 @dataclass
 class Pen:
     name: str = "SNSS 펜 (3채널 혼합 · 탈착식 · 물속)"
-    nozzle_mm: float = 0.41  # 22G 블런트
+    nozzle_mm: float = 0.41  # 22G 상당 — PEEK 노즐 (스테인리스 바늘은 물속 금속이라 쓰지 않음)
     mixer: str = "나선형 미세 혼합기 4 요소"
     dead_volume_ul: float = 1.5  # 혼합기 안 부피 — 재료를 바꿀 때 밀어내는 양
     gel_time_s: float = 3.0  # 섞인 뒤 젤이 되기까지 (가정 — 이보다 오래 머물면 펜 안에서 굳음)
@@ -157,6 +157,7 @@ class Submersion:
         ("유리섬유 심 GT2 벨트 (네오프렌)", frozenset({"C", "H", "Cl", "Si", "O"})),
         ("투명 실리콘 · O-링 (NBR)", frozenset({"Si", "O", "C", "H", "N"})),
         ("흑연 패드 · 연필심", frozenset({"C"})),
+        ("PEEK 노즐 (펜 끝)", frozenset({"C", "H", "O"})),
     )
     pods: str = "모터 방수 통 8개 (PETG + O-링, 자석 커플링 — 축 구멍 없음) · 전자 방수 통 1개 · 카메라 방수 통 1개 (창)"
     coupling: str = "네오디뮴 자석 6개씩 두 원판 — 안쪽은 모터 축, 바깥쪽은 PETG 속에 묻혀 풀리를 돌림 (벽 3 mm)"
@@ -363,7 +364,7 @@ def bom(spec: SculptorSpec | None = None) -> list[BomLine]:
         BomLine("원료", "4-니트로벤젠디아조늄 테트라플루오로붕산염 (NBD)", "5 g", "p형 도펀트 — 차광 보관", "온라인 시약"),
         # 소모품
         BomLine("소모품", "일회용 주사기 20 mL", "6개", "원료 3줄 + 예비 (물속에 그대로)", "약국"),
-        BomLine("소모품", "블런트 바늘 22G", "5개", "펜 노즐", "약국 · 의료기기점 · 온라인"),
+        BomLine("소모품", "PEEK 노즐 Ø0.41 (22G 상당, 루어)", "5개", "펜 노즐 — 스테인리스 바늘 대신 (물속 금속 없음)", "온라인 (HPLC · 디스펜싱 부품)"),
         BomLine("소모품", "실리콘 관 Ø1/Ø2 mm (수족관 에어호스 가는 것)", "3 m", "주사기 → 펜", "마트 (수족관 코너)"),
         BomLine("소모품", "PETG 필라멘트 1.75 mm", "2 kg", "출력 부품 (parts.py, 약 1.2 kg)", "온라인 · 전자상가"),
         # 배양조 — 기계까지 담그는 수조

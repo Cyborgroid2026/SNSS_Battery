@@ -314,14 +314,21 @@ def cmd_light(a: argparse.Namespace) -> None:
             ed0 = calibrated_edope(a.cal, ed0)
         ed = electro_dope(job, ed0)
         print("\n" + describe_edope(ed))
+    tools = None
+    if a.tools:  # 물속 갠트리 + 주사기 · 조각 도구 — 띠마다 n 세포 PEI 주입
+        from .lighttools import describe_tools, plan_tools
+
+        tools = plan_tools(job)
+        print("\n" + describe_tools(tools))
     out = write_light_job(job, jobs / f"{n:02d}_{job['piece'].name}")
     print(f"\n저장: {out['folder']} (exposure.npz · frames/ · summary.json · layout.json)")
     if a.export:
         from .lightrun import describe_schedule, export_job
 
-        meta = export_job(job, out["folder"] / "machine")
+        meta = export_job(job, out["folder"] / "machine", tools=tools)
         print("\n" + describe_schedule(meta))
-        print(f"기계 묶음: {out['folder'] / 'machine'} (slices/405 · slices/530 · job.json · job.gcode · printer_light.cfg)")
+        print(f"기계 묶음: {out['folder'] / 'machine'} (slices/405 · slices/530 · job.json · job.gcode · printer_light.cfg"
+              + (" · tools/inject_*.gcode)" if tools else ")"))
         print(f"  실행: python -m snss_battery light-run {out['folder'] / 'machine'} --window [--geometry 1920x1080+1920+0] [--moonraker http://…]")
 
 
@@ -350,6 +357,42 @@ def cmd_light_cal(a: argparse.Namespace) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(cal, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"저장: {out}  → python -m snss_battery light being --cal {out}")
+
+
+def cmd_light_tool(a: argparse.Namespace) -> None:
+    """빛으로 빚은 몸에 주사기 · 조각 도구 작업 (도구 면, SC-1 작업 그대로) — 기억은 그 빛 작업 폴더에."""
+    import json
+    from pathlib import Path
+
+    from .lightsculpt import LightSculptorSpec
+    from .lighttools import syringe_job, write_syringe_job
+    from .sculpt import Piece
+
+    jobs = sorted(Path(a.out, "light_jobs").glob("*/summary.json"))
+    if not jobs and not a.job:
+        raise SystemExit("빛 작업이 없습니다 — 먼저 python -m snss_battery light being")
+    folder = Path(a.job) if a.job else jobs[-1].parent
+    name = json.loads((folder / "summary.json").read_text(encoding="utf-8"))["name"]
+    piece = Piece.load(folder / f"{name}.npz")
+    spec = LightSculptorSpec()
+    xyz = lambda t: tuple(float(v) for v in t.split(","))  # noqa: E731
+    kw = {"add": lambda: dict(shape=a.shape, height=a.height, at=xyz(a.at) if a.at else (0.0, 0.0)),
+          "carve": lambda: dict(center=xyz(a.center), radius=a.radius),
+          "detach": lambda: dict(z=a.z),
+          "draw": lambda: dict(strokes=json.loads(Path(a.strokes).read_text(encoding="utf-8"))),
+          "attach": lambda: dict(upper=Piece.load(a.upper), at=xyz(a.at) if a.at else (0.0, 0.0))}[a.op]()
+    job = syringe_job(piece, a.op, spec, **kw)
+    tools = folder / "tools"
+    n = len(list(tools.glob("*"))) + 1 if tools.exists() else 1
+    res = write_syringe_job(job, spec, tools / f"{n:02d}_{a.op}")
+    for p in job.after:
+        p.save(folder / f"{p.name}.npz")
+    print(f"[{job.title}] → 높이 {max(p.height_mm for p in job.after):.1f} mm")
+    if res["predictions"]:
+        from .sculpt import describe_prediction
+
+        print(describe_prediction(res["predictions"][0]))
+    print(f"저장: {res['folder']} (job.gcode — 도구 면 · 도구 집기 포함) · 기억 갱신: {folder}")
 
 
 def cmd_light_run(a: argparse.Namespace) -> None:
@@ -563,6 +606,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--irradiance", type=float, default=6.0, help="빛 세기 mW/cm² (상온 한도 약 7)")
     p.add_argument("--cal", help="보정값 JSON (light-cal fit 결과)")
     p.add_argument("--export", action="store_true", help="실제 기계 묶음도 (프로젝터 화면 · 시간표 · Klipper)")
+    p.add_argument("--tools", action="store_true", help="물속 갠트리 + 주사기 · 조각 도구 (띠마다 n 세포 PEI 주입)")
     p.add_argument("--edope", type=float, metavar="시간", help="사후 전기 도핑 (n 세포, PEI 도핑 통에서 발 단자로) 시간 h — 예: 24")
     p.add_argument("--out", default="sculpt_out")
     p.set_defaults(func=cmd_light)
@@ -572,6 +616,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("path", nargs="?", help="coupon: 폴더 · fit: measurements.csv · demo: 만들 CSV")
     p.add_argument("--save", default="sculpt_out/light_cal.json")
     p.set_defaults(func=cmd_light_cal)
+
+    p = sub.add_parser("light-tool", help="빛으로 빚은 몸에 주사기 · 조각 도구 — add · carve · detach · draw · attach (도구 면)")
+    p.add_argument("op", choices=["add", "carve", "detach", "draw", "attach"])
+    p.add_argument("--job", help="빛 작업 폴더 (기본: 가장 최근)")
+    p.add_argument("--shape", default="bud", help="add: 모양")
+    p.add_argument("--height", type=float, default=6.0, help="add: 높이 mm")
+    p.add_argument("--at", help="add/attach: x,y mm")
+    p.add_argument("--center", default="0,0,60", help="carve: x,y,z mm")
+    p.add_argument("--radius", type=float, default=4.0, help="carve: 반지름 mm")
+    p.add_argument("--z", type=float, default=30.0, help="detach: 높이 mm")
+    p.add_argument("--strokes", help="draw: 획 JSON (Blender sim/blender_export.py)")
+    p.add_argument("--upper", help="attach: 위 조각 .npz")
+    p.add_argument("--out", default="sculpt_out")
+    p.set_defaults(func=cmd_light_tool)
 
     p = sub.add_parser("light-run", help="SC-2 실행기 — 기계 묶음을 시간표대로 (기본: 시간표만, --window: 프로젝터 창)")
     p.add_argument("folder", help="light --export 가 만든 machine 폴더")

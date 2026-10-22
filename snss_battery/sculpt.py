@@ -753,8 +753,8 @@ def medium_plan(job: Job, plan, spec: SculptorSpec) -> dict:
     ink_nacl = sum(v * spec.mixed(spec.recipes[k])["nacl_mm"] for k, v in ink.items()) / ink_ml if ink_ml else 0.0
     after = tk.medium_after(ink_ml, ink_nacl, removed)
     return {"fill_ml": tk.fill_ml() if job.before is None else 0.0, "fill_mm": tk.fill_mm, "top_mm": top,
-            "submerged": top <= tk.fill_mm - 5, "ink_ml": ink_ml, "removed_ml": removed, "nacl_after_mm": after,
-            "change_medium": after < tk.saline_mm * (1 - tk.change_drop)}
+            "submerged": bool(top <= tk.fill_mm - 5), "ink_ml": ink_ml, "removed_ml": removed, "nacl_after_mm": after,
+            "change_medium": bool(after < tk.saline_mm * (1 - tk.change_drop))}
 
 
 def write_gcode(job: Job, plan, spec: SculptorSpec, path: str | Path, pred: dict | None = None) -> Path:
@@ -1066,7 +1066,7 @@ def piece_meshes(piece: Piece, step: int = 1, wake: dict | None = None) -> dict:
     return out
 
 
-def write_job(job: Job, spec: SculptorSpec, folder: str | Path, meshes: bool = True) -> dict:
+def write_job(job: Job, spec: SculptorSpec, folder: str | Path, meshes: bool = True, bm: BodyModel | None = None) -> dict:
     """작업 폴더: G-code · 경로 JSON · 공간 배치 · 요약 · (작업 뒤 조각) 기억 · 메시."""
     from .layout import make_layout
     from .mesh import write_stl
@@ -1074,7 +1074,7 @@ def write_job(job: Job, spec: SculptorSpec, folder: str | Path, meshes: bool = T
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
     plan = plan_passes(job, spec)
-    preds = [body_signs(p, spec) for p in job.after]
+    preds = [body_signs(p, spec, bm) for p in job.after]
     gc = write_gcode(job, plan, spec, folder / "job.gcode", preds[0] if preds else None)
     (folder / "printer.cfg").write_text(klipper_cfg(spec), encoding="utf-8")
     (folder / "passes.json").write_text(json.dumps(passes_json(job, plan, spec)), encoding="utf-8")

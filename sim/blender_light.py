@@ -1,4 +1,4 @@
-"""Blender 장면: SNSS 빛 조각가 SC-2 — 배지가 모니터. 수조 위 두 색 프로젝터 · 잉크 우물 · 자라는 존재 · 수조 아래 데스크톱.
+"""Blender 장면: SNSS 빛 조각가 SC-2 — 배지가 모니터. 수조 위 두 색 프로젝터 · 잉크 우물 · 자라는 존재 · 물속 도구 갠트리(주차) · 수조 아래 데스크톱.
 
     blender -b --factory-startup --python sim/blender_light.py -- <빛 작업 폴더> <출력 폴더> [--layer K] [--cycles]
 
@@ -180,6 +180,8 @@ for b in LAY["boxes"]:
     if b["kind"] in ("frame", "static") and "프로젝터" not in b["name"]:
         lay_obj(b)
     elif b["kind"] == "well":
+        lay_obj(b)
+    elif b["kind"] == "gantry" and "(쓸림)" not in b["name"]:  # 물속 도구 갠트리 — 빛을 쬐는 동안 뒤쪽에 주차
         lay_obj(b)
 # 받침이 내려간 만큼: 받침 · 기둥 · 너트 판 (layout 은 가장 높을 때)
 nut = next(b for b in LAY["boxes"] if b["name"].startswith("받침 너트 판"))

@@ -30,14 +30,28 @@ SIGMA_INSULATOR = 1e-6  # PETG 받침 · 기둥 (S/m, 사실상 절연)
 
 @dataclass
 class EITSpec:
-    place: str = "sleeve"  # "sleeve" = 잉크 우물 테에서 아래로 내린 전극 소매 (±75 mm) · "walls" = 수조 벽 (비교용)
-    rings_z_mm: tuple[float, ...] = (313.0, 296.0)  # 잉크층(320–330) 바로 아래 — 갓 굳어 내려온 층 높이
+    # 전극 자리:
+    #   "collar_bed"   (기본) A 줄 = 떠 있는 잉크 우물 테 치마 안쪽 (z 319, 치마 끝 318 아래로 안 나옴) · B 줄 = 배양 받침 테두리 (받침과 함께 내려감)
+    #   "collar_riser" A 줄 = 위와 같음 · B 줄 = 받침 기둥 네 옆면 위쪽
+    #   "sleeve"       테를 z 288 까지 내린 소매에 두 줄 — 도구 갠트리(z 283–316) 와 겹치므로 도구 단계 전에 소매를 들어 올려야 함
+    #   "walls"        수조 벽 (비교용)
+    place: str = "collar_bed"
+    rings_z_mm: tuple[float, ...] = (313.0, 296.0)  # sleeve · walls 의 두 줄 높이
+    collar_z_mm: float = 319.0  # A 줄: 치마 끝(318) 과 잉크층(320) 사이 — 갠트리 빔 윗면 316 보다 위
+    collar_strip_mm2: float = 12.0  # 치마 안쪽 면에 박은 흑연 띠 6 × 2 mm (튀어나오지 않음)
+    bed_strip_mm2: float = 18.0  # 받침 옆면 위쪽 흑연 띠 6 × 3 mm
+    bed_drop_mm: float = 1.5  # 받침 윗면에서 띠 가운데까지
+    riser_strip_mm2: float = 36.0  # 기둥 옆면 흑연 띠 6 × 6 mm
+    riser_drop_mm: float = 12.0  # 받침 아래면에서 띠 가운데까지
+    skirt_bottom_mm: float = 318.0  # 잉크 우물 테 치마 끝 (= 수면 − 잉크층 − 2)
+    gantry_parked: bool = True  # EIT 는 도구 갠트리가 주차했을 때만 잼 (빔 · 캐리지 · 레일 = 절연체로 넣음)
     per_wall: int = 4  # 면마다 전극 → 링마다 16
     sleeve_mm: float = 75.0  # 소매 안쪽 반폭 (= 잉크 우물 테 안쪽)
     sleeve_t_mm: float = 3.0  # PETG 두께 (절연)
-    sleeve_bottom_mm: float = 288.0  # 받침 너트 판이 가장 높을 때(284) 보다 위
-    frame_s: float = 1.0  # 한 장 (928 값) 재는 시간 (가정, 값마다 약 1 ms)
-    rod: str = "흑연 막대 Ø2 mm (2B 연필심 또는 흑연봉) — 끝 20 mm 만 드러내고 나머지는 실리콘으로 덮음"
+    sleeve_bottom_mm: float = 288.0  # (sleeve) 소매 끝
+    meas_ms: float = 1.08  # 값 하나 재는 시간 (가정) → 한 장 = 값 수 × 이것
+    protocol: str = "adjacent"  # "adjacent" = 링 안 이웃 쌍 · "deep" = + 위아래 쌍(A_i–B_i) + 링 안 4칸 건너 쌍 (몸을 꿰뚫는 전류)
+    rod: str = "흑연 띠 · 막대 (흑연 시트를 오린 띠 또는 2B 연필심) — 드러낸 면만 배지에 닿고 나머지는 실리콘으로 덮음 (금속 없음)"
     rod_d_mm: float = 2.0
     rod_len_mm: float = 20.0
     freq_hz: float = 10e3
@@ -59,9 +73,14 @@ class EITSpec:
     probe_mm: tuple[float, float, float] = (-130.0, 136.0, 80.0)  # 기존 배지 전도도 전극 = 접지
 
     @property
+    def zc_ohm_m2(self) -> float:
+        """전기이중층 면적 임피던스 |Z| = 1/(2πfC) (Ω·m²)."""
+        return 1 / (2 * math.pi * self.freq_hz * self.c_dl_f_m2)
+
+    @property
     def contact_ohm(self) -> float:
-        a = math.pi * self.rod_d_mm * self.rod_len_mm * 1e-6
-        return 1 / (2 * math.pi * self.freq_hz * self.c_dl_f_m2) / a
+        """막대 전극(sleeve · walls) 하나의 접촉 임피던스."""
+        return self.zc_ohm_m2 / (math.pi * self.rod_d_mm * self.rod_len_mm * 1e-6)
 
 
 def _graded(lo: float, hi: float, f_lo: float, f_hi: float, h: float, grow: float, first: tuple = ()) -> np.ndarray:
@@ -123,10 +142,18 @@ class Grid:
 
 def make_grid(tank_mm: float, fill_mm: float, es: EITSpec) -> Grid:
     t = tank_mm / 2
-    first = (es.sleeve_t_mm,) if es.place == "sleeve" else ()
+    first = (es.sleeve_t_mm,)  # 잉크 우물 테 (치마 · 소매) 벽 두께 한 칸
     exy = _graded(-t, t, -es.fine_xy_mm, es.fine_xy_mm, es.fine_mm, es.grow, first)
-    ez = _graded(0.0, fill_mm, es.fine_z_mm[0], min(es.fine_z_mm[1], fill_mm), es.fine_mm, es.grow)
-    return Grid(exy, exy.copy(), ez)
+    # z: 수면 · 잉크층 바닥(320) · 치마 끝(318) 에 칸 경계를 맞추고, 그 아래로 fine 칸, 더 아래는 굵게
+    ink_b = fill_mm - 10.0
+    top = [fill_mm, (fill_mm + ink_b) / 2, ink_b, es.skirt_bottom_mm]
+    z = es.skirt_bottom_mm
+    while z - es.fine_mm >= es.fine_z_mm[0] - 1e-9:
+        z -= es.fine_mm
+        top.append(z)
+    low = _graded(0.0, z, z, z, es.fine_mm, es.grow)[:-1]  # 0 → z (굵어짐)
+    ez = np.concatenate([low[low < z - 1e-9], np.array(top[::-1])])
+    return Grid(exy, exy.copy(), np.unique(np.round(ez, 6)))
 
 
 # ---------- 전도도 지도 ----------
@@ -144,6 +171,7 @@ class Scene:
     layer: int | None = None
     blobs: list = field(default_factory=list)  # 배지 속 덧붙은 덩어리 (중심 xyz mm, 반지름 mm, σ S/m) — 존재와 겹치지 않는 곳
     bed: bool = True
+    gantry: bool = True
 
     @property
     def dz(self) -> float:
@@ -187,17 +215,39 @@ def conductivity(grid: Grid, sc: Scene, es: EITSpec) -> np.ndarray:
         ins = X ** 2 + Y ** 2 + Z ** 2 <= r * r
         x, y, z = X[ins] + c[0], Y[ins] + c[1], Z[ins] + c[2]
         sig += _deposit(grid, x, y, z, s - sc.ion_sigma(x, y, z), vol)
-    if es.place == "sleeve":  # 전극 소매 = 잉크 우물 테를 아래로 내린 PETG 벽 (절연)
-        a, b = es.sleeve_mm, es.sleeve_mm + es.sleeve_t_mm
-        z0, z1 = es.sleeve_bottom_mm, sc.fill_mm + 5
-        for lo, hi in (((-b, -b, z0), (b, -a, z1)), ((-b, a, z0), (b, b, z1)), ((-b, -b, z0), (-a, b, z1)), ((a, -b, z0), (b, b, z1))):
+    # 잉크 우물 테 (PETG, 절연): 치마는 318 까지 · sleeve 면 소매를 288 까지 내림
+    a, b = es.sleeve_mm, es.sleeve_mm + es.sleeve_t_mm
+    z0, z1 = (es.sleeve_bottom_mm if es.place == "sleeve" else es.skirt_bottom_mm), sc.fill_mm + 5
+    for lo, hi in (((-b, -b, z0), (b, -a, z1)), ((-b, a, z0), (b, b, z1)), ((-b, -b, z0), (-a, b, z1)), ((a, -b, z0), (b, b, z1))):
+        sig += grid.box_fraction(lo, hi) * (SIGMA_INSULATOR - sig)
+    if sc.bed:  # 받침 · 기둥 · 너트 판 (PETG, 절연) — 받침과 함께 내려감
+        for lo, hi in _bed_boxes(sc.dz):
             sig += grid.box_fraction(lo, hi) * (SIGMA_INSULATOR - sig)
-    if sc.bed:
-        d = sc.dz
-        for lo, hi in (((-60, -60, d - 6), (60, 60, d)), ((-20, -20, d - 46), (20, 20, d - 6))):
-            f = grid.box_fraction(lo, hi)
-            sig += f * (SIGMA_INSULATOR - sig)
+    if sc.gantry and es.gantry_parked:  # 주차한 도구 갠트리 · 레일 · 모터 통 (겉이 에폭시 · PETG — 절연으로 봄, 가정)
+        for lo, hi in _gantry_boxes():
+            sig += grid.box_fraction(lo, hi) * (SIGMA_INSULATOR - sig)
     return np.maximum(sig, SIGMA_INSULATOR)
+
+
+def _bed_boxes(dz: float) -> list:
+    from .layout import BED_CARRIAGE, PLATE, RISER
+
+    return [((-60, -60, dz - PLATE), (60, 60, dz)),
+            ((-20, -20, dz - PLATE - RISER), (20, 20, dz - PLATE)),
+            ((-114, -114, dz - PLATE - RISER - BED_CARRIAGE), (114, 114, dz - PLATE - RISER))]
+
+
+_GANTRY: list | None = None
+
+
+def _gantry_boxes() -> list:
+    """layout 의 도구 갠트리 중 고정 부품 + 주차 자리 (쓸고 지나가는 범위는 뺌)."""
+    global _GANTRY
+    if _GANTRY is None:
+        from .layout import make_light_layout
+
+        _GANTRY = [(b.lo, b.hi) for b in make_light_layout().boxes if b.kind == "gantry" and "(쓸림)" not in b.name]
+    return _GANTRY
 
 
 def _cell_ids(grid: Grid, x, y, z):
@@ -214,26 +264,47 @@ def _deposit(grid: Grid, x, y, z, dvol_sigma, vol) -> np.ndarray:
 
 
 # ---------- 전극 ----------
-def electrodes(grid: Grid, tank_mm: float, es: EITSpec) -> tuple[np.ndarray, np.ndarray, list]:
-    """링마다 벽 넷 × per_wall, 둘레를 따라 시계 반대 방향 순서. → (벽 칸 번호, 링 번호, 위치)"""
-    t = tank_mm / 2 if es.place == "walls" else es.sleeve_mm
-    s = (np.arange(es.per_wall) + 0.5) / es.per_wall * 2 * t - t
-    cells, ring, pos = [], [], []
-    for r, z in enumerate(es.rings_z_mm):
-        pts = [(x, -t + 1, z) for x in s] + [(t - 1, y, z) for y in s] + [(x, t - 1, z) for x in s[::-1]] + [(-t + 1, y, z) for y in s[::-1]]
-        for p in pts:
-            cells.append(grid.index(*p))
-            ring.append(r)
-            pos.append(p)
-    return np.array(cells), np.array(ring), pos
+def _ring(half: float, z: float, per_side: int, inset: float) -> list:
+    """정사각 둘레 (반폭 half) 에 면마다 per_side 개, 시계 반대 방향. inset = 면에서 배지 쪽으로 (+ 안쪽 · − 바깥쪽)."""
+    s = (np.arange(per_side) + 0.5) / per_side * 2 * half - half
+    h = half - inset
+    return ([(x, -h, z) for x in s] + [(h, y, z) for y in s] + [(x, h, z) for x in s[::-1]] + [(-h, y, z) for y in s[::-1]])
 
 
-def drive_pairs(ring: np.ndarray) -> list[tuple[int, int]]:
-    """링 안에서 이웃한 두 전극 (고리)."""
+def electrode_sites(es: EITSpec, sc: "Scene", tank_mm: float) -> tuple[list, np.ndarray, np.ndarray]:
+    """→ (위치 목록, 링 번호, 접촉 임피던스 Ω). B 줄(받침 · 기둥) 은 받침과 함께 내려감."""
+    n = es.per_wall
+    if es.place in ("collar_bed", "collar_riser"):
+        a = _ring(es.sleeve_mm, es.collar_z_mm, n, 1.0)  # 치마 안쪽 면 → 안쪽 칸
+        if es.place == "collar_bed":
+            b = _ring(60.0, sc.dz - es.bed_drop_mm, n, -1.0)  # 받침 옆면 → 바깥 칸
+            area_b = es.bed_strip_mm2
+        else:
+            from .layout import PLATE
+
+            b = _ring(20.0, sc.dz - PLATE - es.riser_drop_mm, n, -4.0)
+            area_b = es.riser_strip_mm2
+        pos = a + b
+        zc = np.array([es.zc_ohm_m2 / (es.collar_strip_mm2 * 1e-6)] * len(a) + [es.zc_ohm_m2 / (area_b * 1e-6)] * len(b))
+    else:
+        half = tank_mm / 2 if es.place == "walls" else es.sleeve_mm
+        pos = [p for z in es.rings_z_mm for p in _ring(half, z, n, 1.0)]
+        zc = np.full(len(pos), es.contact_ohm)
+    ring = np.repeat(np.arange(len(pos) // (4 * n)), 4 * n)
+    return pos, ring, zc
+
+
+def drive_pairs(ring: np.ndarray, protocol: str = "adjacent") -> list[tuple[int, int]]:
+    """구동 · 측정 쌍. adjacent: 링 안 이웃 (고리). deep: + 링 사이 같은 자리 (A_i–B_i) + 링 안 4칸 건너."""
     out = []
-    for r in np.unique(ring):
-        ids = np.nonzero(ring == r)[0]
+    rings = [np.nonzero(ring == r)[0] for r in np.unique(ring)]
+    for ids in rings:
         out += [(int(ids[i]), int(ids[(i + 1) % len(ids)])) for i in range(len(ids))]
+    if protocol == "deep":
+        for a, b in zip(rings[:-1], rings[1:]):
+            out += [(int(x), int(y)) for x, y in zip(a, b)]
+        for ids in rings:
+            out += [(int(ids[i]), int(ids[(i + 4) % len(ids)])) for i in range(len(ids))]
     return out
 
 
@@ -241,8 +312,8 @@ def drive_pairs(ring: np.ndarray) -> list[tuple[int, int]]:
 class Forward:
     """유한체적 + 전극 마디. solve() 는 쌍마다 단위 전류(1 A) 일 때의 칸 · 전극 전위."""
 
-    def __init__(self, grid: Grid, sigma: np.ndarray, cells: np.ndarray, es: EITSpec, ground: int, tank_mm: float):
-        self.grid, self.sigma, self.cells, self.es, self.ground = grid, sigma, cells, es, ground
+    def __init__(self, grid: Grid, sigma: np.ndarray, cells: np.ndarray, zc: np.ndarray, es: EITSpec, ground: int):
+        self.grid, self.sigma, self.cells, self.zc, self.es, self.ground = grid, sigma, cells, np.asarray(zc, float), es, ground
         nx, ny, nz = grid.shape
         widths = [w * 1e-3 for w in grid.widths()]  # m
         idx = np.arange(grid.n).reshape(grid.shape)
@@ -263,11 +334,11 @@ class Forward:
         self.dga, self.dgb = np.concatenate(DA), np.concatenate(DB)
         ne = len(cells)
         n = grid.n + ne
-        gc = 1 / es.contact_ohm
+        gc = 1 / self.zc  # 전극마다 접촉 전도
         ea = np.arange(grid.n, n)
         rows = np.concatenate([self.fa, self.fb, self.fa, self.fb, ea, cells, ea, cells])
         cols = np.concatenate([self.fa, self.fb, self.fb, self.fa, ea, cells, cells, ea])
-        vals = np.concatenate([self.fg, self.fg, -self.fg, -self.fg, np.full(ne, gc), np.full(ne, gc), np.full(ne, -gc), np.full(ne, -gc)])
+        vals = np.concatenate([self.fg, self.fg, -self.fg, -self.fg, gc, gc, -gc, -gc])
         K = sp.coo_matrix((vals, (rows, cols)), shape=(n, n)).tocsr()
         keep = np.setdiff1d(np.arange(n), [ground])
         self.keep, self.n = keep, n
@@ -286,8 +357,7 @@ class Forward:
 
     def electrode_currents(self, u: np.ndarray) -> np.ndarray:
         """전극마다 배지로 나가는 전류 (A) — 넣은 전류 그대로여야 하고 합은 0."""
-        gc = 1 / self.es.contact_ohm
-        return gc * (u[self.grid.n:] - u[self.cells])
+        return (u[self.grid.n:] - u[self.cells]) / self.zc[:, None]
 
 
 def transfer(u: np.ndarray, nvox: int, pairs) -> np.ndarray:
@@ -306,7 +376,7 @@ def measure_mask(pairs) -> np.ndarray:
     return m
 
 
-def jacobian(fw: Forward, u: np.ndarray, roi: np.ndarray, chunk: int = 4000) -> np.ndarray:
+def jacobian(fw: Forward, u: np.ndarray, roi: np.ndarray, chunk: int = 1000) -> np.ndarray:
     """∂Z[d,p]/∂σ_j (j ∈ roi) — (구동 × 측정, roi). 수반 장 = 같은 쌍의 단위 전류 장 (상반성)."""
     pos = np.full(fw.grid.n, -1)
     pos[roi] = np.arange(len(roi))
@@ -342,8 +412,8 @@ class EIT:
         self.es = es or EITSpec()
         self.tank_mm, self.fill_mm = tank_mm, fill_mm
         self.grid = make_grid(tank_mm, fill_mm, self.es)
-        self.cells, self.ring, self.pos = electrodes(self.grid, tank_mm, self.es)
-        self.pairs = drive_pairs(self.ring)
+        _, self.ring, _ = electrode_sites(self.es, Scene(tank_mm=tank_mm, fill_mm=fill_mm), tank_mm)
+        self.pairs = drive_pairs(self.ring, self.es.protocol)
         self.mask = measure_mask(self.pairs)
         self.ground = self.grid.index(*self.es.probe_mm)
         xc, yc, zc = self.grid.centers()
@@ -360,7 +430,10 @@ class EIT:
         if id(sc) in self._frames:
             return self._frames[id(sc)][1]
         sig = conductivity(self.grid, sc, self.es)
-        fw = Forward(self.grid, sig, self.cells, self.es, self.ground, self.tank_mm)
+        pos, _, zc = electrode_sites(self.es, sc, self.tank_mm)  # B 줄은 받침과 함께 내려감
+        cells = np.array([self.grid.index(*p) for p in pos])
+        self.pos = pos
+        fw = Forward(self.grid, sig, cells, zc, self.es, self.ground)
         u = fw.solve(self.pairs)
         z = transfer(u, self.grid.n, self.pairs)
         if self.current_a is None:  # 처음(기대 상태) 에 구동 전압 = drive_mv 로 전류를 정하고 그다음엔 같은 전류
@@ -447,14 +520,46 @@ def _scenarios(eit: EIT, piece, layer: int, spec_light) -> list[dict]:
     return out
 
 
+PLACES = {
+    "collar_bed": "A 줄 잉크 우물 테 치마 (z 319) + B 줄 배양 받침 테두리 (받침과 함께 내려감)",
+    "collar_riser": "A 줄 잉크 우물 테 치마 (z 319) + B 줄 받침 기둥 옆면",
+    "sleeve": "테를 z 288 까지 내린 소매에 두 줄 (z 313 · 296) — 도구 단계 전에 소매를 들어 올려야 함",
+    "walls": "수조 벽 두 줄 (z 300 · 265)",
+}
+
+
+def _evaluate(eit: EIT, piece, layer: int, spec_l, n_avg: int) -> tuple[list, list, Frame]:
+    rows, figs = [], []
+    scen = _scenarios(eit, piece, layer, spec_l)
+    for n, s in enumerate(scen):
+        ref, meas = eit.frame(s["a"]), eit.frame(s["b"])
+        img, info = eit.reconstruct(ref, eit.noisy(meas, n_avg, seed=n), n_avg)
+        tru = eit.truth(s["a"], s["b"])
+        tr, im = tru.ravel()[eit.roi], img.ravel()[eit.roi]
+        corr = float(np.corrcoef(tr, im)[0, 1]) if tr.std() > 0 and im.std() > 0 else 0.0
+        dv = meas.v - ref.v
+        row = {"name": s["name"], "snr1": float(np.linalg.norm(dv) / np.linalg.norm(eit.noise_std(ref))),
+               "snr": float(np.linalg.norm(dv) / np.linalg.norm(eit.noise_std(ref, n_avg))),  # 잡음 없는 차이 / 평균 뒤 잡음
+               "corr": corr, "max_dv_uv": float(np.max(np.abs(dv)) * 1e6)}
+        if s["center"] is not None:
+            c, vol = eit.locate(img, s["sign"])
+            row.update(err_mm=float(np.linalg.norm(c - s["center"])), center=c.tolist(), truth_center=s["center"].tolist(),
+                       vol_ml=vol, truth_vol_ml=s["vol_ml"])
+        rows.append(row)
+        figs.append((s, tru, img))
+    return rows, figs, eit.frame(scen[0]["a"])
+
+
 def eit_report(job_or_shape="being", layer: int | None = None, out_dir: str | Path | None = None,
-               es: EITSpec | None = None, height_mm: float = 0.0, compare_walls: bool = True) -> dict:
+               es: EITSpec | None = None, height_mm: float = 0.0, compare: bool = False) -> dict:
     """빛 조각가 작업 하나(또는 모양 이름)의 K 층 순간: 전극 · 전압 · 세 가지 차이(덧굳음 · 빠짐 · 자람)의 검출 · 위치 오차.
 
     job_or_shape: lightsculpt.light_job 결과(dict) 또는 모양 이름 ("being", "coupon", …).
+    compare: 다른 전극 자리(PLACES) 도 같은 세 차이로 재어 표로 (자리마다 약 30 s 더).
     한 층을 빚는 동안(수 분) 같은 장면을 여러 장 재어 평균 → 우연 잡음이 √N 로 줄어듦.
     """
     import time
+    from dataclasses import replace
 
     from .lightsculpt import LightSculptorSpec, exposure_plan
     from .sculpt import CellParams, design
@@ -475,41 +580,27 @@ def eit_report(job_or_shape="being", layer: int | None = None, out_dir: str | Pa
     eit = EIT(es, tk.inner_mm[0], tk.fill_mm)
     es = eit.es
     layer_s = float(plan["layer_s"][layer]) if plan["layer_s"][layer] > 0 else float(np.mean(plan["layer_s"][plan["layer_s"] > 0]))
-    n_avg = max(1, int(layer_s / es.frame_s))
-    rows, figs = [], []
-    scen = _scenarios(eit, piece, layer, spec_l)
-    for n, s in enumerate(scen):
-        ref, meas = eit.frame(s["a"]), eit.frame(s["b"])
-        img, info = eit.reconstruct(ref, eit.noisy(meas, n_avg, seed=n), n_avg)
-        tru = eit.truth(s["a"], s["b"])
-        tr, im = tru.ravel()[eit.roi], img.ravel()[eit.roi]
-        corr = float(np.corrcoef(tr, im)[0, 1]) if tr.std() > 0 and im.std() > 0 else 0.0
-        dv = meas.v - ref.v
-        row = {"name": s["name"], "snr1": float(np.linalg.norm(dv) / np.linalg.norm(eit.noise_std(ref))), "snr": info["snr"],
-               "corr": corr, "max_dv_uv": float(np.max(np.abs(dv)) * 1e6)}
-        if s["center"] is not None:
-            c, vol = eit.locate(img, s["sign"])
-            row.update(err_mm=float(np.linalg.norm(c - s["center"])), center=c.tolist(), truth_center=s["center"].tolist(),
-                       vol_ml=vol, truth_vol_ml=s["vol_ml"])
-        rows.append(row)
-        figs.append((s, tru, img))
-    base = eit.frame(scen[0]["a"])
+    n_avg = max(1, int(layer_s / (eit.mask.sum() * es.meas_ms * 1e-3)))
+    rows, figs, base = _evaluate(eit, piece, layer, spec_l, n_avg)
     cur = base.fw.electrode_currents(base.u) * base.current_a
     res = {
-        "layer": layer, "place": es.place, "n_electrodes": len(eit.cells), "n_rings": len(es.rings_z_mm), "n_drives": len(eit.pairs),
-        "n_meas": int(eit.mask.sum()), "grid": list(eit.grid.shape), "n_cells": eit.grid.n, "roi_cells": len(eit.roi),
+        "layer": layer, "place": es.place, "n_electrodes": len(eit.ring), "n_rings": int(eit.ring.max()) + 1, "n_drives": len(eit.pairs),
+        "n_meas": int(eit.mask.sum()), "protocol": es.protocol, "grid": list(eit.grid.shape), "n_cells": eit.grid.n, "roi_cells": len(eit.roi),
         "current_ua": base.current_a * 1e6, "drive_mv": base.drive_v * 1e3,
         "meas_mv_max": float(np.max(np.abs(base.v)) * 1e3), "meas_uv_min": float(np.min(np.abs(base.v)) * 1e6),
-        "contact_ohm": es.contact_ohm, "current_sum_a": float(np.abs(cur.sum(axis=0)).max()),
+        "contact_ohm": [float(base.fw.zc.min()), float(base.fw.zc.max())], "current_sum_a": float(np.abs(cur.sum(axis=0)).max()),
+        "electrode_z_mm": sorted({round(p[2], 1) for p in eit.pos}), "bed_top_mm": _scenarios(eit, piece, layer, spec_l)[0]["a"].dz,
         "layer_s": layer_s, "n_avg": n_avg, "scenarios": rows,
     }
-    if compare_walls and es.place != "walls":  # 같은 덧굳음을 수조 벽 전극으로 재면
-        from dataclasses import replace
-
-        w = EIT(replace(es, place="walls", rings_z_mm=(300.0, 265.0), fine_mm=7.0, fine_xy_mm=77.0), tk.inner_mm[0], tk.fill_mm)
-        s0 = _scenarios(w, piece, layer, spec_l)[0]
-        r0, m0 = w.frame(s0["a"]), w.frame(s0["b"])
-        res["walls_snr"] = float(np.linalg.norm(m0.v - r0.v) / np.linalg.norm(w.noise_std(r0, n_avg)))
+    if compare:
+        res["compare"] = {es.place: rows}
+        for place in PLACES:
+            if place == es.place:
+                continue
+            extra = {"rings_z_mm": (300.0, 265.0)} if place == "walls" else {}
+            other = EIT(replace(es, place=place, **extra), tk.inner_mm[0], tk.fill_mm)
+            n_o = max(1, int(layer_s / (other.mask.sum() * es.meas_ms * 1e-3)))
+            res["compare"][place] = _evaluate(other, piece, layer, spec_l, n_o)[0]
     res["seconds"] = time.time() - t0
     res["text"] = describe(res, es)
     if out_dir is not None:
@@ -520,16 +611,18 @@ def eit_report(job_or_shape="being", layer: int | None = None, out_dir: str | Pa
 
 
 def describe(r: dict, es: EITSpec) -> str:
-    where = (f"잉크 우물 테를 z {es.sleeve_bottom_mm:g} mm 까지 내린 PETG 소매 안쪽 (±{es.sleeve_mm:g} mm)" if es.place == "sleeve"
-             else "수조 벽 안쪽")
-    lines = [f"[EIT — 배지 속을 전기로 봄] 층 {r['layer']} 순간",
+    lines = [f"[EIT — 배지 속을 전기로 봄] 층 {r['layer']} 순간 (받침 윗면 z {r['bed_top_mm']:.1f} mm)",
              f"  전극: {es.rod}",
-             f"    {where} · {r['n_rings']}줄(z {', '.join(f'{z:g}' for z in es.rings_z_mm)} mm) × 4면 × {es.per_wall} = {r['n_electrodes']}개 "
-             f"(금속 없음) · 접지 = 배지 전도도 전극 자리",
+             f"    {PLACES[es.place]} · {r['n_rings']}줄 × 16 = {r['n_electrodes']}개 · 높이 {', '.join(f'{z:g}' for z in r['electrode_z_mm'])} mm · "
+             f"접지 = 배지 전도도 전극 자리",
+             f"    도구 갠트리(빔 · 캐리지 z 283–316) 와 겹치지 않음 — EIT 는 갠트리가 주차했을 때만 잼 (빔 · 레일은 절연체로 넣음)"
+             if es.place in ("collar_bed", "collar_riser") else
+             f"    {'⚠ 소매는 도구 갠트리 쓸림(z 283–316) 과 겹침 — 도구 단계 전에 소매를 들어 올려야 함' if es.place == 'sleeve' else '수조 벽 — 몸에서 약 15 cm'}",
              f"  교류 {es.freq_hz / 1000:g} kHz · 전류 {r['current_ua']:.0f} µA · 구동 쌍 {r['drive_mv']:.0f} mV (상한 {es.v_cap_mv:g} mV, 탄소 안전창 800 mV) · "
-             f"잰 전압 {r['meas_uv_min']:.0f} µV ~ {r['meas_mv_max']:.1f} mV",
-             f"    직류 평균 0 → 누설 감시(직류 50 µA)와 주파수로 갈림 · 접촉 임피던스 {r['contact_ohm']:.1f} Ω (이중층 {es.c_dl_f_m2 * 100:g} µF/cm², 가정)",
-             f"  이웃 쌍 구동 {r['n_drives']} × 이웃 쌍 측정 → {r['n_meas']}개 값 · 칸 {r['grid'][0]}×{r['grid'][1]}×{r['grid'][2]} = {r['n_cells']} "
+             f"잰 전압 {r['meas_uv_min']:.1f} µV ~ {r['meas_mv_max']:.1f} mV",
+             f"    직류 평균 0 → 누설 감시(직류 50 µA)와 주파수로 갈림 · 접촉 임피던스 {r['contact_ohm'][0]:.0f}–{r['contact_ohm'][1]:.0f} Ω "
+             f"(이중층 {es.c_dl_f_m2 * 100:g} µF/cm², 가정)",
+             f"  {'이웃 쌍' if r['protocol'] == 'adjacent' else '이웃 · 위아래 · 4칸 건너 쌍'} 구동 {r['n_drives']} × 같은 쌍 측정 → {r['n_meas']}개 값 · 칸 {r['grid'][0]}×{r['grid'][1]}×{r['grid'][2]} = {r['n_cells']} "
              f"(가운데 {es.fine_mm:g} mm) · 되찾는 칸 {r['roi_cells']} · 계산 {r['seconds']:.0f} s",
              f"  잡음: 한 장 {es.noise_rel * 100:g} % (가정) · 이 층 {r['layer_s'] / 60:.1f} 분 동안 {r['n_avg']}장 평균 → ÷{math.sqrt(r['n_avg']):.0f}"]
     for s in r["scenarios"]:
@@ -539,8 +632,12 @@ def describe(r: dict, es: EITSpec) -> str:
         if "err_mm" in s:
             line += f" · 위치 오차 {s['err_mm']:.0f} mm · 반값 부피 {s['vol_ml']:.1f} mL (참 {s['truth_vol_ml']:.1f})"
         lines.append(line)
-    if "walls_snr" in r:
-        lines.append(f"  비교: 같은 덧굳음을 수조 벽 전극(몸에서 약 15 cm)으로 재면 신호/잡음 {r['walls_snr']:.2f} — 그래서 전극을 소매에 붙임")
+    if "compare" in r:
+        lines.append("  전극 자리 비교 (신호/잡음, 위치 오차):")
+        lines.append(f"    {'자리':<14} {'덧굳음':>16} {'빠진 곳':>16} {'자람':>8}")
+        for place, rows in r["compare"].items():
+            b, m, g = rows
+            lines.append(f"    {place:<14} {b['snr']:>8.1f} · {b['err_mm']:>3.0f} mm {m['snr']:>8.1f} · {m['err_mm']:>3.0f} mm {g['snr']:>8.1f}")
     lines.append("  (데스크톱은 설계로 기대 전압을 계산해 두고, 잰 값과의 차이로 어디가 설계와 다른지 그림으로 되찾음 — 해상도는 cm 급)")
     return "\n".join(lines)
 

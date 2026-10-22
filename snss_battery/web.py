@@ -433,8 +433,14 @@ def _light_assets(folder: Path) -> dict:
 
         ed0 = calibrated_edope(cal_file, ed0)
     edope = electro_dope(job, ed0)
+    from .lighttools import describe_tools, plan_tools
+
+    tools = plan_tools(job)
     return {
-        "machine": spec.describe(), "layout": lay.describe(), "job_text": describe_job(job) + "\n\n" + describe_edope(edope),
+        "machine": spec.describe(), "layout": lay.describe(), "job_text": describe_job(job) + "\n\n" + describe_tools(tools) + "\n\n" + describe_edope(edope),
+        "tools": [{"key": t.key, "name": t.name, "tip": t.tip, "use": t.use} for t in tools["ts"].tools],
+        "inject": {"cells": tools["n_inject"], "phases": len(tools["phases"]), "hours": tools["tool_h"],
+                   "energy_j": tools["prediction"]["energy_j"], "max_h": tools["max_height_mm"], "tip_z": tools["ts"].head.tip_z},
         "check": spec.check(), "edope_energy_j": edope["prediction"]["energy_j"], "edope_hours": ed0.hours,
         "edope_t90_h": edope["t90_h"],
         "calibrated": cal_file.exists(),
@@ -900,6 +906,10 @@ aside .panel { background: var(--panel); border: 1px solid var(--line); border-r
             화면 위 휠 = 층 · 클릭 = 칸 고정 · 3D 끌기 = 돌려 보기</div></div>
       </aside>
     </div>
+    <h2>조각 도구 — 물속 갠트리 (빛을 쬘 때는 뒤쪽에 주차)</h2>
+    <p class="sub">빛이 몸을 빚고, 주사기가 빛이 못 하는 것을 합니다 — 허공 획 · 덧붙이기(SC-1 레시피, 멸균생리식염수 속 도구 면에서 굳음),
+      n 세포마다 PEI 주입, 깎기 · 떼기 · 붙이기 · 재기. 물속 도구에 금속 없음 (유리 미세 피펫 · PEEK). 명령: <code>light-tool add|carve|detach|draw|attach</code></p>
+    <table id="lcTools"></table>
     <h2>데스크톱 어림 — 잉크 · 빛을 바꾸면</h2>
     <p class="sub">lightsculpt.py 와 같은 식으로 바로 어림합니다 (층 그림 전체는 <code>python -m snss_battery light being --go … --irradiance …</code>).</p>
     <div class="lc-whatif">

@@ -25,12 +25,16 @@ if (D && L) {
     ["세포질 rGO · 막 샘", `${pct(D.cyto_reduced)} · ${pct(D.mem_leaky)}`],
     ["초록 p 도핑", `p 세포 ${pct(D.p_graft)} · n 세포 ${pct(D.n_graft)}`],
     ["에너지 (0.8 V)", `${(D.energy_j * 1000).toFixed(0)} mJ (도핑 없으면 ${(D.undoped_energy_j * 1000).toFixed(0)})`],
+    ["주사기 주입 (n 세포)", `${D.inject.cells}개 · ${D.inject.phases}번 · +${D.inject.hours.toFixed(1)} h → ${(D.inject.energy_j * 1000).toFixed(0)} mJ`],
     ["사후 전기 도핑 (n 세포)", `PEI 통 ${D.edope_hours} h → ${(D.edope_energy_j * 1000).toFixed(0)} mJ · 속까지 약 ${D.edope_t90_h.toFixed(0)} h`],
     ["잉크층", `${D.ink_density.toFixed(1)} < 배지 ${D.bath_density.toFixed(1)} kg/m³ · CCC ${D.ccc_mm.toFixed(0)} mM`],
     ["상온", `잉크 표면 +${D.surface_k.toFixed(2)} K · 배지 +${D.bath_k.toFixed(2)} K`],
     ["빛 상수", D.calibrated ? "시험편 보정값 (light_cal.json)" : "가정값 — ./tools.sh light-cal 로 시험편부터"],
     ["설계 점검", D.check.length ? D.check.join(" · ") : "통과"],
   ].map(([k, v]) => `<div class="card"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join("");
+  $("#lcTools").innerHTML = `<tr><th>도구</th><th>이름</th><th>끝 (물속, 금속 없음)</th><th>쓰임</th></tr>` +
+    D.tools.map((t) => `<tr><td>${esc(t.key)}</td><td>${esc(t.name)}</td><td>${esc(t.tip)}</td><td>${esc(t.use)}</td></tr>`).join("") +
+    `<tr><td colspan="4" class="sub">도구 면 ${D.inject.tip_z} mm (멸균생리식염수 속) · 도구 작업은 작업물 ${D.inject.max_h.toFixed(0)} mm 까지</td></tr>`;
   $("#lcText").textContent = [D.machine, "", D.layout, "", D.job_text].join("\n");
   $("#lcRenders").innerHTML = D.renders.length
     ? `<h2>Blender 렌더 (./tools.sh light-blender)</h2>` + D.renders.map((f) => `<img class="fig" src="${esc(f)}" alt="Blender 렌더" style="max-width:49%">`).join(" ")

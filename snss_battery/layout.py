@@ -194,10 +194,19 @@ class LightLayout(Layout):
         nut_top = next(b for b in self.boxes if b.name == "받침 너트 판 (가장 높을 때)").hi[2]
         if nut_top > screw.hi[2]:
             bad.append("받침 너트 판이 나사봉 끝을 넘어감")
+        # 도구 갠트리: 빛을 쬘 때 주차한 갠트리가 받침 기둥 · 출력 공간 · 빛길을 막지 않음
+        for b in self.parked():
+            for z in self.zones:
+                if z.name.startswith(("출력", "빛길", "배양 받침")) and z.gap(b) < 2.0:
+                    bad.append(f"주차한 {b.name} 이(가) {z.name} 를 막음")
+        for g in (b for b in self.boxes if b.kind == "gantry" and "(쓸림)" in b.name):
+            for b in self.boxes:
+                if b.kind in ("frame", "static", "well") and g.gap(b) < 2.0:
+                    bad.append(f"{g.name} ↔ {b.name}: {g.gap(b):.1f} mm")
         return bad
 
     def parked(self) -> list[Box]:
-        return []
+        return [b for b in self.boxes if b.kind == "gantry" and "(주차)" in b.name]
 
     def describe(self) -> str:
         sp = self.spec
@@ -211,10 +220,11 @@ class LightLayout(Layout):
         return "\n".join(lines)
 
 
-RISER = 40.0  # 받침 기둥 (너트 판 → 받침)
+RISER = 52.0  # 받침 기둥 (너트 판 → 받침) — 나사봉 끝이 도구 갠트리 아래에 머물게 길게
 
 
-def make_light_layout(spec=None) -> LightLayout:
+def make_light_layout(spec=None, tools=True) -> LightLayout:
+    """tools=True: 물속 도구 갠트리 (lighttools.ToolHead) 까지 — 빛을 쬘 때는 뒤쪽에 주차."""
     from .lightsculpt import LightSculptorSpec
 
     sp = spec or LightSculptorSpec()
@@ -238,16 +248,16 @@ def make_light_layout(spec=None) -> LightLayout:
             boxes.append(Box(f"탄소섬유 봉 (가로, {lab}, X)", (-h, s * h - 4, zc - 4), (h, s * h + 4, zc + 4), "frame"))
             boxes.append(Box(f"탄소섬유 봉 (가로, {lab}, Y)", (s * h - 4, -h, zc - 4), (s * h + 4, h, zc + 4), "frame"))
     for x, y in ((Z_SCREW, -Z_SCREW), (Z_SCREW, Z_SCREW), (-Z_SCREW, -Z_SCREW)):
-        boxes.append(_cyl("Z 나일론 나사봉", x, y, 4, 0, FZ - 8))
+        boxes.append(_cyl("Z 나일론 나사봉", x, y, 4, 0, FZ - 20))  # 280 — 도구 갠트리(283~) 아래
         boxes.append(_cyl("Z 모터 방수 통", x, y, 28, 0, 46))
     boxes.append(Box("받침 너트 판 (가장 높을 때)", (-Z_SCREW - 12, -Z_SCREW - 12, nut_hi - BED_CARRIAGE), (Z_SCREW + 12, Z_SCREW + 12, nut_hi), "bed"))
     boxes.append(Box("배양 받침 기둥 (쓸림)", (-60, -60, bed_bottom_min), (60, 60, z_tip), "bed"))
     # 전극: 배지 전도도 · 누설 기준 (뒤 왼쪽 구석, 잉크 우물 밖)
     boxes.append(Box("배지 전도도 · 누설 전극", (-133, 132, 60), (-127, 141, 100), "static"))
     boxes.append(Box("Z 모터 케이블 (방수, 밖으로)", (152, -8, 0), (160, 8, fill + 20), "static"))
-    # 잉크 우물: 떠 있는 테 4면 (PETG, 두께 3) — 수면 위 5 mm ~ 잉크층 아래 10 mm
+    # 잉크 우물: 떠 있는 테 4면 (PETG, 두께 3) — 수면 위 5 mm ~ 잉크층 아래 2 mm (그 아래로 도구 갠트리가 지나감)
     w = sp.ink.well_mm / 2
-    z0, z1 = fill - sp.ink.depth_mm - 10, fill + 5
+    z0, z1 = fill - sp.ink.depth_mm - 2, fill + 5
     for s in (-1, 1):
         a, b = (w, w + 3) if s > 0 else (-w - 3, -w)  # 안쪽 면 ±w, 두께 3
         boxes.append(Box("잉크 우물 테 (X)", (-w - 3, a, z0), (w + 3, b, z1), "well"))
@@ -260,4 +270,32 @@ def make_light_layout(spec=None) -> LightLayout:
         Box("배양 받침 기둥", (-62, -62, bed_bottom_min), (62, 62, z_tip), "zone"),
         Box("손 · 수확 통로 (테 들어낸 뒤)", (-HAND, -HAND, z_tip - bz - PLATE), (HAND, HAND, sp.tank.inner_mm[2]), "zone"),
     ]
+    if tools:
+        _tool_gantry(sp, boxes, zones, bx, by)
     return LightLayout(sp, z_tip, gz, bed_bottom_min, (bx, by), (0.0, 0.0), boxes, zones)
+
+
+def _tool_gantry(sp, boxes: list, zones: list, bx: float, by: float) -> None:
+    """물속 CoreXY + 도구 걸이 + 주사기 펌프 (lighttools). 좌표는 make_light_layout 과 같음."""
+    from .lighttools import TOOLS, ToolHead
+
+    th = ToolHead()
+    g, tip = th.gz, th.tip_z
+    px, py = th.park
+    ty = by + 16 + 31 + 16  # 펜 Y 이동 (도구 걸이까지)
+    for s in (-1, 1):
+        boxes.append(Box("Y 레일 (탄소섬유, 도구)", (s * 121 - 4, -127, g - 4), (s * 121 + 4, 127, g + 4), "gantry"))
+        boxes.append(_cyl("XY 모터 방수 통 (도구)", s * 121, 95, 28, g - 70, g - 24, "gantry"))
+        boxes.append(Box("X 봉 끝단 (쓸림)", (s * 121 - 20, -127, g - 15), (s * 121 + 20, 127, g + 15), "gantry"))
+    boxes.append(Box("X 빔 · 캐리지 (쓸림)", (-101, -ty - 31, g - 21), (101, ty + 31, g + 12), "gantry"))
+    boxes.append(Box("캐리지 (주차)", (px - 35, py - 31, g - 21), (px + 35, py + 31, g + 12), "gantry"))
+    boxes.append(Box("X 빔 (주차)", (-101, py - 12, g - 12), (101, py + 12, g + 12), "gantry"))
+    for i, t in enumerate(TOOLS):  # 도구 걸이 (뒤쪽) — 캐리지가 위에서 내려와 자석 마운트로 집음
+        x = -75 + 30 * i
+        boxes.append(_cyl(f"도구 걸이 {t.key} {t.name}", x, ty, 10, tip - 2, g - 24, "static"))
+    for y, lab in zip((-40, 7, 53, 100), th.pumps[:4]):
+        boxes.append(_cyl(f"주사기 펌프 방수 통 {lab}", -118, y, 28, 0, 46))
+        boxes.append(_cyl(f"원료 주사기 {lab}", -118, y, 11, 46, 156))
+    boxes.append(_cyl(f"주사기 펌프 방수 통 {th.pumps[4]}", 118, 0, 28, 0, 46))
+    boxes.append(_cyl(f"회수 주사기 {th.pumps[4]}", 118, 0, 11, 46, 156))
+    zones.append(Box("도구 작업 공간 (도구 면 위)", (-bx - 16, -by - 16, tip - 2), (bx + 16, by + 16, g - 21), "zone"))

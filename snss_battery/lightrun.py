@@ -56,26 +56,33 @@ def layer_images(E: np.ndarray, G: np.ndarray, offset, vox_mm: float):
         yield k, out[0][0], out[1][0], out[0][1], out[1][1]
 
 
-def schedule(layer_s405: list[float], layer_s530: list[float], spec: LightSculptorSpec) -> list[dict]:
-    """층 시간표 — 잉크 수명을 넘기 전에 잉크 갈기 (그 층 앞에서 멈춤)."""
+def schedule(layer_s405: list[float], layer_s530: list[float], spec: LightSculptorSpec,
+             tool_phases: list[dict] | None = None) -> list[dict]:
+    """층 시간표 — 잉크 수명을 넘기 전에 잉크 갈기 (그 층 앞에서 멈춤). 도구 작업은 그 띠가 끝난 다음 층 앞에 (잉크 시간엔 안 셈)."""
     life = spec.ink_life_h() * 3600 * 0.95
     rows, t, since = [], 0.0, 0.0
+    pending = sorted((x for x in (tool_phases or []) if not x.get("final")), key=lambda x: x["after_mm"])
     for k, (a, b) in enumerate(zip(layer_s405, layer_s530)):
         if a <= 0 and b <= 0:
             continue
+        tool = None
+        if pending and k * spec.layer_mm >= pending[0]["after_mm"] - 1e-9:
+            tool = pending.pop(0)
+            t += tool["seconds"]
         dur = a + b + spec.recoat_s
         swap = bool(since + dur > life)
         if swap:
             since = 0.0
         rows.append({"k": k, "z_drop_mm": round((k + 1) * spec.layer_mm, 4), "t405_s": round(a, 2), "t530_s": round(b, 2),
-                     "recoat_s": spec.recoat_s, "swap_ink": swap, "start_s": round(t, 1)})
+                     "recoat_s": spec.recoat_s, "swap_ink": swap, "start_s": round(t, 1),
+                     "tool_before": ({"file": tool["file"], "seconds": round(tool["seconds"], 1), "cells": tool["cells"]} if tool else None)})
         t += dur
         since += dur
     return rows
 
 
-def export_job(job: dict, folder: str | Path, slices: bool = True) -> dict:
-    """실제 기계용 묶음 — 프로젝터 화면 · 시간표 · Klipper 기록."""
+def export_job(job: dict, folder: str | Path, slices: bool = True, tools: dict | None = None) -> dict:
+    """실제 기계용 묶음 — 프로젝터 화면 · 시간표 · Klipper 기록. tools(lighttools.plan_tools) 면 주입 G-code 와 도구 작업 자리까지."""
     from PIL import Image
 
     spec, p, pl = job["spec"], job["piece"], job["plan"]
@@ -93,12 +100,28 @@ def export_job(job: dict, folder: str | Path, slices: bool = True) -> dict:
             Image.fromarray(a).save(folder / "slices" / "405" / f"L{k:04d}.png", optimize=True)
             if mg > 0:
                 Image.fromarray(g).save(folder / "slices" / "530" / f"L{k:04d}.png", optimize=True)
-    rows = schedule(t405, t530, spec)
+    phases = []
+    if tools:
+        from .lighttools import inject_gcode
+
+        (folder / "tools").mkdir(parents=True, exist_ok=True)
+        for i, ph in enumerate(tools["phases"]):
+            f = f"tools/inject_{i:02d}.gcode"
+            (folder / f).write_text(inject_gcode(ph, ph["after_mm"], tools["ts"]), encoding="utf-8")
+            phases.append({"after_mm": ph["after_mm"], "seconds": ph["inject_s"] + ph["overhead_s"], "cells": ph["cells"],
+                           "file": f, "final": ph["final"]})
+    last_z = max((k for k in range(E.shape[2]) if t405[k] > 0), default=0) * spec.layer_mm
+    for ph in phases:  # 마지막 띠에서 끝나는 주입은 다 빚은 뒤로
+        ph["final"] = ph["final"] or ph["after_mm"] > last_z + 1e-9
+    rows = schedule(t405, t530, spec, phases)
     total = rows[-1]["start_s"] + rows[-1]["t405_s"] + rows[-1]["t530_s"] + spec.recoat_s if rows else 0.0
+    finals = [x for x in phases if x["final"]]
+    total += sum(x["seconds"] for x in finals)
     meta = {"machine": spec.name, "piece": p.name, "px_mm": PX_MM, "field_mm": FIELD_MM, "size_px": int(round(FIELD_MM / PX_MM)),
             "flip": {"x": False, "y": False}, "irradiance_mw_cm2": {"405": pj.irradiance_mw_cm2, "530": pj.green_mw_cm2},
             "layer_mm": spec.layer_mm, "ink_life_h": spec.ink_life_h(), "total_h": total / 3600,
-            "ink_swaps": sum(r["swap_ink"] for r in rows), "layers": rows}
+            "ink_swaps": sum(r["swap_ink"] for r in rows), "layers": rows,
+            "tool_after": [{"file": x["file"], "seconds": round(x["seconds"], 1), "cells": x["cells"]} for x in finals]}
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "job.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
     (folder / "job.gcode").write_text(gcode(meta), encoding="utf-8")
@@ -111,12 +134,16 @@ def gcode(meta: dict) -> str:
            "; Z = 받침 윗면이 수면에서 내려간 깊이 (mm, 아래로 +) — 층 k 는 Z=(k+1)·층두께 에서 노출. 노출은 실행기가 프로젝터로 (PROJECT 는 기록)",
            "LEAK_CHECK", "G28 Z", "G90", "G1 Z0 F120"]
     for r in meta["layers"]:
+        if r.get("tool_before"):
+            out += ["PROJECT_OFF", f"; 도구 작업 — {r['tool_before']['file']} (n 세포 {r['tool_before']['cells']}개 주입)"]
         if r["swap_ink"]:
             out += ["PROJECT_OFF", "INK_SWAP  ; 잉크 갈기 — 사람이 새 잉크를 붓고 RESUME"]
         out += [f"G1 Z{r['z_drop_mm']:.4f} F30", f"G4 P{int(r['recoat_s'] * 1000)}",
                 f"PROJECT LAYER={r['k']} COLOR=405 SECONDS={r['t405_s']:.2f}"]
         if r["t530_s"] > 0:
             out.append(f"PROJECT LAYER={r['k']} COLOR=530 SECONDS={r['t530_s']:.2f}")
+    for x in meta.get("tool_after", []):
+        out += ["PROJECT_OFF", f"; 도구 작업 (다 빚은 뒤) — {x['file']} (n 세포 {x['cells']}개 주입)"]
     out += ["PROJECT_OFF", "CURE  ; 멸균생리식염수 속 숙성", "M84"]
     return "\n".join(out) + "\n"
 
@@ -153,6 +180,12 @@ def describe_schedule(meta: dict) -> str:
              f"530 nm {meta['irradiance_mw_cm2']['530']:g} mW/cm²"]
     for r in swaps:
         lines.append(f"  잉크 갈기: 층 {r['k']} 앞 · 시작 뒤 {r['start_s'] / 3600:.1f} h")
+    tools = [r for r in rows if r.get("tool_before")]
+    if tools or meta.get("tool_after"):
+        n = sum(r["tool_before"]["cells"] for r in tools) + sum(x["cells"] for x in meta.get("tool_after", []))
+        sec = sum(r["tool_before"]["seconds"] for r in tools) + sum(x["seconds"] for x in meta.get("tool_after", []))
+        lines.append(f"  도구 작업 {len(tools) + len(meta.get('tool_after', []))}번 (n 세포 {n}개 PEI 주입) · {sec / 3600:.1f} h — "
+                     f"층 {', '.join(str(r['k']) for r in tools)} 앞 + 다 빚은 뒤")
     for r in (rows[0], rows[len(rows) // 2], rows[-1]):
         lines.append(f"  층 {r['k']:>4}: 받침 {r['z_drop_mm']:.2f} mm 내림 · 405 {r['t405_s']:.0f} s · 530 {r['t530_s']:.0f} s · "
                      f"시작 {r['start_s'] / 3600:.2f} h")
@@ -238,12 +271,36 @@ def run_job(folder: str | Path, dry: bool = True, moonraker: str | None = None, 
             return
         if st["i"] >= len(rows):
             black()
+            after = meta.get("tool_after", [])
+            if st.get("after_i", 0) < len(after):  # 다 빚은 뒤 도구 작업 (마지막 띠 n 세포 주입)
+                tb = after[st.get("after_i", 0)]
+                st["after_i"] = st.get("after_i", 0) + 1
+                label.config(text=f"도구 작업 (다 빚은 뒤) — n 세포 {tb['cells']}개 주입")
+                st["log"].append("도구 끝")
+                if mr:
+                    mr.gcode((folder / tb["file"]).read_text(encoding="utf-8"), timeout=max(600, tb["seconds"] * 3))
+                    root.after(200, step)
+                else:
+                    root.after(max(1, int(tb["seconds"] * 1000 / speed)), step)
+                return
             label.config(text="끝 — 숙성은 멸균생리식염수 속에서")
             st["log"].append("끝")
             root.after(1500, root.destroy)
             return
         r = rows[st["i"]]
         label.config(text=f"층 {r['k']} · {st['phase']} · {st['i'] + 1}/{len(rows)} (Space 멈춤 · Esc 그만)")
+        if st["phase"] == "z" and r.get("tool_before") and st.get("tooled") != r["k"]:
+            black()  # 도구 작업: 빛은 끔, Moonraker 로 주입 G-code (없으면 미리보기로 시간만)
+            st["tooled"] = r["k"]
+            tb = r["tool_before"]
+            label.config(text=f"도구 작업 — n 세포 {tb['cells']}개 주입 ({tb['file']})")
+            st["log"].append(f"도구 {r['k']}")
+            if mr:
+                mr.gcode((folder / tb["file"]).read_text(encoding="utf-8"), timeout=max(600, tb["seconds"] * 3))
+                root.after(200, step)
+            else:
+                root.after(max(1, int(tb["seconds"] * 1000 / speed)), step)
+            return
         if st["phase"] == "z":
             black()
             if r["swap_ink"] and not st.get("swapped") == r["k"]:
