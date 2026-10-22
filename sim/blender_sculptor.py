@@ -3,7 +3,7 @@
     blender -b --factory-startup --python sim/blender_sculptor.py -- <작업 폴더> <출력 폴더> [--anim] [--cycles]
 
 작업 폴더 = python -m snss_battery sculpt … 가 만든 sculpt_out/jobs/NN_… (summary.json · passes.json · <이름>_mesh.npz).
-좌표: 출력 mm × 0.01 = Blender 단위. 수조 바닥 가운데가 원점. 수조 = 프린터 몸체, 멸균생리식염수가 담김.
+좌표: 출력 mm × 0.01 = Blender 단위. 배양조 바닥 가운데가 원점. 배양조 = 프린터 몸체, 멸균생리식염수(배지)로 가득 — 펜까지 잠김.
 세포 메시의 'wake' 속성(초) = 그 세포가 깨어나는 시간 → 재질의 시계가 그 시간을 지나면 빛남.
 """
 
@@ -118,8 +118,8 @@ MAT = {
     "pen": principled("펜 몸체 (SLA 수지)", (0.88, 0.9, 0.93), 0.3),
     "needle": principled("바늘", (0.8, 0.8, 0.82), 0.2, metallic=1.0),
     "led": principled("405 nm 빛", (0.45, 0.2, 1.0), 0.3, emission=(0.45, 0.2, 1.0), strength=6),
-    "bath": principled("멸균생리식염수", (0.72, 0.88, 0.97), 0.02, alpha=0.14),
-    "acrylic": principled("수조 (투명 밀폐용기)", (0.9, 0.95, 1.0), 0.02, alpha=0.16),
+    "bath": principled("배지 (멸균생리식염수)", (0.72, 0.88, 0.97), 0.02, alpha=0.14),
+    "acrylic": principled("배양조 (투명 밀폐용기)", (0.9, 0.95, 1.0), 0.02, alpha=0.16),
     "graphite": principled("흑연 패드", (0.06, 0.06, 0.07), 0.35, metallic=0.3),
     "go": principled("GO 원료", (0.12, 0.08, 0.05), 0.3),
     "snss": principled("SNSS 원료", (0.7, 0.85, 1.0), 0.05, alpha=0.5),
@@ -206,13 +206,16 @@ for z in (Z0 + 10, Z0 + FZ - 10):
     for sx in (-1, 1):
         box("가로대 Y", (20, FY, 20), (sx * (FX / 2 - 10), 0, z), MAT["frame"])
 box("바닥판", (FX - 40, FY - 40, 6), (0, 0, Z0 + 23), MAT["dark"])
-box("수조 받침", (170, 170, 14), (0, 0, -7 - 3), MAT["plate"])
+box("배양조 받침", (170, 170, 14), (0, 0, -7 - 3), MAT["plate"])
 TANK_H = 120
-tank = box("수조 (= 프린터 몸체)", (154, 154, TANK_H + 4), (0, 0, TANK_H / 2 - 2), MAT["acrylic"])
-# 바닥 흑연 패드 (왼발 +, 오른발 −) — 수조 안 존재의 집
-box("바닥 단자 받침", (50, 36, 6), (0, 2, -3), MAT["pen"])
+FILL_MM = 110  # 처음부터 배지 가득 (printer.Tank.fill_mm)
+tank = box("배양조 (= 프린터 몸체, 수중 환경)", (154, 154, TANK_H + 4), (0, 0, TANK_H / 2 - 2), MAT["acrylic"])
+# 배양 받침 + 흑연 패드 (왼발 +, 오른발 −) — 받침째 들어 올려 수확
+box("배양 받침", (50, 36, 6), (0, 2, -3), MAT["pen"])
+for sx in (-1, 1):
+    box("수확 손잡이", (14, 14, 6), (sx * 31, 2, -3), MAT["pen"])
 pads = [box(f"흑연 패드 {'+' if sx < 0 else '−'}", (14, 22, 0.8), (sx * 9.5, 2.5, -0.4), MAT["graphite"]) for sx in (-1, 1)]
-box("수위 전극 (연필심)", (3, 3, 40), (-74, 60, TANK_H - 20), MAT["graphite"])
+box("배지 전도도 전극 (연필심)", (3, 3, 40), (-74, 60, FILL_MM - 20), MAT["graphite"])
 
 # 펜 위치 = 마지막 경로 끝 (없으면 작업물 위)
 pen_xyz = (0.0, 0.0, 60.0)
@@ -238,8 +241,13 @@ cyl("혼합기", 5, 14, (tip[0], tip[1], tip[2] + 45), MAT["pen"])
 bpy.ops.mesh.primitive_torus_add(major_radius=9 * S, minor_radius=2 * S, location=(tip[0] * S, tip[1] * S, (tip[2] + 42) * S))
 bpy.context.object.name = "405 nm 빛 고리"
 bpy.context.object.data.materials.append(MAT["led"])
-box("스캐너", (40, 22, 30), (tip[0] + 45, tip[1], tip[2] + 95), MAT["dark"])
-box("펜 마운트 (자석)", (34, 34, 10), (tip[0], tip[1], tip[2] + 115), MAT["rail"])
+# 펜은 통째로 배지에 잠김 — 물 위 캐리지에서 내려온 대롱 끝 (모터 · 봉 · 전자 · 스캐너 · 자석 마운트는 물 위)
+car_z = Z0 + FZ - 80
+mount_z = max(FILL_MM + 25, tip[2] + 130)
+cyl("대롱 (물 위 → 펜)", 4, mount_z - (tip[2] + 110), (tip[0], tip[1], (tip[2] + 110 + mount_z) / 2), MAT["rail"], verts=24)
+box("펜 마운트 (자석, 물 위)", (34, 34, 10), (tip[0], tip[1], mount_z), MAT["rail"])
+cyl("마운트 기둥", 6, car_z - 35 - mount_z, (tip[0], tip[1], (mount_z + car_z - 35) / 2), MAT["dark"], verts=24)
+box("스캐너 (물 위)", (40, 22, 30), (tip[0] + 45, tip[1], car_z - 50), MAT["dark"])
 pump_x, pump_y = -FX / 2 + 40, FY / 2 - 70
 for i, (key, lab) in enumerate((("go", "GO"), ("snss", "SNSS"), ("pva", "PVA"))):
     py = pump_y - i * 40
@@ -278,8 +286,7 @@ allv = np.concatenate([mz[f"{r}_v"] for r in ("pos", "neg", "mem") if f"{r}_v" i
 lo, hi = allv.min(0), allv.max(0)
 center = (lo + hi) / 2
 H = hi[2]
-MARGIN = 3.0  # 수면 = 꼭대기 + 3 mm
-water = box("멸균생리식염수", (150, 150, H + MARGIN), (0, 0, (H + MARGIN) / 2), MAT["bath"])
+water = box("배지 (멸균생리식염수)", (150, 150, FILL_MM), (0, 0, FILL_MM / 2), MAT["bath"])
 BATH = [tank, water]
 
 # 경로 (뷰포트 참고용, 렌더 안 함)
@@ -351,7 +358,7 @@ def set_clock(t):
 
 
 def studio(dark: bool):
-    """가까이 찍을 때: 수조 · 식염수를 숨기고 어두운 배경 — 깨어나는 세포의 빛이 보이게."""
+    """가까이 찍을 때: 배양조 · 배지를 숨기고 어두운 배경 — 깨어나는 세포의 빛이 보이게."""
     for o in BATH:
         o.hide_render = dark
     bg = world.node_tree.nodes["Background"].inputs
@@ -381,11 +388,7 @@ if ANIM:
     # 쌓기는 재질 안에서 높이 위를 투명하게 (형상을 다시 계산하지 않아 빠름)
     FB, FE = 72, 144
     scene.frame_start, scene.frame_end = 1, FE
-    for f, h_mm in ((1, MARGIN), (FB, H + MARGIN)):  # 수위 따라 채우기
-        water.scale[2] = h_mm * S
-        water.location[2] = h_mm / 2 * S
-        water.keyframe_insert("scale", index=2, frame=f)
-        water.keyframe_insert("location", index=2, frame=f)
+
     for role in ("pos", "neg", "mem"):
         nt = MAT[role].node_tree
         out = nt.nodes["Material Output"]

@@ -164,7 +164,7 @@ def _pinch_valve(p):
 
 
 def _tank_base(p):
-    """수조 받침 170 × 170: 밀폐용기(수조)가 미끄러지지 않게 모서리 L 턱 + 전선 홈."""
+    """배양조 받침 170 × 170: 밀폐용기(배양조)가 미끄러지지 않게 모서리 L 턱 + 전선 홈."""
     d = box(p, (0, 0, 2.5), (170, 170, 5), 3)
     ridges = []
     for sx in (-1, 1):
@@ -174,16 +174,17 @@ def _tank_base(p):
 
 
 def _pad_holder(p):
-    """수조 바닥 단자 받침: 존재의 발바닥 밑에 흑연 패드 두 장(왼발 +, 오른발 −, 가운데 ±9.5 mm).
-    출력은 이 받침 윗면에서 시작 — 발바닥이 처음부터 패드에 닿음. 패드 둘레는 막아 식염수에 드러난 흑연을 줄임."""
-    d = box(p, (0, 2, 3), (50, 36, 6), 3)
+    """배양 받침: 결정체가 이 위에서 자람. 발바닥 밑 흑연 패드 두 장(왼발 +, 오른발 −, 가운데 ±9.5 mm),
+    양쪽 손잡이 고리로 받침째 들어 올려 배지에서 꺼냄(수확). 패드 둘레는 막아 배지에 드러난 흑연을 줄임."""
+    d = union(box(p, (0, 2, 3), (50, 36, 6), 3),
+              *[cut(box(p, (sx * 31, 2, 3), (14, 14, 6), 3), cyl(p, (sx * 33, 2, 3), 3.5, 10)) for sx in (-1, 1)])
     pockets = [box(p, (sx * 9.5, 2.5, 5.4), (14, 22, 1.4)) for sx in (-1, 1)]  # 흑연 시트 0.5 mm + 여유
-    channels = [box(p, (sx * 9.5, 16, 4.5), (3, 8, 2)) for sx in (-1, 1)]  # 전선 → 수조 가장자리
+    channels = [box(p, (sx * 9.5, 16, 4.5), (3, 8, 2)) for sx in (-1, 1)]  # 전선 → 배양조 가장자리
     return cut(d, *pockets, *channels)
 
 
 def _level_probe(p):
-    """수위 전극 집게: 수조 가장자리에 걸고 연필심 2개(Ø2)를 수면 높이에 — 식염수가 닿으면 전도."""
+    """배지 전도도 전극 집게: 배양조 가장자리에 걸고 연필심 2개(Ø2)를 배지에 담금 — 교류 전도도로 염도를 지켜봄."""
     d = union(box(p, (0, 0, 20), (22, 8, 40), 2), box(p, (0, 8, 38), (22, 16, 4), 1), box(p, (0, 15, 30), (22, 4, 20), 1))
     return cut(d, cyl(p, (-5, 0, 20), 1.1, 44), cyl(p, (5, 0, 20), 1.1, 44))
 
@@ -232,9 +233,9 @@ def printed_parts(spec: SculptorSpec | None = None) -> list[PrintedPart]:
         PrintedPart("mixer", "나선형 혼합기 4 요소", 2, "레진 (SLA) — 없으면 0.2 mm 노즐 PETG", "펜 몸체 혼합기 구멍에 끼움", (-1.6, -1.6, 0), (1.6, 1.6, 12), _mixer, 0.06),
         PrintedPart("syringe_pump", "주사기 펌프", 3, "PETG", "GO · SNSS · PVA 원료", (-65, -22, 0), (65, 22, 47), _syringe_pump),
         PrintedPart("pinch_valve", "핀치 밸브", 3, "PETG", "GO 통 선택 (막용 · p형 · n형)", (-15, -11, 0), (15, 11, 15), _pinch_valve),
-        PrintedPart("tank_base", "수조 받침", 1, "PETG", "식염수 수조(밀폐용기) 자리", (-85, -85, 0), (85, 85, 8), _tank_base),
-        PrintedPart("pad_holder", "수조 바닥 단자 받침", 1, "PETG", "흑연 패드 2장 — 존재의 발 (왼발 +, 오른발 −)", (-25, -16, 0), (25, 20, 6), _pad_holder),
-        PrintedPart("level_probe", "수위 전극 집게", 1, "PETG", "연필심 2개 — 수면 = 꼭대기 + 3 mm 확인", (-11, -4, 0), (11, 17, 40), _level_probe),
+        PrintedPart("tank_base", "배양조 받침", 1, "PETG", "배양조(밀폐용기) 자리", (-85, -85, 0), (85, 85, 8), _tank_base),
+        PrintedPart("pad_holder", "배양 받침 (수확 손잡이)", 1, "PETG", "흑연 패드 2장 — 존재의 발 (왼발 +, 오른발 −) · 받침째 꺼냄", (-40, -16, 0), (40, 20, 6), _pad_holder),
+        PrintedPart("level_probe", "배지 전도도 전극 집게", 1, "PETG", "연필심 2개 — 배지 염도", (-11, -4, 0), (11, 17, 40), _level_probe),
         PrintedPart("port_panel", "단자판 (아날로그 · 디지털 · 양자)", 1, "PETG", "BNC 8 · SMA 3 · USB-C · RJ45", (-85, -32, 0), (85, 32, 16), _port_panel),
         PrintedPart("electronics_box", "전자함", 1, "PETG", "파이 · 보드 · 아날로그 보드", (-90, -60, 0), (90, 60, 50), _electronics_box),
         PrintedPart("led_ring", "405 nm 빛 고리", 1, "PETG (검정)", "펜 끝 광환원", (-17, -17, 0), (17, 17, 6), _led_ring),

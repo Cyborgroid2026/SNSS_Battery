@@ -396,7 +396,7 @@ def design(shape: str = "being", height_mm: float = 0.0, cp: CellParams | None =
 # ---------- 작업 (더하기 · 깎기 · 붙이기 · 떼기 · 허공 획) ----------
 @dataclass
 class Op:
-    kind: str  # carve · add · stroke · pause · heal · cure · lift
+    kind: str  # carve · add · stroke · pause · heal · cure · harvest
     note: str
     grid: np.ndarray | None = None  # carve: bool, add: 재료 코드
     offset: tuple[int, int] = (0, 0)
@@ -425,13 +425,13 @@ def _diff_ops(cur_mat: np.ndarray, tgt_mat: np.ndarray, ox: int, oy: int, note: 
 
 
 def _finish(spec: SculptorSpec) -> list[Op]:
-    return [Op("cure", "숙성 (상온 · 수조 안): 도펀트 흡착 · 수소결합 안정", seconds=spec.cure_h * 3600)]
+    return [Op("cure", "배양 (배지 속 숙성, 상온): 도펀트 흡착 · 수소결합 안정", seconds=spec.cure_h * 3600)]
 
 
 def job_new(piece: Piece, spec: SculptorSpec) -> Job:
     empty = np.zeros_like(piece.material)
     ops = _diff_ops(empty, piece.material, *piece.offset, "새로 빚기")
-    ops += _finish(spec) + [Op("lift", "다 빚음 — 수조에서 꺼내거나, 그대로 두고 바닥 흑연 패드로 충전 (수조가 존재의 집)")]
+    ops += _finish(spec) + [Op("harvest", "수확 — 배양 받침째 들어 올려 배지에서 바로 꺼냄 (꺼내기 전 받침 흑연 패드로 충전 · 측정 가능)")]
     return Job(f"새로 빚기 — {piece.name}", ops, None, [piece])
 
 
@@ -506,7 +506,7 @@ def job_detach(piece: Piece, z_mm: float, cp: CellParams, spec: SculptorSpec, ga
             pieces.append(Piece(nm, mat, c, piece.ctype, piece.offset, piece.pitch, piece.scale, piece.carriers,
                                 piece.history + [f"떼기: 높이 {z_mm:g} mm 에서 가름"]))
     ops = [Op("carve", f"높이 {z_mm:g} mm 를 {gap_layers}층 깎아 가름 ({int(carve.sum())}칸)", carve, piece.offset)]
-    ops.append(Op("pause", "위 조각을 들어 옮김 (식염수 속이라 거의 무게가 없음)"))
+    ops.append(Op("pause", "위 조각을 들어 옮김 (배지 속이라 거의 무게가 없음)"))
     return Job(f"떼기 — {piece.name}", ops, piece, pieces)
 
 
@@ -646,7 +646,7 @@ def job_strokes(piece: Piece, strokes: list[dict], cp: CellParams, spec: Sculpto
     ops = []
     if window.any():
         ops += _diff_ops(np.where(window, cur_mat, EMPTY), np.where(window, tgt, EMPTY), ox, oy, "획이 닿는 피부에 창 내기")
-    ops.append(Op("stroke", f"허공 획 {len(paths)}개 (식염수에 닿아 겉부터 굳고, 중성 부력으로 버팀)", strokes=paths))
+    ops.append(Op("stroke", f"허공 획 {len(paths)}개 (배지에 닿아 겉부터 굳고, 중성 부력으로 버팀)", strokes=paths))
     ops += _finish(spec)
     return Job(f"허공 획 — {piece.name}", ops, piece, [after])
 
@@ -730,36 +730,31 @@ def job_time(job: Job, plan, spec: SculptorSpec) -> dict:
             "total_s": float(t_work + 4.0 * switches + t_wait)}
 
 
-def level_doses(job: Job, plan, spec: SculptorSpec) -> tuple[float, dict, float]:
-    """수조 수위: 늘 작업물 꼭대기 + margin. → (처음 채울 mL, {(작업, 경로): 부을 mL}, 합계 mL).
-
-    부을 양 = 수조 면적 × 모자란 높이. 출력한 젤 부피만큼 수면이 저절로 오르고, 깎아 빨아낸 만큼 내려감.
-    새로 빚을 때는 빈 수조에서 시작, 아니면 지금 작업물 꼭대기 + margin 에 맞춰져 있다고 봄.
-    """
+def medium_plan(job: Job, plan, spec: SculptorSpec) -> dict:
+    """배양조(수중 환경): 처음부터 배지 가득, 작업물은 늘 수면 5 mm 아래. 잉크가 들어오고 깎은 젤을 빨아내며 염도가 조금 바뀜."""
     tk = spec.tank
-    area = tk.area_mm2
-    vox = spec.line_mm ** 2 * spec.layer_mm
-    level = 0.0 if job.before is None else job.before.height_mm + tk.margin_mm
-    start = 0.0
-    if job.before is None:
-        start = tk.fill_ml(tk.margin_mm)
-        level = tk.margin_mm
-    doses = {}
-    for i, (op, passes) in enumerate(plan):
-        for j, p in enumerate(passes):
-            top = p.z if p.kind != "stroke" else float(p.segs[:, 2].max())
-            need = top + tk.margin_mm
-            if need - level >= tk.dose_every_mm or level < top + 0.5:
-                doses[(i, j)] = area * (need + tk.dose_every_mm - level) / 1000
-                level = need + tk.dose_every_mm
+    vox = spec.line_mm ** 2 * spec.layer_mm / 1000  # mL
+    ink = {"pos": 0.0, "neg": 0.0, "mem": 0.0}
+    removed = 0.0
+    top = job.before.height_mm if job.before is not None else 0.0
+    for _, passes in plan:
+        for p in passes:
             if p.kind == "add":
-                level += float(p.segs[:, 4].sum()) * vox / area
+                ink[p.role] += float(p.segs[:, 4].sum()) * vox
+                top = max(top, p.z)
             elif p.kind == "carve":
-                level -= float(p.segs[:, 4].sum()) * vox / area
+                removed += float(p.segs[:, 4].sum()) * vox
             else:
-                L = np.linalg.norm(np.diff(p.segs, axis=0), axis=1).sum()
-                level += L * math.pi * (spec.line_mm / 2) ** 2 / area
-    return start, doses, start + sum(doses.values())
+                ink[p.role] += np.linalg.norm(np.diff(p.segs, axis=0), axis=1).sum() * math.pi * (spec.line_mm / 2) ** 2 / 1000
+                top = max(top, float(p.segs[:, 2].max()))
+    for a in job.after:
+        top = max(top, a.height_mm)
+    ink_ml = sum(ink.values())
+    ink_nacl = sum(v * spec.mixed(spec.recipes[k])["nacl_mm"] for k, v in ink.items()) / ink_ml if ink_ml else 0.0
+    after = tk.medium_after(ink_ml, ink_nacl, removed)
+    return {"fill_ml": tk.fill_ml() if job.before is None else 0.0, "fill_mm": tk.fill_mm, "top_mm": top,
+            "submerged": top <= tk.fill_mm - 5, "ink_ml": ink_ml, "removed_ml": removed, "nacl_after_mm": after,
+            "change_medium": after < tk.saline_mm * (1 - tk.change_drop)}
 
 
 def write_gcode(job: Job, plan, spec: SculptorSpec, path: str | Path, pred: dict | None = None) -> Path:
@@ -769,13 +764,17 @@ def write_gcode(job: Job, plan, spec: SculptorSpec, path: str | Path, pred: dict
     vol = px * px * pz
     lift = 1.0
     t = job_time(job, plan, spec)
-    start_ml, doses, saline_ml = level_doses(job, plan, spec)
+    med = medium_plan(job, plan, spec)
+    if not med["submerged"]:
+        raise ValueError(f"작업물 꼭대기 {med['top_mm']:.1f} mm 가 배지 수면 {med['fill_mm']:g} mm 에 너무 가깝습니다 (5 mm 아래까지).")
     out = [f"; {spec.name} — {job.title}", f"; 작업 {t['work_s'] / 3600:.2f} h + 기다림 {t['wait_s'] / 3600:.2f} h · 재료 바꿈 {t['switches']}회",
-           "; E = 펜에서 나가는 잉크 부피 mm³. 상온, 멸균생리식염수 수조 안 (수면 = 꼭대기 + "
-           f"{spec.tank.margin_mm:g} mm, 식염수 모두 {saline_ml:.0f} mL)",
+           f"; E = 펜에서 나가는 잉크 부피 mm³. 상온 수중 환경: 배양조에 멸균생리식염수(배지) {med['fill_mm']:g} mm 가득, 펜까지 잠김.",
+           f"; 잉크 {med['ink_ml']:.1f} mL 가 들어간 뒤 배지 염도 {med['nacl_after_mm']:.1f} mM"
+           + (" — 배지를 가세요" if med["change_medium"] else " (갈 필요 없음)"),
            "G21", "G90", "M83", "G28", "Z_TILT_ADJUST", "G28 Z"]
-    if start_ml:
-        out.append(f"LEVEL ML={start_ml:.1f}  ; 빈 수조에 바닥 {spec.tank.margin_mm:g} mm 까지 식염수")
+    if med["fill_ml"]:
+        out += [f"FILL ML={med['fill_ml']:.0f}  ; 빈 배양조를 배지로 가득 ({med['fill_mm']:g} mm)",
+                "M117 배지 가득 — 펜 끝이 잠겼는지 확인", "M0"]
     if pred:
         out += ["; " + x for x in describe_prediction(pred).splitlines()]
     last_role = None
@@ -789,14 +788,12 @@ def write_gcode(job: Job, plan, spec: SculptorSpec, path: str | Path, pred: dict
             macro = "HEAL" if op.kind == "heal" else "CURE"
             out.append(f"{macro} S={op.seconds:.0f}  ; {op.note}")
             continue
-        if op.kind == "lift":
-            out += [f"G0 Z{spec.build_mm[2] - 5:g} F600", f"M117 {op.note}", "M0  ; 꺼내거나 그대로 두고 충전 (CHARGE ON=1)"]
+        if op.kind == "harvest":
+            out += [f"G0 Z{spec.build_mm[2] - 5:g} F600", f"M117 {op.note}",
+                    "M0  ; 수확 — 꺼내기 전 충전하려면 CHARGE ON=1 (받침 흑연 패드)"]
             continue
         last_z = None
-        i_op = next(k for k, (o, _) in enumerate(plan) if o is op)
         for i_p, p in enumerate(passes):
-            if (i_op, i_p) in doses:  # 수면을 꼭대기 위로 (펜 몸체 · 빛 고리는 물 밖)
-                out.append(f"LEVEL ML={doses[(i_op, i_p)]:.1f}")
             if p.z != last_z:  # 층·획 시작 — 트리거 (아날로그/디지털/양자 계측기 동기)
                 out.append(f"TRIG EVENT={p.kind} N={i_p}")
                 last_z = p.z
@@ -838,7 +835,7 @@ def write_gcode(job: Job, plan, spec: SculptorSpec, path: str | Path, pred: dict
 
 
 def passes_json(job: Job, plan, spec: SculptorSpec, max_segments: int = 300_000) -> dict:
-    """Blender · 웹 뷰어용 경로 (출력 좌표, 수조 가운데 = 원점)."""
+    """Blender · 웹 뷰어용 경로 (출력 좌표, 배양조 가운데 = 원점)."""
     total = sum(len(p.segs) for _, ps in plan for p in ps)
     stride = max(1, math.ceil(total / max_segments))
     t = 0.0
@@ -1079,7 +1076,9 @@ def write_job(job: Job, spec: SculptorSpec, folder: str | Path, meshes: bool = T
     (folder / "printer.cfg").write_text(klipper_cfg(spec), encoding="utf-8")
     (folder / "passes.json").write_text(json.dumps(passes_json(job, plan, spec)), encoding="utf-8")
     t = job_time(job, plan, spec)
-    t["saline_ml"] = level_doses(job, plan, spec)[2]
+    med = medium_plan(job, plan, spec)
+    t["saline_ml"] = med["fill_ml"]
+    t["medium"] = med
     summary = {"title": job.title, "time": t, "ops": [{"kind": o.kind, "note": o.note, "wait_s": o.seconds} for o in job.ops],
                "pieces": [], "recipes": {k: asdict(r) | spec.gel_check(r) for k, r in spec.recipes.items()}}
     for p, pr in zip(job.after, preds):

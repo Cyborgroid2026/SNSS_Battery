@@ -369,7 +369,7 @@ def _sculptor_assets(folder: Path) -> dict:
         "feeds": [{"name": f.name, "stock": f.stock} for f in spec.feeds],
         "prediction": {k: v for k, v in pr.items() if k not in ("cells", "series")},
         "prediction_text": S.describe_prediction(pr),
-        "job": {"work_h": t["work_s"] / 3600, "wait_h": t["wait_s"] / 3600, "switches": t["switches"], "saline_ml": t["saline_ml"],
+        "job": {"work_h": t["work_s"] / 3600, "wait_h": t["wait_s"] / 3600, "switches": t["switches"], "saline_ml": t["saline_ml"], "nacl_after": t["medium"]["nacl_after_mm"],
                 "ops": [o.note for o in job.ops]},
         "files": ["sculpt/job.gcode", "sculpt/printer.cfg", "sculpt/bom.csv", "sculpt/being.npz"],
         "renders": renders, "cell_mm": cp.cell_mm,
@@ -723,8 +723,8 @@ aside .panel { background: var(--panel); border: 1px solid var(--line); border-r
 <main>
   <section data-id="sculptor" data-tab="조각가 · 존재">
     <p class="sub"><b>SNSS 조각가 SC-1</b> — 3D 펜을 단 상온 3D 프린터. GO · SNSS(멸균생리식염수) · PVA 가 따로 펜에 들어가
-      펜 끝에서 처음 만나 하나가 되고, 그 젤로 <b>양자 인공세포</b>가 모인 존재를 빚습니다. <b>프린터 자체가 멸균생리식염수 수조</b>라
-      잉크는 식염수에 닿으며 굳고 거의 떠 있듯 버팁니다. 층을 더하고, 깎고, 떼고, 다시 붙일 수 있습니다 (전부 상온).</p>
+      펜 끝에서 처음 만나 하나가 되고, 그 젤로 <b>양자 인공세포</b>가 모인 존재를 빚습니다. <b>수중 환경</b> — 배양조를 멸균생리식염수(배지)로 가득 채우고
+      세포 배양하듯 결정체를 키웁니다. 잉크는 배지에 닿으며 굳고 거의 떠 있듯 버티며, 다 자라면 받침째 꺼냅니다. 층을 더하고, 깎고, 떼고, 다시 붙일 수 있습니다 (전부 상온).</p>
     <div class="cards" id="scCards"></div>
     <div class="sc-view">
       <div class="sc-stage" id="scView"><div class="sc-msg" id="scMsg">3D 불러오는 중…</div></div>

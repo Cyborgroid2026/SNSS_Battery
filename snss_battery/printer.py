@@ -7,11 +7,12 @@
   · PVA 의 OH 와 GO 의 산소기가 수소결합 → 초분자 젤 (상온, 되돌릴 수 있음)
 - 섞는 비율 + 펜 끝 405 nm 빛(상온 광환원) 으로 재료가 정해짐: 세포질(rGO, 전자 통로) · 막·피부(GO, 이온만)
 - GO 줄은 선택 밸브로 p형(NBD) · n형(PEI) · 도핑 없음 GO 를 고름 → 세포마다 페르미 준위 (양자층)
-- **프린터 자체가 멸균생리식염수를 받아 둔 수조** — 펜이 그 안에서 작업함
-  · 펜에서 나온 잉크가 식염수(154 mM)에 닿으면 겉부터 엉겨 굳음 (GO 습식 방사의 염 응고조와 같은 원리)
-  · 잉크와 식염수의 밀도가 거의 같아 자기 무게가 거의 없음(중성 부력) — 받침 없이 허공 획도 버팀
-  · 작업물이 자라는 만큼 식염수를 더 부어 수면을 늘 꼭대기 2–4 mm 위로 — 펜 몸체 · 빛 고리는 물 밖
-  · 수조가 존재의 집: 바닥 흑연 패드 2장(왼발 +, 오른발 −)으로 그 자리에서 충전 · 측정
+- **수중 배양 환경** — 프린터 몸체가 멸균생리식염수(= 배지)를 가득 채운 배양조이고, 펜까지 통째로 잠겨 작업함
+  · 세포 배양하듯 결정체(존재)가 배지 속에서 층층이 자라고, 배지 속에서 숙성(배양)됨
+  · 잉크가 배지(154 mM)에 닿으면 겉부터 엉겨 굳음 (GO 습식 방사의 염 응고조와 같은 원리)
+  · 잉크와 배지의 밀도가 거의 같아 자기 무게가 거의 없음(중성 부력) — 받침 없이 허공 획도 버팀
+  · 다 자라면 바닥 배양 받침(흑연 패드 2장, 왼발 + · 오른발 −)째 들어 올려 배지에서 바로 꺼냄 (수확)
+  · 모터 · 봉 · 전자는 늘 물 위 — 펜만 대롱 끝에 달려 잠김 (빛 고리는 투명 실리콘으로 묻음)
 - 더하기(층 · 허공 획) · 깎기(흡입) · 붙이기(수소결합 자가치유) · 떼기(깎아 가름) — 전부 상온
 - 펜은 자석 마운트로 떼어 손으로도 씀 — 손으로 더한 것은 스캐너로 읽어 작업물 기억에 반영
 - 기계 부품은 3D 프린터로 뽑고 (parts.py — RepRap 방식), 원료·소모품·전자부품은 시중에서 삼 (약국·마트·문구점·철물점·온라인)
@@ -75,12 +76,14 @@ class Recipe:
 
 @dataclass
 class Pen:
-    name: str = "SNSS 펜 (3채널 혼합 · 탈착식)"
-    nozzle_mm: float = 0.41  # 22G, 길이 40 mm (수면 아래 작업물까지)
+    name: str = "SNSS 펜 (3채널 혼합 · 탈착식 · 물속)"
+    nozzle_mm: float = 0.41  # 22G 블런트
     mixer: str = "나선형 미세 혼합기 4 요소"
     dead_volume_ul: float = 1.5  # 혼합기 안 부피 — 재료를 바꿀 때 밀어내는 양
     gel_time_s: float = 3.0  # 섞인 뒤 젤이 되기까지 (가정 — 이보다 오래 머물면 펜 안에서 굳음)
-    light: str = "405 nm LED 링 4 × 300 mW — 펜 끝 2 mm 아래 (GO 상온 광환원)"
+    light: str = "405 nm LED 링 4 × 300 mW — 투명 실리콘으로 묻어 물속에서 펜 끝 2 mm 아래를 비춤 (GO 상온 광환원)"
+    seal: str = "몸체 O-링 2개 · 전선 · LED 는 투명 실리콘으로 묻음 — 펜 통째로 배지에 잠김"
+    stalk_mm: float = 150.0  # 물 위 캐리지에서 내려온 대롱 끝에 펜 (모터 · 봉 · 전자는 늘 물 위)
     carve: str = "가운데 관 역방향 흡입 + 전단 — 젤을 끊어 빨아들여 회수통으로 (열 없음)"
     carve_rate_mm3_s: float = 2.0  # 흡입 회수 속도 (가정)
     mount: str = "자석 키네마틱 마운트 (볼 3 · 홈 3) + 포고핀 6 — 떼어 손으로 씀"
@@ -98,18 +101,18 @@ def solution_density(go_g_l: float = 0.0, nacl_mm: float = 0.0, pva_g_l: float =
 
 @dataclass
 class Tank:
-    """프린터 몸체 = 멸균생리식염수 수조. 펜이 그 안에서 작업하고, 다 빚은 존재가 그 안에서 삼."""
+    """배양조 = 프린터 몸체. 멸균생리식염수(배지)를 가득 채우고 펜까지 잠겨 작업, 다 자라면 받침째 꺼냄."""
 
     inner_mm: tuple[float, float, float] = (150.0, 150.0, 120.0)
     container: str = "투명 밀폐용기 3–4 L 또는 소형 수족관 (마트)"
     saline_mm: float = 154.0  # 0.9 % NaCl
-    margin_mm: float = 3.0  # 수면 = 작업물 꼭대기 + 3 ± 1 mm (펜 몸체 · 빛 고리는 물 밖)
-    pump: str = "수족관 연동식 정량 펌프 12 V (보정 1.0 mL/s) — 약국 생리식염수 병에서 수조로"
+    fill_mm: float = 110.0  # 처음부터 가득 — 작업물은 늘 이보다 5 mm 이상 아래
+    pump: str = "수족관 연동식 정량 펌프 12 V (보정 1.0 mL/s) — 약국 생리식염수 병 → 배양조 (채우기 · 배지 갈기)"
     pump_ml_s: float = 1.0
-    dose_every_mm: float = 1.0  # 모자란 수위가 1 mm 가 되면 한 번에 부음
     filter: str = "수족관 스펀지 여과기 — 떠다니는 GO · PVA 조각을 거름 (작업 사이에만 켬)"
-    pads: str = "바닥 흑연 패드 2장 (흑연 시트 또는 굵은 연필심) — 왼발 +, 오른발 −"
-    level_probe: str = "수위 전극: 연필심 2개 — 식염수가 닿으면 전도 (아날로그 확인)"
+    pads: str = "배양 받침의 흑연 패드 2장 (흑연 시트 또는 굵은 연필심) — 왼발 +, 오른발 −"
+    probe: str = "배지 전도도 전극: 연필심 2개 (교류 1 kHz) — 염도가 떨어지면 배지를 갈 때"
+    change_drop: float = 0.05  # 배지 염도가 5 % 넘게 떨어지면 갈기
 
     @property
     def area_mm2(self) -> float:
@@ -119,14 +122,19 @@ class Tank:
     def density(self) -> float:
         return solution_density(nacl_mm=self.saline_mm)
 
-    def fill_ml(self, height_mm: float) -> float:
-        return self.area_mm2 * height_mm / 1000
+    def fill_ml(self, height_mm: float | None = None) -> float:
+        return self.area_mm2 * (self.fill_mm if height_mm is None else height_mm) / 1000
+
+    def medium_after(self, ink_ml: float, ink_nacl_mm: float, removed_ml: float = 0.0) -> float:
+        """잉크가 들어오고 깎은 젤을 빨아낸 뒤 배지 염도 (mM) — 잉크는 배지보다 묽음."""
+        v0 = self.fill_ml()
+        return (v0 * self.saline_mm + ink_ml * ink_nacl_mm - removed_ml * self.saline_mm) / (v0 + ink_ml - removed_ml)
 
 
 @dataclass
 class Chamber:
     temp_c: float = ROOM_C
-    note: str = "상온 25 ± 1 °C — 수조 안이라 마르지 않음 (덮개로 증발 · 먼지만 막음)"
+    note: str = "상온 25 ± 1 °C — 배지 속이라 마르지 않음 (덮개로 증발 · 먼지만 막음)"
 
 
 @dataclass
@@ -135,7 +143,7 @@ class SculptorSpec:
     build_mm: tuple[float, float, float] = (120.0, 120.0, 100.0)
     frame_mm: tuple[float, float, float] = (420.0, 420.0, 560.0)
     frame: str = "RepRap 방식 — 출력한 꼭짓점 8개 + 철물점 M8 나사봉 12개 (삼각 보강 없이 상자형)"
-    kinematics: str = "CoreXY (펜 XY, Ø8 매끈한 봉 + LM8UU) + 갠트리 Z (M8 나사봉 3개) — 수조 안 허공 획은 XYZ 동시"
+    kinematics: str = "CoreXY (펜 XY, Ø8 매끈한 봉 + LM8UU) + 갠트리 Z (M8 나사봉 3개) — 모두 물 위, 펜만 대롱 끝에 잠김 · 허공 획은 XYZ 동시"
     print_speed_mm_s: float = 8.0
     stroke_speed_mm_s: float = 4.0
     travel_speed_mm_s: float = 60.0  # 물속이라 느리게 (물결이 작업물을 흔들지 않게)
@@ -143,7 +151,7 @@ class SculptorSpec:
     layer_mm: float = 0.32
     line_mm: float = 0.41
     shrink_compensation: float = 0.03  # 숙성 중 젤 수축 (가정)
-    cure_h: float = 6.0  # 출력 뒤 숙성: 도펀트 흡착 · 수소결합 안정 (상온, 수조 안)
+    cure_h: float = 6.0  # 다 빚은 뒤 배양(숙성): 도펀트 흡착 · 수소결합 안정 (상온, 배지 속)
     heal_min: float = 30.0  # 붙인 면이 원래 세기의 80 % 로 아무는 시간 (가정)
     pen: Pen = field(default_factory=Pen)
     tank: Tank = field(default_factory=Tank)
@@ -174,12 +182,12 @@ class SculptorSpec:
         # 항복응력 (가정): GO 염 겔 ∝ c^2.5, PVA 수소결합이 보탬
         tau = 30.0 * (m["go_mg_ml"] / 5) ** 2.5 * (1 + 0.5 * m["pva_wt"]) if ok else 0.0
         rho = solution_density(m["go_mg_ml"], m["nacl_mm"], m["pva_wt"] * 10)
-        drho = rho - self.tank.density  # 수조 식염수와 밀도 차 (+ 면 가라앉으려 함)
+        drho = rho - self.tank.density  # 배지와 밀도 차 (+ 면 가라앉으려 함)
         free = tau / (max(abs(drho), 1e-3) * G) * 1000
         return {**m, "ccc_mm": ccc, "label": PHASE_LABELS[rep.phase], "ok": ok, "yield_pa": tau,
                 "density": rho, "drho": drho, "free_height_mm": free,
                 "free_height_air_mm": tau / (rho * G) * 1000,
-                "bath_gels": self.tank.saline_mm >= ccc,  # 굳지 않은 잉크도 수조에 닿으면 겉부터 엉김
+                "bath_gels": self.tank.saline_mm >= ccc,  # 덜 섞인 잉크도 배지에 닿으면 겉부터 엉김
                 "drift_mm_min": abs(drho) * G * (self.line_mm / 1000) ** 2 / (18 * 0.89e-3) * 6e4}
 
     def residence_s(self) -> float:
@@ -203,7 +211,9 @@ class SculptorSpec:
             elif g["free_height_mm"] < self.build_mm[2]:
                 bad.append(f"{r.name}: 식염수 속에서 {g['free_height_mm']:.0f} mm 까지만 섬 (< 출력 높이 {self.build_mm[2]:g} mm)")
             if not g["bath_gels"]:
-                bad.append(f"{r.name}: 수조 식염수가 CCC 보다 묽어 겉이 엉기지 않음")
+                bad.append(f"{r.name}: 배지가 CCC 보다 묽어 겉이 엉기지 않음")
+        if self.build_mm[2] > self.tank.fill_mm - 5:
+            bad.append(f"출력 높이 {self.build_mm[2]:g} mm 가 배지 수면 {self.tank.fill_mm:g} mm 에 너무 가까움")
         if self.residence_s() >= self.pen.gel_time_s:
             bad.append(f"혼합기 체류 {self.residence_s():.1f} s ≥ 젤화 {self.pen.gel_time_s:g} s — 펜 안에서 굳음")
         return bad
@@ -216,13 +226,13 @@ class SculptorSpec:
                  f"  {self.kinematics}",
                  f"  층 {self.layer_mm} mm · 선폭 {self.line_mm} mm · 쌓기 {self.print_speed_mm_s:g} mm/s · 허공 획 {self.stroke_speed_mm_s:g} mm/s",
                  f"  방: {self.chamber.note}",
-                 f"  수조 (= 프린터 몸체): {tk.container} · 안 {tk.inner_mm[0]:g}×{tk.inner_mm[1]:g}×{tk.inner_mm[2]:g} mm · "
-                 f"멸균생리식염수 {tk.saline_mm:g} mM (밀도 {tk.density:.1f} kg/m³)",
-                 f"    수위: 꼭대기 + {tk.margin_mm:g} ± {tk.dose_every_mm:g} mm — {tk.pump} · 모자라면 계산해 부음",
-                 f"    {tk.filter}", f"    {tk.pads} · {tk.level_probe}",
+                 f"  배양조 (= 프린터 몸체, 수중 환경): {tk.container} · 안 {tk.inner_mm[0]:g}×{tk.inner_mm[1]:g}×{tk.inner_mm[2]:g} mm",
+                 f"    배지 = 멸균생리식염수 {tk.saline_mm:g} mM (밀도 {tk.density:.1f} kg/m³) · 처음부터 {tk.fill_mm:g} mm 가득 "
+                 f"({tk.fill_ml() / 1000:.2f} L) — 펜까지 잠겨 작업",
+                 f"    {tk.pump}", f"    {tk.filter}", f"    {tk.pads} — 받침째 들어 올려 수확", f"    {tk.probe}",
                  f"  스캐너: {self.scanner}",
                  f"  [{p.name}] 노즐 {p.nozzle_mm} mm · {p.mixer} (부피 {p.dead_volume_ul:g} µL, 체류 {self.residence_s():.1f} s < 젤화 {p.gel_time_s:g} s)",
-                 f"    빛: {p.light}", f"    깎기: {p.carve} · {p.carve_rate_mm3_s:g} mm³/s", f"    {p.mount}",
+                 f"    빛: {p.light}", f"    물속: {p.seal} · 대롱 {p.stalk_mm:g} mm", f"    깎기: {p.carve} · {p.carve_rate_mm3_s:g} mm³/s", f"    {p.mount}",
                  "  원료 (따로 들어가 펜 끝에서 하나가 됨):"]
         for f in self.feeds:
             lines.append(f"    {f.name:<5} {f.stock} · 원소 {','.join(sorted(f.elements))}")
@@ -236,7 +246,7 @@ class SculptorSpec:
                          f"→ 식염수 속 {g['free_height_mm'] / 1000:.1f} m 까지 섬 (공기 중이면 {g['free_height_air_mm']:.1f} mm)")
         bad = self.check()
         lines.append("  설계 점검: " + ("통과" if not bad else "; ".join(bad)))
-        lines += [f"  숙성 {self.cure_h:g} h (상온 · 수조 안) · 붙인 면 아묾 {self.heal_min:g} 분",
+        lines += [f"  배양(숙성) {self.cure_h:g} h (상온 · 배지 속) · 붙인 면 아묾 {self.heal_min:g} 분 · 다 자라면 받침째 꺼냄",
                   f"  펌웨어 {self.firmware}"]
         return "\n".join(lines)
 
@@ -279,7 +289,7 @@ def bom(spec: SculptorSpec | None = None) -> list[BomLine]:
     s = spec or SculptorSpec()
     return [
         # 원료 — 펜에 들어가는 것
-        BomLine("원료", "멸균생리식염수 0.9 % (SNSS)", "500 mL × 5", f"수조 약 {s.tank.fill_ml(80) / 1000:.1f} L (80 mm 까지) + 펜 SNSS 줄", "약국"),
+        BomLine("원료", "멸균생리식염수 0.9 % (SNSS)", "500 mL × 6", f"배지 — 배양조 가득 {s.tank.fill_ml() / 1000:.1f} L + 펜 SNSS 줄", "약국"),
         BomLine("원료", "PVA 세탁풀 / 슬라임용 PVA 풀", "500 mL", "폴리비닐알코올 — 붕사·향료 없는 것, 10 wt% 로 맞춤", "마트 · 문구점"),
         BomLine("원료", "그래핀 산화물(GO) 수분산", "100 mL", "10 mg/mL, 판 크기 5–20 µm", "온라인 (재료·시약 쇼핑몰)"),
         BomLine("원료", "폴리에틸렌이민 (PEI, 분지형)", "25 g", "n형 도펀트 — GO 통에 미리 흡착", "온라인 시약"),
@@ -290,10 +300,11 @@ def bom(spec: SculptorSpec | None = None) -> list[BomLine]:
         BomLine("소모품", "블런트 바늘 22G (가능하면 40 mm)", "5개", "펜 노즐", "약국 · 의료기기점 · 온라인"),
         BomLine("소모품", "실리콘 관 Ø1/Ø2 mm (수족관 에어호스 가는 것)", "3 m", "펌프 → 펜", "마트 (수족관 코너)"),
         BomLine("소모품", "PETG 필라멘트 1.75 mm", "1 kg", "출력 부품 (parts.py)", "온라인 · 전자상가"),
-        BomLine("수조", "투명 밀폐용기 3–4 L (안 150 × 150 mm 이상) 또는 소형 수족관", "1개", "프린터 몸체 = 식염수 수조", "마트"),
+        BomLine("수조", "투명 밀폐용기 3–4 L (안 150 × 150 × 120 mm 이상) 또는 소형 수족관", "1개", "프린터 몸체 = 배양조 (수중 환경)", "마트"),
+        BomLine("수조", "투명 실리콘 실란트 (욕실용) · O-링 Ø20", "1개 · 2개", s.pen.seal, "철물점"),
         BomLine("수조", "수족관 연동식 정량 펌프 12 V", "1개", s.tank.pump, "마트 (수족관 코너) · 온라인"),
         BomLine("수조", "수족관 스펀지 여과기", "1개", s.tank.filter, "마트 (수족관 코너)"),
-        BomLine("수조", "흑연 시트 0.5 mm (또는 굵은 연필심 2B)", "1장", s.tank.pads + " · " + s.tank.level_probe, "문구점 · 온라인"),
+        BomLine("수조", "흑연 시트 0.5 mm (또는 굵은 연필심 2B)", "1장", s.tank.pads + " · " + s.tank.probe, "문구점 · 온라인"),
         # 기계 — 출력할 수 없는 것
         BomLine("기계", "M8 나사봉 (전산볼트) 1 m", "4개", "프레임 12토막 · Z 3개", "철물점"),
         BomLine("기계", "Ø8 스테인리스 환봉 1 m", "2개", "XY 안내봉 4토막", "철물점"),
@@ -341,8 +352,8 @@ def klipper_cfg(spec: SculptorSpec | None = None) -> str:
         out += [f"[output_pin go_{v.key}]  # 핀치 밸브: {v.name}", f"pin: PLACEHOLDER_VALVE_{v.key.upper()}", "value: 0", ""]
     out += ["[output_pin uv_light]  # 405 nm LED 링", "pin: PB7", "pwm: True", "value: 0", "",
             "[output_pin suction]  # 깎은 소재 흡입", "pin: PB9", "value: 0", "",
-            "[output_pin saline_pump]  # 수조 정량 펌프 (약국 생리식염수 병 → 수조)", "pin: PB10", "value: 0", "",
-            "[gcode_macro LEVEL]", "description: 수위를 맞추려 식염수 ML 만큼 부음 (보정 mL/s)", "gcode:",
+            "[output_pin saline_pump]  # 배양조 정량 펌프 (약국 생리식염수 병 → 배양조)", "pin: PB10", "value: 0", "",
+            "[gcode_macro FILL]", "description: 배양조에 배지(멸균생리식염수) ML 만큼 부음 (보정 mL/s)", "gcode:",
             "  SET_PIN PIN=saline_pump VALUE=1",
             f"  G4 P{{(params.ML|float / {s.tank.pump_ml_s:g} * 1000)|int}}",
             "  SET_PIN PIN=saline_pump VALUE=0", "",

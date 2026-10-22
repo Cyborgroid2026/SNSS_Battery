@@ -277,8 +277,8 @@ class PrintedPartsTest(unittest.TestCase):
         self.assertFalse(any("알루미늄" in b.part for b in bom()))  # 프레임은 출력 + 철물점 봉
 
 
-class SalineTankTest(unittest.TestCase):
-    """프린터 자체가 멸균생리식염수 수조 — 그 안에서 작업."""
+class CultureTankTest(unittest.TestCase):
+    """수중 배양 환경 — 배양조를 배지(멸균생리식염수)로 가득 채우고 그 안에서 결정체를 키움."""
 
     def setUp(self):
         self.spec = SculptorSpec()
@@ -289,32 +289,40 @@ class SalineTankTest(unittest.TestCase):
             self.assertLess(abs(g["drho"]), 5.0)  # 잉크 ≈ 식염수 밀도
             self.assertLess(g["free_height_air_mm"], 10.0)  # 공기 중이면 몇 mm 에서 무너짐
             self.assertGreater(g["free_height_mm"], self.spec.build_mm[2])  # 식염수 속에서는 출력 높이 이상
-            self.assertTrue(g["bath_gels"])  # 수조 식염수가 겉을 엉기게 함
+            self.assertTrue(g["bath_gels"])  # 배지가 겉을 엉기게 함
 
-    def test_level_follows_the_work(self):
+    def test_fully_submerged_culture(self):
         p = S.design("seed", 20.0, S.CellParams(), self.spec, "씨앗")
         job = S.job_new(p, self.spec)
-        plan = S.plan_passes(job, self.spec)
-        start, doses, total = S.level_doses(job, plan, self.spec)
+        med = S.medium_plan(job, S.plan_passes(job, self.spec), self.spec)
         tk = self.spec.tank
-        self.assertAlmostEqual(start, tk.fill_ml(tk.margin_mm))
-        printed_ml = sum(float(ps.segs[:, 4].sum()) for _, pp in plan for ps in pp if ps.kind == "add") \
-            * self.spec.line_mm ** 2 * self.spec.layer_mm / 1000
-        top = max(ps.z for _, pp in plan for ps in pp)
-        final_level = (total + printed_ml) * 1000 / tk.area_mm2  # 부은 식염수 + 젤 = 면적 × 수위
-        self.assertGreaterEqual(final_level, top + tk.margin_mm - tk.dose_every_mm - 1e-6)  # 늘 2 mm 이상 잠겨 있음
-        self.assertLess(final_level, top + tk.margin_mm + 2 * tk.dose_every_mm + 0.5)
+        self.assertAlmostEqual(med["fill_ml"], tk.area_mm2 * tk.fill_mm / 1000)  # 처음부터 가득
+        self.assertTrue(med["submerged"])
+        self.assertLess(med["nacl_after_mm"], tk.saline_mm)  # 잉크가 배지보다 묽어 조금 떨어짐
+        self.assertGreater(med["nacl_after_mm"], tk.saline_mm * 0.99)
+        self.assertFalse(med["change_medium"])
 
-    def test_gcode_doses_saline_and_ends_in_tank(self):
+    def test_gcode_fills_then_harvests(self):
         import tempfile
         from pathlib import Path
 
         job = S.job_new(S.design("coupon", 6.0, S.CellParams(), self.spec, "t"), self.spec)
         with tempfile.TemporaryDirectory() as d:
             g = S.write_gcode(job, S.plan_passes(job, self.spec), self.spec, Path(d) / "j.gcode").read_text(encoding="utf-8")
-        self.assertIn("LEVEL ML=", g)
-        self.assertIn("CHARGE ON=1", g)  # 다 빚으면 수조 안에서 그대로 충전할 수 있음
-        self.assertIn("[gcode_macro LEVEL]", klipper_cfg(self.spec))
+        self.assertIn("FILL ML=", g)
+        self.assertIn("수확", g)
+        self.assertNotIn("LEVEL", g)
+        self.assertIn("[gcode_macro FILL]", klipper_cfg(self.spec))
+
+    def test_work_must_stay_under_medium(self):
+        import tempfile
+        from dataclasses import replace
+        from pathlib import Path
+
+        spec = replace(self.spec, tank=replace(self.spec.tank, fill_mm=20.0))
+        job = S.job_new(S.design("seed", 30.0, S.CellParams(), spec, "높음"), spec)
+        with tempfile.TemporaryDirectory() as d, self.assertRaises(ValueError):
+            S.write_gcode(job, S.plan_passes(job, spec), spec, Path(d) / "j.gcode")
 
     def test_tank_is_bought_not_carbomer(self):
         from snss_battery.printer import bom
