@@ -1,12 +1,16 @@
-"""SNSS QFP-1 — 양자 설계 동결 프린터 (Quantum Freeze Printer) 기계 명세 (명세: spec/PRINTER.md).
+"""SNSS 조각가 SC-1 — 3D 펜을 단 상온 3D 프린터 (명세: spec/SCULPTOR.md).
 
-모양과 구조만 주면 하나의 존재(Energetic Being)가 되도록 빚는 기계. 출력물(존재)은 금속 무함유,
-기계 자체는 일반 3D 프린터처럼 금속 부품(모터·프레임)을 씀.
-
-- 차가운 판(−30 °C) 위에 물 기반 잉크를 한 층씩 짜서 바로 얼림 (동결 프린팅) — 얼음이 형상을 붙잡아 줌
-- 헤드 4개: T0 + 미로(GO + 붕산 → B 도핑 p형), T1 − 미로(GO + 요소 → N 도핑 n형), T2 분리막·피부(실리카), T3 지지 얼음(물)
-- T0·T1 은 주사기 2개 혼합 헤드 — 섞는 비율로 도핑량(= 페르미 준위)을 층마다 프로그래밍 (qcap 모델)
-- 펌웨어 Klipper: 매크로로 혼합비·차가운 판 온도를 G-code 에서 바꿈
+자기가 다루는 소재(SNSS 소재 = GO · 생리식염수 · PVA 가 하나가 된 젤)로 조각하는 기계. **모든 공정은 상온(25 °C)**.
+- 펜에 GO · SNSS(멸균생리식염수 0.9 %) · PVA 가 따로 들어가 펜 끝 혼합기에서 처음 만나 하나가 됨
+  (미리 섞으면 바로 젤이 되어 막힘 — 그래서 끝에서 섞고, 그 젤화가 곧 굳는 힘)
+  · 식염수의 Na⁺ 가 GO 판의 음전하를 가려(임계응집농도 이상) 판들이 정렬된 채 엉김 (기존 assembly 모델)
+  · PVA 의 OH 와 GO 의 산소기가 수소결합 → 초분자 젤 (상온, 되돌릴 수 있음)
+- 섞는 비율 + 펜 끝 405 nm 빛(상온 광환원) 으로 재료가 정해짐: 세포질(rGO, 전자 통로) · 막·피부(GO, 이온만)
+- GO 줄은 선택 밸브로 p형(NBD) · n형(PEI) · 도핑 없음 GO 를 고름 → 세포마다 페르미 준위 (양자층)
+- 출력은 투명한 지지 젤 욕조 안에서 — 펜이 3차원 어디든 획을 그으면 욕조가 그 자리에 붙잡음 (3D 펜)
+- 더하기(층 · 허공 획) · 깎기(흡입) · 붙이기(수소결합 자가치유) · 떼기(깎아 가름) — 전부 상온
+- 펜은 자석 마운트로 떼어 손으로도 씀 — 손으로 더한 것은 스캐너로 읽어 작업물 기억에 반영
+출력물은 금속 무함유. 기계 자체는 일반 3D 프린터처럼 금속 부품을 씀.
 """
 
 from __future__ import annotations
@@ -14,153 +18,207 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-RHO_WATER = 1000.0  # kg/m³ (잉크 ≈ 물)
-LATENT = 334e3  # J/kg 얼음 융해열
-CP_WATER = 4186.0
-K_ICE = 2.2  # W/m·K (−10 °C 근처 얼음)
+G = 9.81
+RHO_INK = 1010.0  # kg/m³
+ROOM_C = 25.0
 
 
 @dataclass
-class Syringe:
-    content: str
-    volume_ml: float = 10.0
-    inner_d_mm: float = 14.5  # 10 mL 일회용 주사기 안지름
-    lead_mm: float = 2.0  # 플런저를 미는 T8 리드스크루 한 바퀴 이동
+class Feed:
+    """펜으로 들어가는 원료 한 줄 (주사기 펌프)."""
+
+    key: str  # go · snss · pva
+    name: str
+    stock: str
+    elements: frozenset[str]
+    volume_ml: float = 20.0
+    inner_d_mm: float = 19.1  # 20 mL 주사기
+    lead_mm: float = 2.0
 
     @property
     def area_mm2(self) -> float:
         return math.pi * (self.inner_d_mm / 2) ** 2
 
-    def plunger_mm(self, volume_mm3: float) -> float:
-        return volume_mm3 / self.area_mm2
-
-    @property
-    def steps_per_mm(self) -> float:
-        return 200 * 16 / self.lead_mm  # 1.8° 스테퍼, 16 마이크로스텝
-
 
 @dataclass
-class Head:
-    tool: int
+class GoVariant:
+    """GO 줄 선택 밸브 뒤 저장통 — 상온에서 도펀트를 미리 흡착시킨 GO."""
+
+    key: str  # plain · p · n
     name: str
-    role: str  # pos · neg · sep · sup
-    nozzle_mm: float
-    syringes: list[Syringe]
-    offset_xy: tuple[float, float]  # T0 노즐 기준
+    dopant: str  # qcap 도펀트 키
     elements: frozenset[str]
-    dopant: str = ""  # 혼합 주사기가 넣는 도펀트
-    max_doping_at: float = 0.0  # 도펀트 주사기 100 % 일 때 소성 후 도핑량 (보정값)
-
-    @property
-    def mixing(self) -> bool:
-        return len(self.syringes) > 1
 
 
 @dataclass
-class ColdPlate:
-    size_mm: float = 130.0
-    plate: str = "알루미늄 6061 6 mm + PEI 0.2 mm 필름 (잉크가 얼어붙는 면)"
-    tec: str = "TEC1-12706 펠티어 4장 (2×2) + 수냉 블록 + 냉각기 (에틸렌글리콜 5 °C)"
-    target_c: float = -30.0
-    contact_resistance_m2k_w: float = 2e-3  # 판 → 첫 얼음층 접촉 열저항
+class Recipe:
+    """펜 끝에서 세 원료를 섞는 비율 → 한 재료."""
+
+    key: str
+    name: str
+    go: float
+    snss: float
+    pva: float
+    go_variant: str  # plain · p · n
+    light: bool  # 405 nm 광환원 켬 → rGO (전자 통로)
+    color: str
+
+    def __post_init__(self) -> None:
+        if min(self.go, self.snss, self.pva) < 0 or abs(self.go + self.snss + self.pva - 1) > 1e-9:
+            raise ValueError(f"{self.name}: 세 원료 비율은 0 이상, 합은 1 이어야 합니다.")
+
+
+@dataclass
+class Pen:
+    name: str = "SNSS 펜 (3채널 혼합 · 탈착식)"
+    nozzle_mm: float = 0.41  # 22G, 길이 40 mm (욕조 안까지)
+    mixer: str = "나선형 미세 혼합기 4 요소"
+    dead_volume_ul: float = 1.5  # 혼합기 안 부피 — 재료를 바꿀 때 밀어내는 양
+    gel_time_s: float = 3.0  # 섞인 뒤 젤이 되기까지 (가정 — 이보다 오래 머물면 펜 안에서 굳음)
+    light: str = "405 nm LED 링 4 × 300 mW — 펜 끝 2 mm 아래 (GO 상온 광환원)"
+    carve: str = "가운데 관 역방향 흡입 + 전단 — 젤을 끊어 빨아들여 회수통으로 (열 없음)"
+    carve_rate_mm3_s: float = 2.0  # 흡입 회수 속도 (가정)
+    mount: str = "자석 키네마틱 마운트 (볼 3 · 홈 3) + 포고핀 6 — 떼어 손으로 씀"
+
+
+@dataclass
+class Bath:
+    """지지 젤 욕조 — 항복응력 미세젤. 펜이 지나가면 흐르고, 멈추면 다시 굳어 획을 붙잡음."""
+
+    size_mm: tuple[float, float, float] = (130.0, 130.0, 110.0)
+    gel: str = "카보폴 1.5 wt% (트라이에탄올아민 중화, 60 mM NaCl 로 잉크와 염 농도 맞춤)"
+    yield_pa: float = 25.0
+    rinse: str = "생리식염수(154 mM)로 헹굼 — 염이 미세젤을 무르게 해 씻겨 나감"
+    elements: frozenset[str] = frozenset({"C", "H", "O", "N"})
 
 
 @dataclass
 class Chamber:
-    temp_c: float = 4.0  # 프린터를 +4 °C 저온실에 둠 (RECIPE 와 같은 방)
-    purge: str = "건조 질소 0.5 L/min — 이슬점 < −35 °C 로 성에 방지"
-    h_conv_w_m2k: float = 8.0  # 차가운 얼음 윗면으로 들어오는 자연대류
+    temp_c: float = ROOM_C
+    humidity_rh: float = 90.0  # 젤이 마르지 않게
+    note: str = "상온 25 ± 1 °C · 습도 90 % RH (가습기 + SHT45)"
 
 
 @dataclass
-class PrinterSpec:
-    name: str = "SNSS QFP-1 (Quantum Freeze Printer)"
-    build_mm: tuple[float, float, float] = (120.0, 120.0, 110.0)
-    frame_mm: tuple[float, float, float] = (420.0, 420.0, 540.0)
-    kinematics: str = "CoreXY (헤드 XY) + 침대 Z (T8 리드스크루 3개, 자동 수평)"
-    print_speed_mm_s: float = 10.0  # 점성 잉크
-    travel_speed_mm_s: float = 120.0
-    accel_mm_s2: float = 1500.0
-    z_lift_mm: float = 1.0  # 쓰지 않는 노즐은 서보로 들어올림
-    layer_mm: float = 0.32  # 노즐 0.41 mm 의 약 80 %
+class SculptorSpec:
+    name: str = "SNSS 조각가 SC-1"
+    build_mm: tuple[float, float, float] = (120.0, 120.0, 100.0)
+    frame_mm: tuple[float, float, float] = (420.0, 420.0, 560.0)
+    kinematics: str = "CoreXY (펜 XY) + 갠트리 Z (리드스크루 3개) — 욕조 안 허공 획은 XYZ 동시"
+    print_speed_mm_s: float = 8.0
+    stroke_speed_mm_s: float = 4.0
+    travel_speed_mm_s: float = 60.0  # 욕조 안이라 느리게 (흔적이 남지 않게)
+    accel_mm_s2: float = 800.0
+    layer_mm: float = 0.32
     line_mm: float = 0.41
-    shrink_compensation: float = 0.15  # 동결건조 + 소성 선수축 → 그만큼 크게 출력
-    plate: ColdPlate = field(default_factory=ColdPlate)
+    shrink_compensation: float = 0.03  # 숙성 중 젤 수축 (가정)
+    cure_h: float = 6.0  # 출력 뒤 숙성: 도펀트 흡착 · 수소결합 안정 (상온, 습한 방)
+    heal_min: float = 30.0  # 붙인 면이 원래 세기의 80 % 로 아무는 시간 (가정)
+    pen: Pen = field(default_factory=Pen)
+    bath: Bath = field(default_factory=Bath)
     chamber: Chamber = field(default_factory=Chamber)
-    heads: list[Head] = field(default_factory=lambda: default_heads())
+    feeds: list[Feed] = field(default_factory=lambda: default_feeds())
+    go_variants: list[GoVariant] = field(default_factory=lambda: default_go_variants())
+    recipes: dict[str, Recipe] = field(default_factory=lambda: default_recipes())
+    scanner: str = "레이저 선 프로파일러 (분해능 50 µm) — 작업물 겉면을 읽어 기억과 맞춤"
     firmware: str = "Klipper (Raspberry Pi 5 + BTT Octopus Pro, 스테퍼 8축)"
+    go_stock_mg_ml: float = 10.0
+    nacl_stock_mm: float = 154.0
+    pva_stock_wt: float = 10.0
+    ccc_per_pva_wt: float = 0.15  # PVA 1 wt% 마다 임계응집농도가 15 % 오름 (고분자 입체 안정화, 가정)
 
-    def head(self, role: str) -> Head:
-        return next(h for h in self.heads if h.role == role)
+    # ---------- 펜 끝 화학 ----------
+    def mixed(self, r: Recipe) -> dict:
+        return {"go_mg_ml": self.go_stock_mg_ml * r.go, "nacl_mm": self.nacl_stock_mm * r.snss,
+                "pva_wt": self.pva_stock_wt * r.pva}
 
-    # ---------- 동결 속도 (프린터가 지켜야 할 박자) ----------
-    def freeze_flux_w_m2(self, height_mm: float, ink_c: float = 4.0) -> float:
-        """높이 H 에서 막 올린 층을 얼리는 순열류: 얼음 기둥 전도 − 방 공기 대류."""
-        r = self.plate.contact_resistance_m2k_w + height_mm / 1000 / K_ICE
-        return (0 - self.plate.target_c) / r - self.chamber.h_conv_w_m2k * (self.chamber.temp_c - 0)
+    def gel_check(self, r: Recipe) -> dict:
+        """섞인 직후 젤이 되는지 — 기존 GO 액정 조립 모델에 PVA 의 CCC 상승을 얹음."""
+        from .assembly import PURE_GO_NACL_CCC_MM, PHASE_LABELS, GrapheneLCDispersion, assess
 
-    def freeze_time_s(self, height_mm: float, layer_mm: float | None = None, ink_c: float = 4.0) -> float:
-        """한 층(두께 layer)을 다 얼리는 데 걸리는 시간 (준정상 1차원, 스테판)."""
-        d = (layer_mm or self.layer_mm) / 1000
-        q = self.freeze_flux_w_m2(height_mm + (layer_mm or self.layer_mm) / 2, ink_c)
-        if q <= 0:
-            return math.inf
-        return RHO_WATER * (LATENT + CP_WATER * ink_c) * d / q
+        m = self.mixed(r)
+        ccc = PURE_GO_NACL_CCC_MM * (1 + self.ccc_per_pva_wt * m["pva_wt"])
+        rep = assess(GrapheneLCDispersion(go_mg_per_ml=max(m["go_mg_ml"], 1e-6), ccc_mm=ccc), m["nacl_mm"] / 1000)
+        ok = rep.forms_membrane
+        # 항복응력 (가정): GO 염 겔 ∝ c^2.5, PVA 수소결합이 보탬
+        tau = 30.0 * (m["go_mg_ml"] / 5) ** 2.5 * (1 + 0.5 * m["pva_wt"]) if ok else 0.0
+        return {**m, "ccc_mm": ccc, "label": PHASE_LABELS[rep.phase], "ok": ok, "yield_pa": tau,
+                "free_height_mm": tau / (RHO_INK * G) * 1000}
 
-    @property
-    def max_height_mm(self) -> float:
-        """얼음 기둥이 더 이상 위층을 얼리지 못하는 높이."""
-        q_conv = self.chamber.h_conv_w_m2k * self.chamber.temp_c
-        if q_conv <= 0:
-            return math.inf
-        return (-self.plate.target_c / q_conv - self.plate.contact_resistance_m2k_w) * K_ICE * 1000
+    def residence_s(self) -> float:
+        """혼합기 안에 머무는 시간 — 젤화 시간보다 짧아야 펜이 막히지 않음."""
+        flow_ul_s = self.line_mm * self.layer_mm * self.print_speed_mm_s
+        return self.pen.dead_volume_ul / flow_ul_s
 
-    def freeze_front_um_s(self, height_mm: float) -> float:
-        """얼음 전선 속도 — 얼음 결정(기공) 크기를 정함 (빠를수록 기공이 작음)."""
-        return self.layer_mm * 1000 / self.freeze_time_s(height_mm)
-
-    # ---------- 압출 ----------
     def flow_mm3_s(self) -> float:
         return self.line_mm * self.layer_mm * self.print_speed_mm_s
 
-    def plunger_speed_mm_min(self, head: Head) -> float:
-        return head.syringes[0].plunger_mm(self.flow_mm3_s()) * 60
+    def feed(self, key: str) -> Feed:
+        return next(f for f in self.feeds if f.key == key)
+
+    def check(self) -> list[str]:
+        """설계 점검 — 문제 목록 (비면 통과)."""
+        bad = []
+        for r in self.recipes.values():
+            g = self.gel_check(r)
+            if not g["ok"]:
+                bad.append(f"{r.name}: 섞인 NaCl {g['nacl_mm']:.0f} mM < CCC {g['ccc_mm']:.0f} mM — 펜 끝에서 굳지 않음")
+            elif g["yield_pa"] < self.bath.yield_pa:
+                bad.append(f"{r.name}: 항복응력 {g['yield_pa']:.0f} Pa 가 욕조({self.bath.yield_pa:g} Pa)보다 약함")
+        if self.residence_s() >= self.pen.gel_time_s:
+            bad.append(f"혼합기 체류 {self.residence_s():.1f} s ≥ 젤화 {self.pen.gel_time_s:g} s — 펜 안에서 굳음")
+        return bad
 
     def describe(self) -> str:
-        b = self.build_mm
-        lines = [f"[{self.name}]",
+        b, p, bt = self.build_mm, self.pen, self.bath
+        lines = [f"[{self.name} — 3D 펜을 단 상온 3D 프린터]",
                  f"  출력 공간 {b[0]:g}×{b[1]:g}×{b[2]:g} mm · 프레임 {self.frame_mm[0]:g}×{self.frame_mm[1]:g}×{self.frame_mm[2]:g} mm",
                  f"  {self.kinematics}",
-                 f"  층 {self.layer_mm} mm · 선폭 {self.line_mm} mm · 출력 {self.print_speed_mm_s:g} mm/s · 이동 {self.travel_speed_mm_s:g} mm/s",
-                 f"  차가운 판 {self.plate.target_c:g} °C ({self.plate.tec})",
-                 f"  방 {self.chamber.temp_c:g} °C · {self.chamber.purge}",
-                 f"  수축 보정 ×{1 / (1 - self.shrink_compensation):.3f} (소성 선수축 {self.shrink_compensation * 100:.0f} %)",
-                 f"  펌웨어 {self.firmware}", "  헤드:"]
-        for h in self.heads:
-            mix = " + ".join(s.content for s in h.syringes)
-            dop = f" · 도핑 최대 {h.dopant} {h.max_doping_at:g} at%" if h.dopant else ""
-            lines.append(f"    T{h.tool} {h.name:<12} 노즐 {h.nozzle_mm} mm · {mix}{dop} · 원소 {','.join(sorted(h.elements))}")
-        lines.append("  동결 박자 (층 하나 얼리는 시간):")
-        for z in (0, 20, 40, 70, 100):
-            lines.append(f"    높이 {z:>3} mm: {self.freeze_time_s(z):6.1f} s · 얼음 전선 {self.freeze_front_um_s(z):5.1f} µm/s")
-        lines.append(f"  얼릴 수 있는 최대 높이 약 {self.max_height_mm:.0f} mm (방 공기 대류와 균형)")
-        lines.append(f"  주사기 플런저 속도 {self.plunger_speed_mm_min(self.heads[0]):.3f} mm/min "
-                     f"({self.heads[0].syringes[0].steps_per_mm:g} step/mm)")
+                 f"  층 {self.layer_mm} mm · 선폭 {self.line_mm} mm · 쌓기 {self.print_speed_mm_s:g} mm/s · 허공 획 {self.stroke_speed_mm_s:g} mm/s",
+                 f"  방: {self.chamber.note}",
+                 f"  욕조: {bt.gel} · 항복응력 {bt.yield_pa:g} Pa · 끝나면 {bt.rinse}",
+                 f"  스캐너: {self.scanner}",
+                 f"  [{p.name}] 노즐 {p.nozzle_mm} mm · {p.mixer} (부피 {p.dead_volume_ul:g} µL, 체류 {self.residence_s():.1f} s < 젤화 {p.gel_time_s:g} s)",
+                 f"    빛: {p.light}", f"    깎기: {p.carve} · {p.carve_rate_mm3_s:g} mm³/s", f"    {p.mount}",
+                 "  원료 (따로 들어가 펜 끝에서 하나가 됨):"]
+        for f in self.feeds:
+            lines.append(f"    {f.name:<5} {f.stock} · 원소 {','.join(sorted(f.elements))}")
+        lines.append("    GO 줄 선택 밸브: " + " · ".join(v.name for v in self.go_variants))
+        lines.append("  재료 = 섞는 비율 GO : SNSS : PVA → 섞인 뒤 농도 → 굳음 판정:")
+        for r in self.recipes.values():
+            g = self.gel_check(r)
+            lines.append(f"    {r.name:<12} {r.go:.2f} : {r.snss:.2f} : {r.pva:.2f} {'빛 켬' if r.light else '빛 끔'} → "
+                         f"GO {g['go_mg_ml']:.1f} mg/mL · NaCl {g['nacl_mm']:.0f} mM (CCC {g['ccc_mm']:.0f}) · PVA {g['pva_wt']:.1f} % "
+                         f"→ {'굳음' if g['ok'] else '안 굳음'} · 항복응력 약 {g['yield_pa']:.0f} Pa (욕조 없이 {g['free_height_mm']:.1f} mm 까지 섬)")
+        bad = self.check()
+        lines.append("  설계 점검: " + ("통과" if not bad else "; ".join(bad)))
+        lines += [f"  숙성 {self.cure_h:g} h (상온 · 습한 방) · 붙인 면 아묾 {self.heal_min:g} 분",
+                  f"  펌웨어 {self.firmware}"]
         return "\n".join(lines)
 
 
-def default_heads() -> list[Head]:
-    go = "GO 20 mg/mL"
+def default_feeds() -> list[Feed]:
     return [
-        Head(0, "+ 미로", "pos", 0.41, [Syringe(go), Syringe(go + " + 붕산 0.5 M")], (0.0, 0.0),
-             frozenset({"C", "H", "O", "B"}), "B", 4.0),
-        Head(1, "− 미로", "neg", 0.41, [Syringe(go), Syringe(go + " + 요소 1 M")], (30.0, 0.0),
-             frozenset({"C", "H", "O", "N"}), "N", 4.0),
-        Head(2, "분리막·피부", "sep", 0.41, [Syringe("흄드 실리카 15 wt% + PVA 1 wt%")], (0.0, 30.0),
-             frozenset({"Si", "O", "C", "H"})),
-        Head(3, "지지 얼음", "sup", 0.61, [Syringe("정제수 + 잔탄검 0.5 wt%")], (30.0, 30.0),
-             frozenset({"H", "O", "C"})),
+        Feed("go", "GO", "그래핀 산화물 수분산 10 mg/mL (선택 밸브 뒤 3통)", frozenset({"C", "H", "O", "N"})),
+        Feed("snss", "SNSS", "멸균생리식염수 0.9 % NaCl (154 mM)", frozenset({"Na", "Cl", "H", "O"})),
+        Feed("pva", "PVA", "폴리비닐알코올 10 wt% 수용액", frozenset({"C", "H", "O"})),
     ]
+
+
+def default_go_variants() -> list[GoVariant]:
+    return [
+        GoVariant("plain", "GO (막용)", "", frozenset({"C", "H", "O"})),
+        GoVariant("p", "GO + NBD (p형)", "NBD", frozenset({"C", "H", "N", "O"})),
+        GoVariant("n", "GO + PEI (n형)", "PEI", frozenset({"C", "H", "N", "O"})),
+    ]
+
+
+def default_recipes() -> dict[str, Recipe]:
+    return {
+        "pos": Recipe("pos", "p 세포질 (+)", 0.50, 0.40, 0.10, "p", True, "#e0344b"),
+        "neg": Recipe("neg", "n 세포질 (−)", 0.50, 0.40, 0.10, "n", True, "#2f6db5"),
+        "mem": Recipe("mem", "막 · 피부", 0.40, 0.45, 0.15, "plain", False, "#c9d2dc"),
+    }
 
 
 @dataclass
@@ -171,98 +229,81 @@ class BomLine:
     spec: str
 
 
-def bom(spec: PrinterSpec | None = None) -> list[BomLine]:
-    s = spec or PrinterSpec()
-    n_syr = sum(len(h.syringes) for h in s.heads)
+def bom(spec: SculptorSpec | None = None) -> list[BomLine]:
+    s = spec or SculptorSpec()
     return [
         BomLine("프레임", "알루미늄 2020 압출재", "12개", f"{s.frame_mm[0]:g}/{s.frame_mm[1]:g}/{s.frame_mm[2]:g} mm 각 4개"),
-        BomLine("프레임", "폴리카보네이트 덮개 (이중창)", "1식", "단열 + 질소 퍼지 밀폐, 앞문 경첩"),
-        BomLine("동작", "NEMA17 스테퍼 (XY CoreXY)", "2개", "0.9°, 2 A"),
-        BomLine("동작", "NEMA17 스테퍼 + T8 리드스크루 (Z)", "3개", "자동 수평 (Z_TILT)"),
-        BomLine("동작", "MGN12 리니어 레일", "3개", "X 1, Y 2"),
-        BomLine("압출", "주사기 펌프 (NEMA14 + T8 2 mm 리드)", f"{n_syr}개", "헤드 위 직결, 10 mL 일회용 주사기"),
-        BomLine("압출", "정적 혼합기 (나선형, 6 요소)", "2개", "T0·T1 두 잉크 혼합"),
-        BomLine("압출", "노즐 (스테인리스 블런트)", "4개", "22G 0.41 mm ×3, 20G 0.61 mm ×1"),
-        BomLine("압출", "노즐 리프트 서보 (MG90S)", "4개", f"쓰지 않는 노즐 {s.z_lift_mm} mm 들어올림"),
-        BomLine("냉각", "펠티어 TEC1-12706", "4개", "2×2, 12 V 6 A"),
-        BomLine("냉각", "수냉 블록 + 냉각기", "1식", "글리콜 5 °C, 펌프·라디에이터"),
-        BomLine("냉각", "차가운 판", "1개", s.plate.plate),
-        BomLine("냉각", "NTC 100k 서미스터", "3개", "판 2 + 방 1"),
-        BomLine("환경", "습도·이슬점 센서 (SHT45)", "1개", "질소 퍼지 제어"),
-        BomLine("환경", "질소 유량계 + 솔레노이드 밸브", "1식", s.chamber.purge),
+        BomLine("프레임", "폴리카보네이트 덮개", "1식", "습도 유지, 앞문"),
+        BomLine("동작", "NEMA17 스테퍼 (XY CoreXY)", "2개", "0.9°"),
+        BomLine("동작", "NEMA17 + T8 리드스크루 (Z 갠트리)", "3개", "Z_TILT 자동 수평"),
+        BomLine("동작", "MGN12 리니어 레일", "3개", "X 1 · Y 2"),
+        BomLine("원료", "주사기 펌프 (NEMA17 + T8 2 mm)", "3개", "GO · SNSS · PVA, 20 mL 주사기"),
+        BomLine("원료", "핀치 밸브", "3개", "GO 줄 선택: 막용 · p형 · n형"),
+        BomLine("원료", "PTFE 관 Ø1/Ø2 mm", "3 m", "펌프 → 펜 (펜을 떼어도 연결 유지)"),
+        BomLine("펜", "SNSS 펜 몸체 (SLA 수지 출력)", "1개", s.pen.mixer),
+        BomLine("펜", "긴 블런트 노즐 22G × 40 mm", "5개", "욕조 안까지 닿음 (예비 포함)"),
+        BomLine("펜", "405 nm LED 링", "1개", s.pen.light),
+        BomLine("펜", "흡입 펌프 + 회수통", "1식", s.pen.carve),
+        BomLine("펜", "자석 키네마틱 마운트 + 포고핀", "1식", s.pen.mount),
+        BomLine("욕조", "아크릴 욕조", "1개", f"{s.bath.size_mm[0]:g}×{s.bath.size_mm[1]:g}×{s.bath.size_mm[2]:g} mm, 바닥 배수구"),
+        BomLine("욕조", "지지 젤", "약 1.5 L", s.bath.gel),
+        BomLine("환경", "초음파 가습기 + SHT45", "1식", s.chamber.note),
+        BomLine("감지", "레이저 선 프로파일러", "1개", s.scanner),
         BomLine("제어", "Raspberry Pi 5 + BTT Octopus Pro", "1식", "Klipper, TMC2209 ×8"),
-        BomLine("제어", "카메라 (층 감시)", "1개", "층마다 사진 → 얼음 전선 확인"),
-        BomLine("전원", "24 V 350 W + 12 V 30 A (펠티어)", "각 1개", ""),
+        BomLine("전원", "24 V 200 W", "1개", "가열·냉각 장치 없음 (상온)"),
     ]
 
 
-def klipper_cfg(spec: PrinterSpec | None = None) -> str:
-    """Klipper printer.cfg 의 프린터 고유 부분 (핀 이름은 보드에 맞게 바꿈).
+def klipper_cfg(spec: SculptorSpec | None = None) -> str:
+    """Klipper printer.cfg 의 조각가 고유 부분 (핀 이름은 예시).
 
-    E 는 부피(mm³): 가상 [extruder] 축 1 mm = 잉크 1 mm³. 주사기마다 extruder_stepper 를 두고
-    rotation_distance = 리드 × 단면적 / 몫 으로 맞춰 가상 축에 동기화한다 → 혼합비 = 몫.
+    E 는 펜에서 나가는 잉크 부피(mm³). GO·SNSS·PVA 주사기를 extruder_stepper 로 두고
+    rotation_distance = 리드 × 단면적 / 몫 으로 가상 [extruder] 축에 동기화 → 섞는 비율.
     """
-    s = spec or PrinterSpec()
-    syr = [(h, j, sy) for h in s.heads for j, sy in enumerate(h.syringes)]
-    out = [f"# {s.name} — Klipper 설정 (프린터 고유 부분)",
-           "# 스테퍼 12축: XY 2 + Z 3 + 주사기 " + str(len(syr)) + " + 가상 E 1 → Octopus Pro(8) + SKR Pico(4, 두 번째 MCU 'pico')",
-           "# 핀 이름은 예시. 실제 배선에 맞게 고칠 것.", "",
-           "[printer]", "kinematics: corexy", f"max_velocity: {s.travel_speed_mm_s:g}", f"max_accel: {s.accel_mm_s2:g}",
-           "max_z_velocity: 5", "", "[z_tilt]", "z_positions: -10,-10 | 130,-10 | 60,140",
-           "points: 10,10 | 110,10 | 60,110", "",
-           "[extruder]  # 가상 부피 축 — 모터는 연결하지 않음 (빈 드라이버)",
-           "step_pin: pico:gpio14", "dir_pin: pico:gpio13", "enable_pin: !pico:gpio15",
-           "microsteps: 16", "rotation_distance: 40  # E 1 = 1 mm³ 로 쓰므로 값 자체는 무관",
+    s = spec or SculptorSpec()
+    out = [f"# {s.name} — Klipper 설정 (조각가 고유 부분). 핀 이름은 예시 — 배선에 맞게 고칠 것.",
+           "# 스테퍼 8축: XY 2 + Z 3 + 원료 3. 가열·냉각 없음 (상온).", "",
+           "[printer]", "kinematics: corexy", f"max_velocity: {s.travel_speed_mm_s:g}",
+           f"max_accel: {s.accel_mm_s2:g}", "max_z_velocity: 5", "",
+           "[z_tilt]", "z_positions: -10,-10 | 150,-10 | 70,160", "points: 10,10 | 130,10 | 70,130", "",
+           "[extruder]  # 가상 부피 축: 1 mm = 잉크 1 mm³ (모터 없음, 경로 계획용)",
+           "step_pin: PF13", "dir_pin: PF12", "enable_pin: !PF14", "microsteps: 16", "rotation_distance: 1000",
            f"nozzle_diameter: {s.line_mm}", "filament_diameter: 1.1284  # 단면적 1 mm² → E(mm) = 부피(mm³)",
-           "max_extrude_cross_section: 5", "heater_pin: pico:gpio23  # 히터 없음 (자리만)",
-           "sensor_type: temperature_host", "control: watermark", "min_temp: -50", "max_temp: 60",
-           "min_extrude_temp: -50", ""]
-    for h, j, sy in syr:
-        out += [f"[extruder_stepper syr_t{h.tool}_{j}]  # T{h.tool} {h.name} · {sy.content}",
-                f"step_pin: PLACEHOLDER_T{h.tool}_{j}_STEP", f"dir_pin: PLACEHOLDER_T{h.tool}_{j}_DIR",
-                f"microsteps: 16", f"rotation_distance: {sy.lead_mm * sy.area_mm2:.4f}  # 리드 {sy.lead_mm} mm × 단면적 {sy.area_mm2:.2f} mm²", ""]
-    plate = s.plate
-    out += ["[heater_generic cold_plate]  # 펠티어 냉각 — 출력이 클수록 차가워지므로 제어 반전",
-            "heater_pin: !PA2", "sensor_type: Generic 3950", "sensor_pin: PF4", "control: pid",
-            "pid_Kp: 40", "pid_Ki: 1.5", "pid_Kd: 200", "min_temp: -45", "max_temp: 40", "",
-            "[temperature_sensor chamber]", "sensor_type: Generic 3950", "sensor_pin: PF5", "",
-            "[gcode_macro _MIX]",
-            "variable_ratio: {" + ", ".join(f"'{h.tool}': 0.0" for h in s.heads if h.mixing) + "}",
-            "variable_tool: -1", "gcode:", "", ""]
-    for h in s.heads:
-        out += [f"[servo lift{h.tool}]", f"pin: PLACEHOLDER_SERVO{h.tool}", "initial_angle: 90", ""]
-    out += ["[gcode_macro SET_MIX]",
-            "description: 혼합 헤드의 도펀트 주사기 몫 (0~1). 소성 후 도핑량 = RATIO × 최대 at%",
-            "gcode:", "  {% set r = printer['gcode_macro _MIX'].ratio %}",
-            "  {% set _ = r.update({params.TOOL: params.RATIO|float}) %}",
-            "  SET_GCODE_VARIABLE MACRO=_MIX VARIABLE=ratio VALUE=\"{r}\"",
-            "  {% if printer['gcode_macro _MIX'].tool|string == params.TOOL %}_SYNC TOOL={params.TOOL}{% endif %}", "",
-            "[gcode_macro _UNSYNC_ALL]", "gcode:"]
-    out += [f"  SYNC_EXTRUDER_MOTION EXTRUDER=syr_t{h.tool}_{j} MOTION_QUEUE=" for h, j, _ in syr] + [""]
-    out += ["[gcode_macro _SYNC]", "gcode:", "  {% set t = params.TOOL|int %}", "  _UNSYNC_ALL"]
-    for h in s.heads:
-        out.append(f"  {{% if t == {h.tool} %}}")
-        if h.mixing:
-            out.append(f"    {{% set r = printer['gcode_macro _MIX'].ratio['{h.tool}']|float %}}")
-            for j, sy in enumerate(h.syringes):
-                share = "(1 - r)" if j == 0 else "r"
-                out += [f"    {{% if {share} > 0.001 %}}",
-                        f"      SET_EXTRUDER_ROTATION_DISTANCE EXTRUDER=syr_t{h.tool}_{j} DISTANCE={{{sy.lead_mm * sy.area_mm2:.4f} / {share}}}",
-                        f"      SYNC_EXTRUDER_MOTION EXTRUDER=syr_t{h.tool}_{j} MOTION_QUEUE=extruder", "    {% endif %}"]
-        else:
-            out.append(f"    SYNC_EXTRUDER_MOTION EXTRUDER=syr_t{h.tool}_0 MOTION_QUEUE=extruder")
-        out.append("  {% endif %}")
-    out += ["  SET_GCODE_VARIABLE MACRO=_MIX VARIABLE=tool VALUE={t}", "",
-            "[gcode_macro COLD_PLATE]", "description: 차가운 판 목표 온도로 내리고 도달할 때까지 기다림", "gcode:",
-            f"  {{% set t = params.TARGET|default({plate.target_c:g})|float %}}",
-            "  SET_HEATER_TEMPERATURE HEATER=cold_plate TARGET={t}",
-            "  TEMPERATURE_WAIT SENSOR='heater_generic cold_plate' MAXIMUM={t + 1}", "",
-            "[gcode_macro FREEZE_WAIT]", "description: 방금 올린 층이 다 얼 때까지 기다림 (슬라이서가 계산한 초)",
-            "gcode:", "  G4 P{(params.S|float * 1000)|int}", "",
-            "[gcode_macro NOZZLES_UP]", "gcode:"] + [f"  SET_SERVO SERVO=lift{h.tool} ANGLE=90" for h in s.heads] + [""]
-    for h in s.heads:
-        out += [f"[gcode_macro T{h.tool}]", f"description: {h.name} 헤드로 바꿈", "gcode:", "  G91", f"  G1 Z{s.z_lift_mm:g} F600", "  G90",
-                "  NOZZLES_UP", f"  SET_GCODE_OFFSET X={-h.offset_xy[0]:g} Y={-h.offset_xy[1]:g}",
-                f"  SET_SERVO SERVO=lift{h.tool} ANGLE=0", f"  _SYNC TOOL={h.tool}",
-                "  G91", f"  G1 Z-{s.z_lift_mm:g} F600", "  G90", ""]
+           "max_extrude_cross_section: 5", "heater_pin: PA2  # 히터 없음 (자리만)",
+           "sensor_type: temperature_host", "control: watermark", "min_temp: 0", "max_temp: 60", "min_extrude_temp: 0", ""]
+    for f in s.feeds:
+        out += [f"[extruder_stepper feed_{f.key}]  # {f.name}: {f.stock}",
+                f"step_pin: PLACEHOLDER_{f.key.upper()}_STEP", f"dir_pin: PLACEHOLDER_{f.key.upper()}_DIR",
+                "microsteps: 16", f"rotation_distance: {f.lead_mm * f.area_mm2:.4f}  # 리드 {f.lead_mm} × 단면적 {f.area_mm2:.2f} mm²", ""]
+    out += ["[temperature_sensor chamber]", "sensor_type: SHT3X", "i2c_mcu: mcu", "i2c_bus: i2c1", ""]
+    for v in s.go_variants:
+        out += [f"[output_pin go_{v.key}]  # 핀치 밸브: {v.name}", f"pin: PLACEHOLDER_VALVE_{v.key.upper()}", "value: 0", ""]
+    out += ["[output_pin uv_light]  # 405 nm LED 링", "pin: PB7", "pwm: True", "value: 0", "",
+            "[output_pin suction]  # 깎은 소재 흡입", "pin: PB9", "value: 0", "",
+            "[output_pin humidifier]", "pin: PB10", "value: 1", "",
+            "[gcode_macro MIX]",
+            "description: 펜 끝 섞는 비율 GO:SNSS:PVA (합 1) · GO 통 선택 · 빛",
+            "gcode:",
+            "  {% set g = params.GO|float %}{% set s = params.SNSS|float %}{% set p = params.PVA|float %}",
+            "  {% set v = params.VARIANT|default('plain') %}"]
+    for f in s.feeds:
+        share = {"go": "g", "snss": "s", "pva": "p"}[f.key]
+        out += [f"  {{% if {share} > 0.001 %}}",
+                f"    SET_EXTRUDER_ROTATION_DISTANCE EXTRUDER=feed_{f.key} DISTANCE={{{f.lead_mm * f.area_mm2:.4f} / {share}}}",
+                f"    SYNC_EXTRUDER_MOTION EXTRUDER=feed_{f.key} MOTION_QUEUE=extruder",
+                "  {% else %}", f"    SYNC_EXTRUDER_MOTION EXTRUDER=feed_{f.key} MOTION_QUEUE=", "  {% endif %}"]
+    out += [f"  SET_PIN PIN=go_{v.key} VALUE={{1 if v == '{v.key}' else 0}}" for v in s.go_variants]
+    out += ["  SET_PIN PIN=uv_light VALUE={params.LIGHT|default(0)|float}",
+            "  PURGE", "",
+            "[gcode_macro PURGE]", "description: 퍼지 컵 위에서 혼합기 안 이전 재료를 밀어냄", "gcode:",
+            "  SAVE_GCODE_STATE NAME=purge", "  G90", "  G0 Z95 F600", "  G0 X125 Y5 F3000",
+            f"  G1 E{s.pen.dead_volume_ul * 2:g} F60", "  RESTORE_GCODE_STATE NAME=purge MOVE=1", "",
+            "[gcode_macro CARVE]", "description: 깎기 모드 — 흡입 켬/끔 (열 없음)", "gcode:",
+            "  SET_PIN PIN=suction VALUE={params.ON|default(1)|int}", "",
+            "[gcode_macro CURE]", "description: 숙성 — 상온 · 습한 방에서 기다림 (도펀트 흡착, 수소결합 안정)", "gcode:",
+            "  G4 P{(params.S|float * 1000)|int}", "",
+            "[gcode_macro HEAL]", "description: 붙인 면이 아물 때까지 누른 채 기다림", "gcode:",
+            "  G4 P{(params.S|float * 1000)|int}", "",
+            "[gcode_macro SCAN]", "description: 레이저 프로파일러로 작업물 겉면 읽기 (호스트 스크립트가 받음)", "gcode:",
+            "  RESPOND MSG=\"SCAN_BEGIN\"", "  G0 X0 Y0 Z95 F3000", "  G0 X120 F1200", "  RESPOND MSG=\"SCAN_END\"", ""]
     return "\n".join(out)
