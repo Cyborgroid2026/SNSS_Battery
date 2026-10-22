@@ -281,6 +281,11 @@ def cmd_light(a: argparse.Namespace) -> None:
     from .lightsculpt import Ink, LightSculptorSpec, Projector, describe_job, light_job, write_light_job
 
     spec = LightSculptorSpec(ink=Ink(go_mg_ml=a.go), projector=Projector(irradiance_mw_cm2=a.irradiance))
+    if a.cal:  # 시험편으로 잰 빛 상수 (light-cal fit 결과)
+        from .lightcal import calibrated_spec
+
+        spec = calibrated_spec(a.cal, spec)
+        print(f"보정값 사용: {a.cal}")
     print(spec.describe())
     print("\n" + make_light_layout(spec).describe())
     if a.shape == "none":
@@ -289,8 +294,54 @@ def cmd_light(a: argparse.Namespace) -> None:
     print("\n" + describe_job(job))
     jobs = Path(a.out) / "light_jobs"
     n = len(list(jobs.glob("*"))) + 1 if jobs.exists() else 1
+    if a.edope:  # 사후 전기 도핑 (n 세포, PEI 도핑 통)
+        from .electrodope import ElectroDope, describe_edope, electro_dope
+
+        ed = electro_dope(job, ElectroDope(hours=a.edope))
+        print("\n" + describe_edope(ed))
     out = write_light_job(job, jobs / f"{n:02d}_{job['piece'].name}")
     print(f"\n저장: {out['folder']} (exposure.npz · frames/ · summary.json · layout.json)")
+    if a.export:
+        from .lightrun import describe_schedule, export_job
+
+        meta = export_job(job, out["folder"] / "machine")
+        print("\n" + describe_schedule(meta))
+        print(f"기계 묶음: {out['folder'] / 'machine'} (slices/405 · slices/530 · job.json · job.gcode · printer_light.cfg)")
+        print(f"  실행: python -m snss_battery light-run {out['folder'] / 'machine'} --window [--geometry 1920x1080+1920+0] [--moonraker http://…]")
+
+
+def cmd_light_cal(a: argparse.Namespace) -> None:
+    """빛 상수 보정: 시험편 사다리 만들기 · 측정값 맞춤 · 가상 측정 연습."""
+    import json
+    from pathlib import Path
+
+    from . import lightcal as C
+
+    if a.op == "coupon":
+        f = C.write_coupon(a.path or "sculpt_out/light_cal")
+        print((f / "README.txt").read_text(encoding="utf-8"))
+        print(f"저장: {f} (coupon_A/B/C.png · measurements.csv)")
+        return
+    if a.op == "demo":  # 참값을 알고 있는 가상 측정 → 맞춤이 되찾는지
+        from .lightsculpt import Photo
+
+        f = C.synthetic_measurements(a.path or "sculpt_out/light_cal/demo_measurements.csv",
+                                     Photo(eps_go=12.0, ec_mj_cm2=28.0, e_red_mj_cm2=1400.0, e_graft_mj_cm2=380.0, n_graft_max=4.0))
+        print(f"가상 측정 (참값 ε_GO 12 · Ec 28 · E_red 1400 · E_g 380 · 정공 4.0): {f}")
+        a.path = str(f)
+    cal = C.fit_calibration(a.path)
+    print(C.describe_calibration(cal))
+    out = Path(a.save)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(cal, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"저장: {out}  → python -m snss_battery light being --cal {out}")
+
+
+def cmd_light_run(a: argparse.Namespace) -> None:
+    from .lightrun import run_job
+
+    r = run_job(a.folder, dry=not a.window, moonraker=a.moonraker, geometry=a.geometry, speed=a.speed)
+    print(r["text"])
 
 
 def cmd_sculpt(a: argparse.Namespace) -> None:
@@ -495,8 +546,25 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--height", type=float, default=0.0, help="완성 높이 mm (0 = 기본)")
     p.add_argument("--go", type=float, default=2.0, help="잉크 GO mg/mL (진할수록 빛이 얕게 → 느림)")
     p.add_argument("--irradiance", type=float, default=6.0, help="빛 세기 mW/cm² (상온 한도 약 7)")
+    p.add_argument("--cal", help="보정값 JSON (light-cal fit 결과)")
+    p.add_argument("--export", action="store_true", help="실제 기계 묶음도 (프로젝터 화면 · 시간표 · Klipper)")
+    p.add_argument("--edope", type=float, metavar="시간", help="사후 전기 도핑 (n 세포, PEI 도핑 통에서 발 단자로) 시간 h — 예: 24")
     p.add_argument("--out", default="sculpt_out")
     p.set_defaults(func=cmd_light)
+
+    p = sub.add_parser("light-cal", help="빛 상수 보정 — 시험편 사다리 (coupon) · 측정 맞춤 (fit 측정.csv) · 가상 연습 (demo)")
+    p.add_argument("op", choices=["coupon", "fit", "demo"])
+    p.add_argument("path", nargs="?", help="coupon: 폴더 · fit: measurements.csv · demo: 만들 CSV")
+    p.add_argument("--save", default="sculpt_out/light_cal.json")
+    p.set_defaults(func=cmd_light_cal)
+
+    p = sub.add_parser("light-run", help="SC-2 실행기 — 기계 묶음을 시간표대로 (기본: 시간표만, --window: 프로젝터 창)")
+    p.add_argument("folder", help="light --export 가 만든 machine 폴더")
+    p.add_argument("--window", action="store_true", help="프로젝터 창으로 실제 실행 (Space 멈춤 · Esc 그만)")
+    p.add_argument("--geometry", help="프로젝터 화면 위치, 예: 1920x1080+1920+0 (없으면 미리보기 창)")
+    p.add_argument("--moonraker", help="Klipper Moonraker 주소 (Z 를 보냄), 예: http://sc2.local")
+    p.add_argument("--speed", type=float, default=1.0, help="미리보기 빠르기 (실제 출력은 1)")
+    p.set_defaults(func=cmd_light_run)
 
     p = sub.add_parser("sculpt", help="조각: 양자 인공세포 존재를 빚고 · 더하고 · 깎고 · 떼고 · 붙이고 · 허공에 그림")
     p.add_argument("op", choices=["new", "add", "carve", "detach", "attach", "draw", "show", "list"],

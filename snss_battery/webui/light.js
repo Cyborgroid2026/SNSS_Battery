@@ -27,6 +27,7 @@ if (D && L) {
     ["에너지 (0.8 V)", `${(D.energy_j * 1000).toFixed(0)} mJ (도핑 없으면 ${(D.undoped_energy_j * 1000).toFixed(0)})`],
     ["잉크층", `${D.ink_density.toFixed(1)} < 배지 ${D.bath_density.toFixed(1)} kg/m³ · CCC ${D.ccc_mm.toFixed(0)} mM`],
     ["상온", `잉크 표면 +${D.surface_k.toFixed(2)} K · 배지 +${D.bath_k.toFixed(2)} K`],
+    ["빛 상수", D.calibrated ? "시험편 보정값 (light_cal.json)" : "가정값 — ./tools.sh light-cal 로 시험편부터"],
     ["설계 점검", D.check.length ? D.check.join(" · ") : "통과"],
   ].map(([k, v]) => `<div class="card"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join("");
   $("#lcText").textContent = [D.machine, "", D.layout, "", D.job_text].join("\n");

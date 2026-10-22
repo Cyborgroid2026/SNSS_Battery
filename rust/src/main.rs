@@ -2,9 +2,11 @@
 //!
 //!   cargo run --release -- crosscheck ../spec/cases.json   # 기준 사례 계산 → JSON (Python 이 비교)
 //!   cargo run --release -- recipe ../spec/cases.json       # 레시피 재료량 → JSON
+//!   cargo run --release -- light ../spec/light_cases.json  # 빛 조각가 SC-2 잉크층 · 층 노출 → JSON
 //!   cargo run --release -- render <출력 폴더>               # SVG 그림 (보로노이 단면, LED 7일, 전력 수지)
 
 mod json;
+mod light;
 mod metab;
 mod model;
 mod quantum;
@@ -111,13 +113,52 @@ fn quantum_json() {
     println!("{{\"exponent\": {}, \"rows\": {{{}}}}}", num(a), body.join(", "));
 }
 
+fn light_json(path: &str) {
+    let spec = json::parse(&std::fs::read_to_string(path).expect("light_cases.json 읽기"));
+    let cases = match spec.get("cases") {
+        Some(Json::Arr(a)) => a.clone(),
+        _ => panic!("cases 없음"),
+    };
+    let out: Vec<String> = cases
+        .iter()
+        .map(|c| {
+            let l = light::Light {
+                go: c.num("go_mg_ml"), pva: c.num("pva_wt"), nacl: c.num("nacl_mm"), eosin_um: c.num("eosin_um"),
+                depth_mm: c.num("depth_mm"), irr: c.num("irradiance"), green: c.num("green"),
+            };
+            let x = l.layer_ratio();
+            let mut kv: Vec<(String, f64)> = vec![
+                ("dp_mm".into(), l.dp_mm()), ("dp_green_mm".into(), l.dp_green_mm()), ("layer_ratio".into(), x),
+                ("layer_mm".into(), l.layer_mm()), ("membrane_leak".into(), l.membrane_leak(x)), ("e_cure".into(), l.e_cure()),
+                ("e_graft_target".into(), l.e_graft_target()), ("ccc_mm".into(), l.ccc_mm()), ("ink_density".into(), l.ink_density()),
+                ("ink_life_h".into(), l.ink_life_h()), ("surface_rise_k".into(), l.surface_rise_k()),
+                ("heat_rise_k".into(), l.heat_rise_k()), ("build_time_h".into(), l.build_time_h(c.num("height_mm"))),
+            ];
+            if let Some(Json::Arr(cols)) = c.get("columns") {
+                for (ci, col) in cols.iter().enumerate() {
+                    let Json::Str(s) = col else { panic!("기둥은 문자열") };
+                    for (key, arr) in ["E405", "D405", "E530", "D530"].iter().zip(l.column(s).iter()) {
+                        for (k, v) in arr.iter().enumerate() {
+                            kv.push((format!("col{ci}.{key}.{k}"), *v));
+                        }
+                    }
+                }
+            }
+            let body: Vec<String> = kv.iter().map(|(k, v)| format!("{}: {}", esc(k), num(*v))).collect();
+            format!("{}: {{{}}}", esc(&c.str("name")), body.join(", "))
+        })
+        .collect();
+    println!("{{{}}}", out.join(",\n"));
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(String::as_str) {
         Some("crosscheck") => crosscheck(args.get(2).map(String::as_str).unwrap_or("../spec/cases.json")),
         Some("quantum") => quantum_json(),
+        Some("light") => light_json(args.get(2).map(String::as_str).unwrap_or("../spec/light_cases.json")),
         Some("recipe") => recipes(args.get(2).map(String::as_str).unwrap_or("../spec/cases.json")),
         Some("render") => svg::render_all(args.get(2).map(String::as_str).unwrap_or("svg_out")),
-        _ => eprintln!("사용법: snss crosscheck <cases.json> | recipe <cases.json> | quantum | render <폴더>"),
+        _ => eprintln!("사용법: snss crosscheck <cases.json> | recipe <cases.json> | quantum | light <light_cases.json> | render <폴더>"),
     }
 }

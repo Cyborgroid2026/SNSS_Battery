@@ -396,6 +396,11 @@ def _light_assets(folder: Path) -> dict:
     out = folder / "light"
     out.mkdir(parents=True, exist_ok=True)
     spec = LightSculptorSpec()
+    cal_file = ROOT / "sculpt_out" / "light_cal.json"  # 시험편으로 잰 빛 상수가 있으면 그것으로
+    if cal_file.exists():
+        from .lightcal import calibrated_spec
+
+        spec = calibrated_spec(cal_file, spec)
     job = light_job("being", 0.0, spec, name="being")
     p, pl, pr = job["piece"], job["plan"], job["prediction"]
     E, G = pl["E"], pl["G"]
@@ -422,6 +427,7 @@ def _light_assets(folder: Path) -> dict:
     ph, ink, pj, tk = spec.photo, spec.ink, spec.projector, spec.tank
     return {
         "machine": spec.describe(), "layout": lay.describe(), "job_text": describe_job(job), "check": spec.check(),
+        "calibrated": cal_file.exists(),
         "renders": renders, "fill_mm": tk.fill_mm, "gz": lay.gz, "well_mm": ink.well_mm, "ink_depth_mm": ink.depth_mm,
         "tank_mm": tk.inner_mm[0], "height_mm": p.height_mm, "n_cells": p.n_cells(), "layers": pl["layers"],
         "layer_mm": spec.layer_mm, "dp_mm": spec.dp_mm(), "dp_green_mm": spec.dp_green_mm(),

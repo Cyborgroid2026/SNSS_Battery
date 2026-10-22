@@ -81,3 +81,24 @@ class TestGreenDoping(unittest.TestCase):
     def test_dopant_keeps_ink_below_ccc(self):
         s = LightSculptorSpec(ink=Ink(nbd_mm=45.0))
         self.assertTrue(any("NBD" in b for b in s.check()))
+
+
+class TestElectroDope(unittest.TestCase):
+    def test_negative_network_gets_pei(self):
+        from snss_battery.electrodope import ElectroDope, electro_dope
+
+        job = light_job("coupon", 6.0, LightSculptorSpec())
+        ed = ElectroDope(hours=24)
+        self.assertGreater(ed.frac(ed.e_neg_v), 0.95)  # − 망에 붙고
+        self.assertLess(ed.frac(ed.e_pos_v), 0.02)  # + 망에서는 밀려남
+        r = electro_dope(job, ed)
+        self.assertGreater(r["n_eff"], 0)  # n 세포가 n형이 됨
+        self.assertGreater(r["p_eff"], job["piece"].carriers[0] * 0.95)  # p 세포 도핑은 거의 그대로
+        self.assertGreater(r["prediction"]["energy_j"], job["prediction"]["energy_j"])
+
+    def test_longer_soak_dopes_deeper(self):
+        from snss_battery.electrodope import ElectroDope, electro_dope
+
+        job = light_job("coupon", 6.0, LightSculptorSpec())
+        a, b = electro_dope(job, ElectroDope(hours=1)), electro_dope(job, ElectroDope(hours=48))
+        self.assertGreater(b["n_eff"], a["n_eff"])

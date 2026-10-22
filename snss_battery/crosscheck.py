@@ -249,3 +249,69 @@ def quantum_check(langs=("rust", "csharp")) -> dict:
                 bad.append(name)
         out["languages"][lang] = {"ok": ok, "n": len(pairs), "max_rel": worst, "bad": bad}
     return out
+
+
+# ---------- 빛 조각가 SC-2 (spec/SPEC.md §11, spec/LIGHT.md) ----------
+LIGHT_CASES = ROOT / "spec" / "light_cases.json"
+LIGHT_COLUMN_TOL = 1e-6  # lightsculpt._columns 는 E · D 를 float32 로 담음
+LIGHT_TOL = 1e-9
+
+
+def light_python(case: dict) -> dict:
+    """lightsculpt.py 그대로 — 닫힌 꼴 값 + 짧은 기둥 노출 풀이 (405 nm · 530 nm)."""
+    import numpy as np
+
+    from .lightsculpt import Ink, LightSculptorSpec, Projector, _columns, build_time_estimate_h
+
+    spec = LightSculptorSpec(ink=Ink(go_mg_ml=case["go_mg_ml"], pva_wt=case["pva_wt"], nacl_mm=case["nacl_mm"],
+                                     eosin_um=case["eosin_um"], depth_mm=case["depth_mm"]),
+                             projector=Projector(irradiance_mw_cm2=case["irradiance"], green_mw_cm2=case["green"]))
+    x = spec.layer_ratio()
+    out = {"dp_mm": spec.dp_mm(), "dp_green_mm": spec.dp_green_mm(), "layer_ratio": x, "layer_mm": spec.layer_mm,
+           "membrane_leak": spec._membrane_leak(x), "e_cure": spec.e_cure(), "e_graft_target": spec.e_graft_target(),
+           "ccc_mm": spec.ccc_mm(), "ink_density": spec.ink_density(), "ink_life_h": spec.ink_life_h(),
+           "surface_rise_k": spec.surface_rise_k(), "heat_rise_k": spec.heat_rise_k(),
+           "build_time_h": build_time_estimate_h(spec, case["height_mm"])}
+    h = spec.layer_mm
+    for c, col in enumerate(case["columns"]):
+        m = np.array([" PNM".index(ch) if ch != "0" else 0 for ch in col])[None, None, :]
+        inside, cyto, pos = m != 0, (m == 1) | (m == 2), m == 1
+        E, D = _columns(np.where(inside, spec.e_cure(), 0.0), np.where(cyto, spec.photo.e_red_mj_cm2, 0.0), h / spec.dp_mm())
+        G, Dg = _columns(np.zeros(m.shape), np.where(pos, spec.e_graft_target(), 0.0), h / spec.dp_green_mm())
+        for key, arr in (("E405", E), ("D405", D), ("E530", G), ("D530", Dg)):
+            for k, v in enumerate(arr[0, 0]):
+                out[f"col{c}.{key}.{k}"] = float(v)
+    return out
+
+
+def light_external(lang: str) -> dict:
+    if lang == "rust":
+        return _run(["cargo", "run", "--release", "--quiet", "--", "light", str(LIGHT_CASES)], ROOT / "rust")
+    return _run(["dotnet", "run", "-c", "Release", "--project", "Snss.Lab", "--", "light", str(LIGHT_CASES)], ROOT / "csharp")
+
+
+def light_check(langs=("rust", "csharp")) -> dict:
+    cases = json.loads(LIGHT_CASES.read_text(encoding="utf-8"))["cases"]
+    ref = {c["name"]: light_python(c) for c in cases}
+    out = {"python": ref, "languages": {}}
+    for lang in langs:
+        try:
+            ext = light_external(lang)
+        except (RuntimeError, OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as e:
+            out["languages"][lang] = {"error": str(e)}
+            continue
+        worst, bad, n = {}, [], 0
+        for name, r in ref.items():
+            for k, a in r.items():
+                n += 1
+                b = ext.get(name, {}).get(k)
+                if b is None:
+                    bad.append(f"{name}: {k}")
+                    continue
+                rel = abs(a - b) / max(abs(a), 1e-300) if a != b else 0.0
+                group = k.split(".")[1] if k.startswith("col") else k
+                worst[group] = max(worst.get(group, 0.0), rel)
+                if rel > (LIGHT_COLUMN_TOL if k.startswith("col") else LIGHT_TOL):
+                    bad.append(f"{name}: {k}")
+        out["languages"][lang] = {"ok": not bad, "n": n, "max_rel": worst, "bad": bad}
+    return out

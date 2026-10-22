@@ -5,6 +5,7 @@ using Snss;
 // Snss.Lab — SNSS 생리식염수 결정 배터리 독립 구현 (C#)
 //   dotnet run -c Release -- crosscheck ../../spec/cases.json     기준 사례 계산 → JSON
 //   dotnet run -c Release -- recipe ../../spec/cases.json         레시피 재료량 → JSON
+//   dotnet run -c Release -- light ../../spec/light_cases.json    빛 조각가 SC-2 잉크층 · 층 노출 → JSON
 //   dotnet run -c Release -- verify ../../experiments/log.jsonl   실험 기록 판정 → JSON
 Console.OutputEncoding = Encoding.UTF8;
 var cmd = args.Length > 0 ? args[0] : "";
@@ -22,6 +23,9 @@ switch (cmd)
         break;
     case "recipe":
         Recipes(args.Length > 1 ? args[1] : "../spec/cases.json");
+        break;
+    case "light":
+        LightJson(args.Length > 1 ? args[1] : "../spec/light_cases.json");
         break;
     case "qcad":
         {
@@ -49,7 +53,7 @@ switch (cmd)
         Verify(args.Length > 1 ? args[1] : "../experiments/log.jsonl");
         break;
     default:
-        Console.Error.WriteLine("사용법: Snss.Lab crosscheck <cases.json> | recipe <cases.json> | quantum | qcad <out.step> | verify <log.jsonl>");
+        Console.Error.WriteLine("사용법: Snss.Lab crosscheck <cases.json> | recipe <cases.json> | quantum | light <light_cases.json> | qcad <out.step> | verify <log.jsonl>");
         return 2;
 }
 w.Flush();
@@ -125,6 +129,44 @@ void Recipes(string path)
                 if (isInt) w.WriteNumber(k, (long)v); else w.WriteNumber(k, v);
             w.WriteEndObject();
         }
+    w.WriteEndObject();
+}
+
+void LightJson(string path)
+{
+    using var doc = JsonDocument.Parse(File.ReadAllText(path));
+    w.WriteStartObject();
+    foreach (var c in doc.RootElement.GetProperty("cases").EnumerateArray())
+    {
+        double N(string k) => c.GetProperty(k).GetDouble();
+        var l = new Light(N("go_mg_ml"), N("pva_wt"), N("nacl_mm"), N("eosin_um"), N("depth_mm"), N("irradiance"), N("green"));
+        double x = l.LayerRatio;
+        w.WriteStartObject(c.GetProperty("name").GetString()!);
+        w.WriteNumber("dp_mm", l.DpMm);
+        w.WriteNumber("dp_green_mm", l.DpGreenMm);
+        w.WriteNumber("layer_ratio", x);
+        w.WriteNumber("layer_mm", l.LayerMm);
+        w.WriteNumber("membrane_leak", l.MembraneLeak(x));
+        w.WriteNumber("e_cure", l.ECure);
+        w.WriteNumber("e_graft_target", l.EGraftTarget);
+        w.WriteNumber("ccc_mm", l.CccMm);
+        w.WriteNumber("ink_density", l.InkDensity);
+        w.WriteNumber("ink_life_h", l.InkLifeH);
+        w.WriteNumber("surface_rise_k", l.SurfaceRiseK);
+        w.WriteNumber("heat_rise_k", l.HeatRiseK);
+        w.WriteNumber("build_time_h", l.BuildTimeH(N("height_mm")));
+        int ci = 0;
+        foreach (var col in c.GetProperty("columns").EnumerateArray())
+        {
+            var arrs = l.Column(col.GetString()!);
+            string[] keys = ["E405", "D405", "E530", "D530"];
+            for (int a = 0; a < 4; a++)
+                for (int k = 0; k < arrs[a].Length; k++)
+                    w.WriteNumber($"col{ci}.{keys[a]}.{k}", arrs[a][k]);
+            ci++;
+        }
+        w.WriteEndObject();
+    }
     w.WriteEndObject();
 }
 
