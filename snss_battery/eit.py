@@ -50,6 +50,7 @@ class EITSpec:
     sleeve_t_mm: float = 3.0  # PETG 두께 (절연)
     sleeve_bottom_mm: float = 288.0  # (sleeve) 소매 끝
     meas_ms: float = 1.08  # 값 하나 재는 시간 (가정) → 한 장 = 값 수 × 이것
+    integrate_layers: int = 10  # 오래 남는 잘못(덧굳음 · 빠진 곳)은 여러 층 동안 같은 자리 → 그만큼 더 평균
     protocol: str = "adjacent"  # "adjacent" = 링 안 이웃 쌍 · "deep" = + 위아래 쌍(A_i–B_i) + 링 안 4칸 건너 쌍 (몸을 꿰뚫는 전류)
     rod: str = "흑연 띠 · 막대 (흑연 시트를 오린 띠 또는 2B 연필심) — 드러낸 면만 배지에 닿고 나머지는 실리콘으로 덮음 (금속 없음)"
     rod_d_mm: float = 2.0
@@ -541,7 +542,11 @@ def _evaluate(eit: EIT, piece, layer: int, spec_l, n_avg: int) -> tuple[list, li
         row = {"name": s["name"], "snr1": float(np.linalg.norm(dv) / np.linalg.norm(eit.noise_std(ref))),
                "snr": float(np.linalg.norm(dv) / np.linalg.norm(eit.noise_std(ref, n_avg))),  # 잡음 없는 차이 / 평균 뒤 잡음
                "corr": corr, "max_dv_uv": float(np.max(np.abs(dv)) * 1e6)}
-        if s["center"] is not None:
+        if s["center"] is not None:  # 오래 남는 잘못: 여러 층 평균 · 선형 영역에서 신호 ∝ 부피 → 신호/잡음 3 이 되는 지름
+            k = eit.es.integrate_layers
+            row["snr_k"] = row["snr"] * math.sqrt(k)
+            row["d_min_mm"] = 12.0 * (3.0 / max(row["snr"], 1e-9)) ** (1 / 3)
+            row["d_min_k_mm"] = 12.0 * (3.0 / max(row["snr_k"], 1e-9)) ** (1 / 3)
             c, vol = eit.locate(img, s["sign"])
             row.update(err_mm=float(np.linalg.norm(c - s["center"])), center=c.tolist(), truth_center=s["center"].tolist(),
                        vol_ml=vol, truth_vol_ml=s["vol_ml"])
@@ -631,13 +636,15 @@ def describe(r: dict, es: EITSpec) -> str:
                 f"참값과 상관 {s['corr']:.2f}")
         if "err_mm" in s:
             line += f" · 위치 오차 {s['err_mm']:.0f} mm · 반값 부피 {s['vol_ml']:.1f} mL (참 {s['truth_vol_ml']:.1f})"
+            line += (f"\n      {es.integrate_layers}층 동안 평균하면 신호/잡음 {s['snr_k']:.1f} · 신호/잡음 3 이 되는 지름: 한 층 {s['d_min_mm']:.0f} mm · "
+                     f"{es.integrate_layers}층 {s['d_min_k_mm']:.0f} mm (어림, 신호 ∝ 부피)")
         lines.append(line)
     if "compare" in r:
-        lines.append("  전극 자리 비교 (신호/잡음, 위치 오차):")
-        lines.append(f"    {'자리':<14} {'덧굳음':>16} {'빠진 곳':>16} {'자람':>8}")
+        lines.append("  전극 자리 비교 — 한 층 신호/잡음 · 위치 오차 (덧굳음 · 빠진 곳 지름 12 mm, 자람 10층):")
         for place, rows in r["compare"].items():
             b, m, g = rows
-            lines.append(f"    {place:<14} {b['snr']:>8.1f} · {b['err_mm']:>3.0f} mm {m['snr']:>8.1f} · {m['err_mm']:>3.0f} mm {g['snr']:>8.1f}")
+            lines.append(f"    {place:<13} 덧굳음 {b['snr']:4.1f} · {b['err_mm']:3.0f} mm | 빠진 곳 {m['snr']:4.2f} · {m['err_mm']:3.0f} mm | "
+                         f"자람 {g['snr']:5.0f} | 덧굳음 지름 하한 {b['d_min_mm']:.0f} mm ({es.integrate_layers}층 {b['d_min_k_mm']:.0f} mm)")
     lines.append("  (데스크톱은 설계로 기대 전압을 계산해 두고, 잰 값과의 차이로 어디가 설계와 다른지 그림으로 되찾음 — 해상도는 cm 급)")
     return "\n".join(lines)
 
