@@ -65,9 +65,12 @@ def material(key):
 
 
 def paint(o, key):
+    """재질은 개체에 붙임 (단위 원기둥 · 구 메시를 여러 개체가 함께 쓰므로 메시에 붙이면 색이 덮임)."""
     if o.type in ("MESH", "META") and o.data is not None:
-        o.data.materials.clear()
-        o.data.materials.append(material(key))
+        if not o.data.materials:
+            o.data.materials.append(None)
+        o.material_slots[0].link = "OBJECT"
+        o.material_slots[0].material = material(key)
     o.color = material(key).diffuse_color
     return o
 
@@ -338,7 +341,7 @@ def build_sc1(D, parts, shapes):
                          (sx * 9.5 + 7, 11.5, top - 0.6)), "graphite").parent = bed
     inst(mov, shapes["being"], "빚는 존재 (존재 모양 장면의 being)", (0, 0, top), parent=bed)["being"] = True
     _zones(sc, L, root)
-    _camera(sc, (0, 0, 150), 700, (1.0, -1.3, 0.8))
+    _camera(sc, (0, 0, 150), 1150, (1.0, -1.3, 0.8))
     return sc
 
 
@@ -538,7 +541,7 @@ def build_shapes(D):
         out[key] = c
     floor = paint(P.box_lohi(root, "바닥 z 0 (아래는 잘라 냄 — 받침에 붙는 면)", (-220, -60, -0.4), (220, 60, 0)), "zone")
     floor.hide_render = True
-    _camera(sc, (0, 0, 30), 330, (0.15, -1, 0.25))
+    _camera(sc, (0, 0, 30), 560, (0.15, -1, 0.25))
     return sc, out
 
 
@@ -682,7 +685,7 @@ def build_bottle(D):
     paint(P.box(k, "절개선 B (세로)", (R + 0.3, 0, b["gel_bottom"] + b["block_h"] / 2), (0.6, 2, b["block_h"])), "red")
     paint(P.cyl0(k, "프로브 + (윗면)", (0, 0, b["gel_bottom"] + b["block_h"]), 1.0, 40), "red")
     paint(P.cyl0(k, "프로브 − (아랫면)", (0, 0, b["gel_bottom"] - 40), 1.0, 40), "black")
-    _camera(sc, (0, 0, 95), 260, (0.6, -1, 0.35))
+    _camera(sc, (0, 0, 95), 420, (0.6, -1, 0.35))
     return sc
 
 

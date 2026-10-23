@@ -1,0 +1,477 @@
+{
+ "blender": "5.2.2 LTS",
+ "scenes": [
+  {
+   "scene": "SC-1 조각가",
+   "objects": 97,
+   "meshes": 54,
+   "instances": 34,
+   "drivers": 3,
+   "bad_drivers": [],
+   "bad_modifiers": []
+  },
+  {
+   "scene": "SC-1 부품",
+   "objects": 173,
+   "meshes": 169,
+   "instances": 0,
+   "drivers": 20,
+   "bad_drivers": [],
+   "bad_modifiers": []
+  },
+  {
+   "scene": "SC-2 빛 조각가",
+   "objects": 99,
+   "meshes": 68,
+   "instances": 24,
+   "drivers": 3,
+   "bad_drivers": [],
+   "bad_modifiers": []
+  },
+  {
+   "scene": "SC-2 도구",
+   "objects": 49,
+   "meshes": 45,
+   "instances": 0,
+   "drivers": 0,
+   "bad_drivers": [],
+   "bad_modifiers": []
+  },
+  {
+   "scene": "존재 모양",
+   "objects": 8,
+   "meshes": 5,
+   "instances": 0,
+   "drivers": 0,
+   "bad_drivers": [],
+   "bad_modifiers": []
+  },
+  {
+   "scene": "빚은 세포",
+   "objects": 6,
+   "meshes": 3,
+   "instances": 0,
+   "drivers": 0,
+   "bad_drivers": [],
+   "bad_modifiers": []
+  },
+  {
+   "scene": "시험편",
+   "objects": 44,
+   "meshes": 40,
+   "instances": 0,
+   "drivers": 12,
+   "bad_drivers": [],
+   "bad_modifiers": []
+  },
+  {
+   "scene": "양자 모듈",
+   "objects": 39,
+   "meshes": 35,
+   "instances": 0,
+   "drivers": 67,
+   "bad_drivers": [],
+   "bad_modifiers": []
+  },
+  {
+   "scene": "병 결정",
+   "objects": 11,
+   "meshes": 8,
+   "instances": 0,
+   "drivers": 0,
+   "bad_drivers": [],
+   "bad_modifiers": []
+  }
+ ],
+ "parts": [
+  {
+   "key": "corner",
+   "name": "프레임 꼭짓점",
+   "volume_cm3": 39.5297,
+   "sdf_volume_cm3": 39.57655,
+   "rel": -0.001183590471850983,
+   "nonmanifold_edges": 0,
+   "qty": 8
+  },
+  {
+   "key": "motor_mount",
+   "name": "모터 받침 (NEMA17)",
+   "volume_cm3": 28.6897,
+   "sdf_volume_cm3": 28.6965,
+   "rel": -0.00023731191228693754,
+   "nonmanifold_edges": 0,
+   "qty": 5
+  },
+  {
+   "key": "pen_carriage",
+   "name": "펜 캐리지 (키네마틱 마운트)",
+   "volume_cm3": 28.6264,
+   "sdf_volume_cm3": 28.64264,
+   "rel": -0.0005675963517363804,
+   "nonmanifold_edges": 0,
+   "qty": 1
+  },
+  {
+   "key": "y_end",
+   "name": "X 봉 끝단",
+   "volume_cm3": 27.4164,
+   "sdf_volume_cm3": 27.44062,
+   "rel": -0.000883228467472604,
+   "nonmanifold_edges": 0,
+   "qty": 2
+  },
+  {
+   "key": "pen_body",
+   "name": "SNSS 펜 몸체",
+   "volume_cm3": 29.5382,
+   "sdf_volume_cm3": 29.61363,
+   "rel": -0.0025455107537129392,
+   "nonmanifold_edges": 0,
+   "qty": 1
+  },
+  {
+   "key": "mixer",
+   "name": "나선형 혼합기 4 요소",
+   "volume_cm3": 0.0122,
+   "sdf_volume_cm3": 0.01204,
+   "rel": 0.015642625739941962,
+   "nonmanifold_edges": 0,
+   "qty": 2
+  },
+  {
+   "key": "syringe_pump",
+   "name": "주사기 펌프",
+   "volume_cm3": 71.5301,
+   "sdf_volume_cm3": 71.45933,
+   "rel": 0.0009908172522759995,
+   "nonmanifold_edges": 0,
+   "qty": 3
+  },
+  {
+   "key": "pinch_valve",
+   "name": "핀치 밸브",
+   "volume_cm3": 8.1893,
+   "sdf_volume_cm3": 8.19565,
+   "rel": -0.0007796550694775342,
+   "nonmanifold_edges": 0,
+   "qty": 3
+  },
+  {
+   "key": "tank_base",
+   "name": "배양조 받침",
+   "volume_cm3": 143.701,
+   "sdf_volume_cm3": 142.70886,
+   "rel": 0.0069525312470343145,
+   "nonmanifold_edges": 0,
+   "qty": 1
+  },
+  {
+   "key": "pad_holder",
+   "name": "배양 받침 (수확 손잡이)",
+   "volume_cm3": 10.5861,
+   "sdf_volume_cm3": 10.60263,
+   "rel": -0.0015568390941759363,
+   "nonmanifold_edges": 0,
+   "qty": 1
+  },
+  {
+   "key": "level_probe",
+   "name": "배지 전도도 전극 집게",
+   "volume_cm3": 9.0193,
+   "sdf_volume_cm3": 9.04035,
+   "rel": -0.0023292547938180913,
+   "nonmanifold_edges": 0,
+   "qty": 1
+  },
+  {
+   "key": "port_panel",
+   "name": "단자판 (아날로그 · 디지털 · 양자)",
+   "volume_cm3": 55.7809,
+   "sdf_volume_cm3": 54.9276,
+   "rel": 0.015534953239102657,
+   "nonmanifold_edges": 0,
+   "qty": 1
+  },
+  {
+   "key": "electronics_box",
+   "name": "전자 방수 통 (몸)",
+   "volume_cm3": 116.1114,
+   "sdf_volume_cm3": 115.39478,
+   "rel": 0.00621043322940975,
+   "nonmanifold_edges": 0,
+   "qty": 1
+  },
+  {
+   "key": "motor_pod",
+   "name": "모터 방수 통",
+   "volume_cm3": 35.6203,
+   "sdf_volume_cm3": 35.68064,
+   "rel": -0.0016902451755095018,
+   "nonmanifold_edges": 0,
+   "qty": 8
+  },
+  {
+   "key": "pod_lid",
+   "name": "방수 통 뚜껑",
+   "volume_cm3": 13.876,
+   "sdf_volume_cm3": 13.87311,
+   "rel": 0.0002069670245263888,
+   "nonmanifold_edges": 0,
+   "qty": 8
+  },
+  {
+   "key": "coupler",
+   "name": "자석 커플링 원판",
+   "volume_cm3": 7.9199,
+   "sdf_volume_cm3": 7.94047,
+   "rel": -0.0025860451942180474,
+   "nonmanifold_edges": 0,
+   "qty": 16
+  },
+  {
+   "key": "bushing",
+   "name": "미끄럼 부싱",
+   "volume_cm3": 2.8377,
+   "sdf_volume_cm3": 2.83014,
+   "rel": 0.002674502526304247,
+   "nonmanifold_edges": 0,
+   "qty": 8
+  },
+  {
+   "key": "led_ring",
+   "name": "405 nm 빛 고리",
+   "volume_cm3": 2.6885,
+   "sdf_volume_cm3": 2.66921,
+   "rel": 0.007220061764906005,
+   "nonmanifold_edges": 0,
+   "qty": 1
+  },
+  {
+   "key": "scanner_mount",
+   "name": "스캐너 받침",
+   "volume_cm3": 21.7083,
+   "sdf_volume_cm3": 21.70384,
+   "rel": 0.00020728053804751277,
+   "nonmanifold_edges": 0,
+   "qty": 1
+  },
+  {
+   "key": "belt_clamp",
+   "name": "벨트 물림",
+   "volume_cm3": 1.7925,
+   "sdf_volume_cm3": 1.79411,
+   "rel": -0.0008970529874516743,
+   "nonmanifold_edges": 0,
+   "qty": 2
+  }
+ ],
+ "shapes": {
+  "being": {
+   "volume_cm3": 21.1944,
+   "sdf_volume_cm3": 21.2322,
+   "rel": -0.0017817779617282795,
+   "height": 71.0,
+   "nonmanifold_edges": 0,
+   "triangles": 187402,
+   "stl": "cad_out/blender/shapes/being.stl"
+  },
+  "seed": {
+   "volume_cm3": 51.3163,
+   "sdf_volume_cm3": 51.323,
+   "rel": -0.00013021024006569686,
+   "height": 58.0,
+   "nonmanifold_edges": 0,
+   "triangles": 218130,
+   "stl": "cad_out/blender/shapes/seed.stl"
+  },
+  "bud": {
+   "volume_cm3": 1.608,
+   "sdf_volume_cm3": 1.6221,
+   "rel": -0.00869781689343278,
+   "height": 19.19,
+   "nonmanifold_edges": 0,
+   "triangles": 22852,
+   "stl": "cad_out/blender/shapes/bud.stl"
+  },
+  "coupon": {
+   "volume_cm3": 1.728,
+   "sdf_volume_cm3": 1.728,
+   "rel": 0.0,
+   "height": 12.0,
+   "nonmanifold_edges": 0,
+   "triangles": 20,
+   "stl": "cad_out/blender/shapes/coupon.stl"
+  }
+ },
+ "clearance": {
+  "SC-1": [
+   {
+    "zone": "출력 공간",
+    "part": "방수 통 뚜껑 (Z)",
+    "gap": 40.97
+   },
+   {
+    "zone": "출력 공간",
+    "part": "방수 통 뚜껑 (Z).001",
+    "gap": 40.97
+   },
+   {
+    "zone": "출력 공간",
+    "part": "방수 통 뚜껑 (Z).002",
+    "gap": 40.97
+   },
+   {
+    "zone": "펜 작업 공간 (출력 중)",
+    "part": "전자 방수 통",
+    "gap": 22.0
+   },
+   {
+    "zone": "펜 작업 공간 (출력 중)",
+    "part": "방수 통 뚜껑 (Z)",
+    "gap": 24.19
+   },
+   {
+    "zone": "펜 작업 공간 (출력 중)",
+    "part": "방수 통 뚜껑 (Z).001",
+    "gap": 24.19
+   },
+   {
+    "zone": "펜 이동 공간 (끝 높이 위)",
+    "part": "모터 방수 통 (XY)",
+    "gap": 4.0
+   },
+   {
+    "zone": "펜 이동 공간 (끝 높이 위)",
+    "part": "방수 통 뚜껑 (XY)",
+    "gap": 4.0
+   },
+   {
+    "zone": "펜 이동 공간 (끝 높이 위)",
+    "part": "방수 통 뚜껑 (XY).001",
+    "gap": 4.0
+   },
+   {
+    "zone": "배양 받침 기둥",
+    "part": "방수 통 뚜껑 (GO)",
+    "gap": 25.4
+   },
+   {
+    "zone": "배양 받침 기둥",
+    "part": "방수 통 뚜껑 (SNSS)",
+    "gap": 25.4
+   },
+   {
+    "zone": "배양 받침 기둥",
+    "part": "방수 통 뚜껑 (Z)",
+    "gap": 25.96
+   },
+   {
+    "zone": "손 · 수확 통로 (주차 때)",
+    "part": "방수 통 뚜껑 (Z)",
+    "gap": 20.33
+   },
+   {
+    "zone": "손 · 수확 통로 (주차 때)",
+    "part": "방수 통 뚜껑 (Z).001",
+    "gap": 20.33
+   },
+   {
+    "zone": "손 · 수확 통로 (주차 때)",
+    "part": "방수 통 뚜껑 (Z).002",
+    "gap": 20.33
+   }
+  ],
+  "SC-2": [
+   {
+    "zone": "출력 공간",
+    "part": "잉크 우물 테 (X)",
+    "gap": 20.0
+   },
+   {
+    "zone": "출력 공간",
+    "part": "잉크 우물 테 (Y)",
+    "gap": 20.0
+   },
+   {
+    "zone": "출력 공간",
+    "part": "잉크 우물 테 (X).001",
+    "gap": 20.0
+   },
+   {
+    "zone": "빛길 (프로젝터 렌즈 → 수면)",
+    "part": "광엔진 렌즈 (405 + 530 nm, 이색 거울)",
+    "gap": 2.5
+   },
+   {
+    "zone": "빛길 (프로젝터 렌즈 → 수면)",
+    "part": "405 nm 프로젝터 (수조 위)",
+    "gap": 5.0
+   },
+   {
+    "zone": "빛길 (프로젝터 렌즈 → 수면)",
+    "part": "잉크 우물 테 (X)",
+    "gap": 20.0
+   },
+   {
+    "zone": "배양 받침 기둥",
+    "part": "잉크 우물 테 (X)",
+    "gap": 13.0
+   },
+   {
+    "zone": "배양 받침 기둥",
+    "part": "잉크 우물 테 (Y)",
+    "gap": 13.0
+   },
+   {
+    "zone": "배양 받침 기둥",
+    "part": "잉크 우물 테 (X).001",
+    "gap": 13.0
+   },
+   {
+    "zone": "손 · 수확 통로 (테 들어낸 뒤)",
+    "part": "잉크 우물 테 (X)",
+    "gap": 5.0
+   },
+   {
+    "zone": "손 · 수확 통로 (테 들어낸 뒤)",
+    "part": "잉크 우물 테 (Y)",
+    "gap": 5.0
+   },
+   {
+    "zone": "손 · 수확 통로 (테 들어낸 뒤)",
+    "part": "잉크 우물 테 (X).001",
+    "gap": 5.0
+   },
+   {
+    "zone": "도구 작업 공간 (도구 면 위)",
+    "part": "XY 모터 방수 통 (도구)",
+    "gap": 27.49
+   },
+   {
+    "zone": "도구 작업 공간 (도구 면 위)",
+    "part": "XY 모터 방수 통 (도구).001",
+    "gap": 27.49
+   }
+  ]
+ },
+ "motion": {
+  "SC-1": [],
+  "SC-2": []
+ },
+ "renders": [
+  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/01_SC-1 조각가.png",
+  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/02_SC-1 부품.png",
+  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/03_SC-2 빛 조각가.png",
+  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/04_SC-2 도구.png",
+  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/05_존재 모양.png",
+  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/06_빚은 세포.png",
+  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/07_시험편.png",
+  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/08_양자 모듈.png",
+  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/09_병 결정.png"
+ ],
+ "quantum": {
+  "layers": 35,
+  "top_z_mm": 1.501813530921936
+ },
+ "seconds": 57.6
+}
