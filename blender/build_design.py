@@ -38,7 +38,7 @@ def main():
     step("SC-2 도구 · 빛 조각가")
     st, tools = build.build_tools(D)
     s2 = build.build_sc2(D, parts, tools, shapes)
-    step("SC-3 솜사탕 조각가")
+    step("SC-3 영점 막대")
     s3 = build.build_sc3(D, parts, shapes)
     step("빚은 세포 · 시험편 · 양자 모듈 · 병 결정")
     sc_cells = build.build_cells(D)

@@ -305,7 +305,7 @@ def build_sc1(D, parts, shapes):
                 o.parent = g
                 paint(o, "cf")
     for sx in (-1, 1):
-        inst(mov, parts["y_end"], "X 봉 끝단", (sx * 121, park[1], gz - 15), (0, 0, math.pi / 2), g)
+        inst(mov, parts["y_end"], "X 막대 끝단", (sx * 121, park[1], gz - 15), (0, 0, math.pi / 2), g)
     car = empty(mov, "캐리지 · 펜 (PenX)", parent=g)
     P.drive(car, "location", 0, f"v - {park[0]}", v=(d, '["PenX"]'))
     px, py = park
@@ -510,17 +510,17 @@ def paint_curve(o, key):
     o.data.materials.append(material(key))
 
 
-# ---------- SC-3 솜사탕 조각가 ----------
+# ---------- SC-3 영점 막대 ----------
 def build_sc3(D, parts, shapes):
-    """패드 없이 — 위 다리에서 내려온 솜사탕 봉 끝(영점)부터 존재가 자람. 모터 · 펌프는 물 밖(다리 위)."""
+    """패드 없이 — 위 다리에서 내려온 영점 막대 끝(영점)부터 존재가 자람. 모터 · 펌프는 물 밖(다리 위)."""
     k = D["candy"]
     sp = k["spec"]
     zc, fill, bz = sp["work_center_z"], sp["fill"], sp["bridge_z"]
     zx, zy, zz = k["zero_mm"]
-    sc = scene("SC-3 솜사탕 조각가")
-    root = coll(sc, "솜사탕 조각가 SC-3")
+    sc = scene("SC-3 영점 막대")
+    root = coll(sc, "영점 막대 SC-3 SC-3")
     d = dims(sc, coll(root, "치수"), [("Grow", 24.0, f"자란 반지름 mm (영점에서, 다 자라면 {k['r_max']:.0f})", 0, k["r_max"] + 2),
-                                       ("TurnTable", 0.0, "봉 회전 도 (주사 중 계속 돎 · HW 뷰포트 돌려 보기)", -180, 180),
+                                       ("TurnTable", 0.0, "막대 회전 도 (주사 중 계속 돎 · HW 뷰포트 돌려 보기)", -180, 180),
                                        ("ArmR", 24.0, "주사 팔 반지름 mm (영점에서)", 0, 80), ("ArmZ", 0.0, "주사 팔 높이 mm (영점 기준)", -60, 60)])
     _bath(root, sp["tank_inner"], fill)
     TI = sp["tank_inner"][0]
@@ -531,26 +531,26 @@ def build_sc3(D, parts, shapes):
     hole = sp["bridge_hole"] / 2
     for lo, hi in (((-TI / 2 - 12, -TI / 2 - 12, bz), (TI / 2 + 12, -hole, bz + 10)), ((-TI / 2 - 12, hole, bz), (TI / 2 + 12, TI / 2 + 12, bz + 10)),
                    ((-TI / 2 - 12, -hole, bz), (-hole, hole, bz + 10)), ((hole, -hole, bz), (TI / 2 + 12, hole, bz + 10))):
-        paint(P.box_lohi(dry, "다리 판 (가운데 구멍 — 존재가 봉째 올라옴)", lo, hi), "petg")
-    paint(P.cyl0(dry, "봉 회전 모터 (NEMA17, 물 밖)", (0, -hole - 30, bz + 10), 21, 40), "dark")
-    paint(P.box_lohi(dry, "봉 회전 벨트 · 고정 집게", (-10, -hole - 30, bz + 10), (10, 0, bz + 22)), "petg_dark")
+        paint(P.box_lohi(dry, "다리 판 (가운데 구멍 — 존재가 막대째 올라옴)", lo, hi), "petg")
+    paint(P.cyl0(dry, "막대 회전 모터 (NEMA17, 물 밖)", (0, -hole - 30, bz + 10), 21, 40), "dark")
+    paint(P.box_lohi(dry, "막대 회전 벨트 · 고정 집게", (-10, -hole - 30, bz + 10), (10, 0, bz + 22)), "petg_dark")
     for i, lab in enumerate(("GO p (NBD)", "GO n (PEI)", "GO 막", "PVA 10 %")):
         y = -120 + i * 40
         paint(P.cyl(dry, f"주사기 {lab} (물 밖)", (TI / 2 - 40, y, bz + 25), 11, 110, 0), "pipette")
         paint(P.box_lohi(dry, f"주사기 펌프 {lab}", (TI / 2 - 100, y - 14, bz + 10), (TI / 2 + 20, y + 14, bz + 14)), "petg")
     paint(P.box_lohi(dry, "팔 레일 (r 방향, 탄소섬유)", (-hole, 40, bz + 10), (TI / 2, 52, bz + 22)), "cf")
     # 봉 (돎) + 존재
-    spin = empty(root, "솜사탕 봉 (TurnTable 로 돎)", (0, 0, 0))
+    spin = empty(root, "영점 막대 (TurnTable 로 돎)", (0, 0, 0))
     P.drive(spin, "rotation_euler", 2, "v * 0.0174533", v=(d, '["TurnTable"]'))
-    wet = coll(root, "물속 — 봉 · 팔 · 주사 끝 (비금속)")
-    s = paint(P.cyl0(wet, f"솜사탕 봉 Ø{sp['stick_d']:g} (PETG 관, 뽑아 꺼냄)", (0, 0, zc), sp["stick_d"] / 2, bz + 30 - zc), "petg")
+    wet = coll(root, "물속 — 막대 · 팔 · 주사 끝 (비금속)")
+    s = paint(P.cyl0(wet, f"영점 막대 Ø{sp['stick_d']:g} (PETG 관, 뽑아 꺼냄)", (0, 0, zc), sp["stick_d"] / 2, bz + 30 - zc), "petg")
     s.parent = spin
     for sx, key, lab in ((-1, "red", "+"), (1, "neg", "−")):
-        g = paint(P.cyl0(wet, f"봉 흑연 심 {lab} (끝 12 mm 드러남 — 존재의 단자)", (sx * 1.6, 0, zc - 0.5), 1.0, 12.5), "graphite")
+        g = paint(P.cyl0(wet, f"막대 흑연 심 {lab} (끝 12 mm 드러남 — 존재의 단자)", (sx * 1.6, 0, zc - 0.5), 1.0, 12.5), "graphite")
         g.parent = spin
         t = paint(P.cyl0(wet, f"단자 테 {lab}", (sx * 1.6, 0, zc + 12), 1.2, 0.8), key)
         t.parent = spin
-    zp = paint(P.sphere(wet, "3D 프린팅 영점 — 솜사탕 봉 끝", (0, 0, zc), 1.6), "label")
+    zp = paint(P.sphere(wet, "3D 프린팅 영점 — 영점 막대 끝", (0, 0, zc), 1.6), "label")
     zp.parent = spin
     being_mesh = next(iter(shapes["being"].objects))
     grow = bpy.data.objects.new("자라는 존재 (영점에서 Grow mm 까지)", being_mesh.data)
@@ -564,7 +564,7 @@ def build_sc3(D, parts, shapes):
         P.drive(cut, "scale", ax, "max(0.01, g)", g=(d, '["Grow"]'))
     m = grow.modifiers.new("자람 (영점에서 Grow 까지)", "BOOLEAN")
     m.operation, m.object, m.solver = "INTERSECT", cut, "FLOAT"
-    # 주사 팔: r · z (봉은 돌고 팔은 한 자리에서 반지름 · 높이만)
+    # 주사 팔: r · z (막대는 돌고 팔은 한 자리에서 반지름 · 높이만)
     arm = empty(root, "주사 팔 (ArmR · ArmZ)", (0, 0, 0))
     P.drive(arm, "location", 0, "r", r=(d, '["ArmR"]'))
     P.drive(arm, "location", 2, "z", z=(d, '["ArmZ"]'))
@@ -574,7 +574,7 @@ def build_sc3(D, parts, shapes):
               paint(P.cyl0(wet, "405 nm 빛 (세포질만 — 전자기파로 구조화)", (0, 8, zc + 1), 2.2, 2), "lens")):
         o.parent = arm
     _console(root, D, parts, "sc3")
-    _labels(root, [("3D 프린팅 영점 — 솜사탕 봉 끝 (패드 없음)", (0, 0, zc), (-470, -260, zc + 40)),
+    _labels(root, [("3D 프린팅 영점 — 영점 좌표 막대 끝 (패드 없음)", (0, 0, zc), (-470, -260, zc + 40)),
                    ("자라는 존재 — 영점에서 껍질처럼 바깥으로", (0, 0, zc - 20), (-470, -260, zc)),
                    ("GO · PVA 주사 + 405 nm (물속은 비금속)", (24, 0, zc), (-470, -260, zc - 40)),
                    ("모터 · 펌프는 물 밖 다리 위", (0, -90, bz + 20), (-470, -260, bz + 40)),

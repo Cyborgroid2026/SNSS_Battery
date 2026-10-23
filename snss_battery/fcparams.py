@@ -133,7 +133,7 @@ def design() -> dict:
 
 
 def _candy() -> dict:
-    """SC-3 솜사탕 조각가 — 기본 존재의 영점 · 단계 (Blender 장면 · 브라우저 과정 판)."""
+    """SC-3 영점 막대 — 기본 존재의 영점 · 단계 (Blender 장면 · 브라우저 과정 판)."""
     from .candy import CandySpec, Process, plan
 
     sp = CandySpec()

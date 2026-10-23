@@ -27,7 +27,7 @@ OUT = ROOT / "cad_out" / "blender"
 UI = Path(__file__).resolve().parent / "webui"
 VENDOR = ROOT / "snss_battery" / "vendor" / "three"
 GEOMETRY_KEYS = {"Rod", "Lm8uu", "Grow"}  # 이 값은 부품 모양을 바꿈 → 메시를 다시 보냄
-HW_SCENES = {"SC-3 솜사탕 조각가": "sc3", "SC-1 조각가": "sc1", "SC-2 빛 조각가": "sc2"}
+HW_SCENES = {"SC-3 영점 막대": "sc3", "SC-1 조각가": "sc1", "SC-2 빛 조각가": "sc2"}
 
 
 class State:
@@ -149,7 +149,7 @@ def info() -> dict:
                 dims.append({"key": k, "value": float(d[k]), "min": ui.get("min", 0), "max": ui.get("max", 1), "desc": ui.get("description", "")})
         view = build.pad_view(sc) if sc.name in HW_SCENES else None
         out.append({"name": sc.name, "dims": dims, "hw": HW_SCENES.get(sc.name), "pad": list(view) if view else None})
-    order = ["SC-3 솜사탕 조각가", "SC-1 조각가", "SC-2 빛 조각가", "존재 모양", "빚은 세포", "SC-1 부품", "SC-2 도구", "시험편", "양자 모듈", "병 결정"]
+    order = ["SC-3 영점 막대", "SC-1 조각가", "SC-2 빛 조각가", "존재 모양", "빚은 세포", "SC-1 부품", "SC-2 도구", "시험편", "양자 모듈", "병 결정"]
     out.sort(key=lambda s: order.index(s["name"]) if s["name"] in order else 99)
     c = state().design.get("console", {})
     return {"scenes": out, "keymap": c.get("keymap", []), "turn_limit": c.get("turntable", {}).get("limit_deg", 180),

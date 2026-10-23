@@ -767,7 +767,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--web", action="store_true", help="브라우저 속 Blender — Blender 가 웹 서버가 됨 (VS Code 통합 브라우저로)")
     p.add_argument("--port", type=int, default=8790)
     p.set_defaults(func=cmd_blender_design)
-    p = sub.add_parser("candy", help="솜사탕 조각가 SC-3 — 봉 끝 영점에서 자라는 존재 · 과정(반복 · 수정) · SD 굽기 · 아날로그 재생")
+    p = sub.add_parser("candy", help="SC-3 영점 막대 — 영점 좌표 막대 위에 결정이 생성 · 과정(반복 · 수정) · SD 굽기 · 아날로그 재생")
     p.add_argument("op", choices=["new", "play", "reburn"], help="new 계획 · 굽기 · play SD 재생(데스크톱 흉내) · reburn 고친 것 반영해 다시 굽기")
     p.add_argument("shape", nargs="?", default="being", help="new/reburn: 모양 (being · seed · bud · .stl)")
     p.add_argument("--path", default="cad_out/sd/being", help="play/reburn: SD 자리 (그 아래 SNSS/)")

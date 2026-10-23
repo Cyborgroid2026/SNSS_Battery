@@ -357,7 +357,7 @@ async function showSelection(it) {
 }
 async function showProcess() {
   const box = $("#procBox");
-  box.hidden = SCENE !== "SC-3 솜사탕 조각가";
+  box.hidden = SCENE !== "SC-3 영점 막대";
   if (box.hidden) return;
   const p = await api("/api/process").catch((e) => ({ error: e.message }));
   const el = $("#proc");

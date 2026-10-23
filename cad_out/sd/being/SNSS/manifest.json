@@ -1,7 +1,7 @@
 {
  "format": "SNSS-SD 1",
  "name": "being",
- "burned": "2026-10-23 12:38:20",
+ "burned": "2026-10-23 12:42:01",
  "rate_hz": 50.0,
  "channels": [
   {
@@ -210,21 +210,21 @@
  "files": {
   "program.cv": "5d3c6bd9",
   "process.json": "93f5c8f0",
-  "monitors/step_00.png": "22bcb6a4",
-  "monitors/step_01.png": "8f1be2b1",
-  "monitors/step_02.png": "58226891",
-  "monitors/step_03.png": "004c63db",
-  "monitors/step_04.png": "b98450fe",
-  "monitors/step_05.png": "9274c380",
-  "monitors/step_06.png": "724fecc4",
-  "monitors/step_07.png": "b1aa41aa",
-  "monitors/step_08.png": "8c5b50e7",
-  "monitors/step_09.png": "e9a4b87b",
-  "monitors/step_10.png": "e0cb7136",
-  "monitors/step_11.png": "d5d7c15f",
+  "monitors/step_00.png": "cecd086d",
+  "monitors/step_01.png": "30c76035",
+  "monitors/step_02.png": "a0bf269b",
+  "monitors/step_03.png": "bf372828",
+  "monitors/step_04.png": "25768bbf",
+  "monitors/step_05.png": "2ef8db8c",
+  "monitors/step_06.png": "03173a77",
+  "monitors/step_07.png": "ec99dd2a",
+  "monitors/step_08.png": "90a1368d",
+  "monitors/step_09.png": "73f21943",
+  "monitors/step_10.png": "7d4be1f8",
+  "monitors/step_11.png": "4a24039f",
   "monitors/timeline.png": "c9483f2c"
  },
- "bytes": 19130355,
+ "bytes": 19128776,
  "clock": "외부 10 MHz → 1 PPS (Q1 · Q2) 에 표본 시계 맞춤",
  "zero_mm": [
   0.0,

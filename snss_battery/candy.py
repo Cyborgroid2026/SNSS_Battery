@@ -1,10 +1,10 @@
-"""솜사탕 조각가 SC-3 — 패드 없이, 봉 끝 영점에서부터 존재가 자람 (명세: spec/CANDY.md).
+"""SC-3 영점 막대 — 패드 없이, 영점 좌표 막대 위에 결정(존재)이 생성됨 (명세: spec/CANDY.md).
 
-멸균생리식염수(154 mM > CCC)가 가득한 수조 안에 위에서 **솜사탕 봉**을 꽂고, 봉이 돌면서(θ) 주사 팔(r · z)의
+멸균생리식염수(154 mM > CCC)가 가득한 수조 안에 위에서 **영점 막대**을 꽂고, 막대가 돌면서(θ) 주사 팔(r · z)의
 GO · PVA 주사기가 잉크를 넣는다. 잉크는 배지에 닿자마자 염으로 엉기고(SC-1 과 같은 물리), 405 nm 빛(전자기파)이
-세포질을 광환원. 쌓는 순서는 **영점에서 가까운 칸부터** — 솜사탕처럼 껍질이 바깥으로 두꺼워진다. 다 자라면 봉째 뽑는다.
+세포질을 광환원. 쌓는 순서는 **영점에서 가까운 칸부터** — 솜사탕이 막대에 감겨 자라는 모습처럼, 영점에서 껍질이 바깥으로 두꺼워진다 (솜사탕은 모습만 빌린 비유). 다 자라면 막대째 뽑는다.
 
-모터는 모두 수조 위 다리(물 밖)에 — 물에 잠기는 것은 봉 · 팔 · 주사 끝 (PETG · 탄소섬유 · PEEK · 흑연)뿐.
+모터는 모두 수조 위 다리(물 밖)에 — 물에 잠기는 것은 막대 · 팔 · 주사 끝 (PETG · 탄소섬유 · PEEK · 흑연)뿐.
 과정(Process)은 단계(껍질 묶음)의 목록이라 **반복**(repeat) · **수정**(edit) 할 수 있고, 그대로 SD 로 구워진다 (sdcard.py).
 """
 
@@ -22,11 +22,11 @@ from .sculpt import MEM, NEG, POS, design
 
 @dataclass(frozen=True)
 class Stick:
-    """솜사탕 봉 — 위 다리에서 아래로. 끝이 영점, 그 둘레에 존재가 붙어 자람. 봉째 뽑아 꺼냄."""
+    """영점 막대 — 위 다리에서 아래로. 끝이 영점, 그 둘레에 존재가 붙어 자람. 막대째 뽑아 꺼냄."""
 
     diameter_mm: float = 6.0  # PETG 관 + 흑연 심 두 줄 (+ · −, 실리콘으로 갈라 둠)
     leads: str = "연필심 Ø2 두 줄 (+ 한쪽 · − 반대쪽, 끝 12 mm 만 드러남) — 존재의 단자"
-    zero_mm: tuple[float, float, float] = (0.0, 0.0, 34.0)  # 존재 좌표의 영점 (몸통 가운데) — 봉은 머리 위로 빠짐
+    zero_mm: tuple[float, float, float] = (0.0, 0.0, 34.0)  # 존재 좌표의 영점 (몸통 가운데) — 막대는 머리 위로 빠짐
     rpm_max: float = 6.0
 
 
@@ -44,12 +44,12 @@ class Syringes:
 
 @dataclass(frozen=True)
 class CandySpec:
-    name: str = "솜사탕 조각가 SC-3 — 영점에서 자라는 존재"
+    name: str = "SC-3 영점 막대 — 결정이 영점 좌표 막대 위에서 생성"
     tank_inner_mm: tuple[float, float, float] = (350.0, 350.0, 350.0)
     fill_mm: float = 330.0
     work_center_z: float = 170.0  # 수조 안에서 영점 높이 (가운데쯤 — 사방이 비어 자람)
-    bridge_z: float = 380.0  # 수조 위 다리 (모터 · 봉 회전 · 팔 레일, 물 밖)
-    bridge_hole_mm: float = 120.0  # 다리 가운데 구멍 — 봉을 빼면 존재가 이 구멍으로 올라옴
+    bridge_z: float = 380.0  # 수조 위 다리 (모터 · 막대 회전 · 팔 레일, 물 밖)
+    bridge_hole_mm: float = 120.0  # 다리 가운데 구멍 — 막대를 빼면 존재가 이 구멍으로 올라옴
     stick: Stick = field(default_factory=Stick)
     syringes: Syringes = field(default_factory=Syringes)
     shell_mm: float = 0.41  # 껍질 두께 = 선폭
@@ -58,7 +58,7 @@ class CandySpec:
 
     @property
     def zero_tank(self) -> tuple[float, float, float]:
-        """수조 좌표의 영점 (봉 끝)."""
+        """수조 좌표의 영점 (막대 끝)."""
         return (0.0, 0.0, self.work_center_z)
 
 
@@ -79,12 +79,12 @@ def plan(shape: str = "being", height_mm: float = 0.0, spec: CandySpec | None = 
     zx, zy, zz = spec.stick.zero_mm
     zz = min(zz, float(z.max()) * 0.5)  # 낮은 모양은 가운데 높이로
     d = np.sqrt((x - zx) ** 2 + (y - zy) ** 2 + (z - zz) ** 2)
-    stick = (np.hypot(x - zx, y - zy) < spec.stick.diameter_mm / 2) & (z > zz)  # 봉 자리 (머리 위로 빠지는 길) — 비워 둠
+    stick = (np.hypot(x - zx, y - zy) < spec.stick.diameter_mm / 2) & (z > zz)  # 막대 자리 (머리 위로 빠지는 길) — 비워 둠
     keep = ~stick
     mat = piece.material[I, J, K][keep]
     d, x, y, z = d[keep], x[keep], y[keep], z[keep]
     shell = np.floor(d / spec.shell_mm).astype(int)
-    order = np.lexsort((np.arctan2(y - zy, x - zx), z, shell))  # 껍질 → 높이 → 각도 (봉이 도는 방향)
+    order = np.lexsort((np.arctan2(y - zy, x - zx), z, shell))  # 껍질 → 높이 → 각도 (막대가 도는 방향)
     vox_mm3 = px * px * pz
     flow = spec.syringes.nozzle_mm * spec.layer_mm * spec.syringes.speed_mm_s  # mm³/s
     n_shell = int(shell.max()) + 1
@@ -186,7 +186,7 @@ def state_at(pl: dict, proc: Process, t: float) -> dict:
 
 
 def strokes(pl: dict, spec: CandySpec | None = None) -> np.ndarray:
-    """칸 순서 → 기계 좌표 (봉 각도 θ°, 팔 r mm, 팔 z mm, 재료) — 봉이 θ 로 돌고 팔은 반지름 · 높이만 움직임."""
+    """칸 순서 → 기계 좌표 (막대 각도 θ°, 팔 r mm, 팔 z mm, 재료) — 막대가 θ 로 돌고 팔은 반지름 · 높이만 움직임."""
     spec = spec or pl["spec"]
     zx, zy, zz = pl["zero_mm"]
     xyz = pl["xyz"]
@@ -198,7 +198,7 @@ def strokes(pl: dict, spec: CandySpec | None = None) -> np.ndarray:
 
 
 def check(pl: dict) -> list[str]:
-    """설계 점검: 존재가 수조 안 · 수면 아래에 자라고, 봉째 뽑을 때 다리 아래로 빠지는지."""
+    """설계 점검: 존재가 수조 안 · 수면 아래에 자라고, 막대째 뽑을 때 다리 아래로 빠지는지."""
     sp = pl["spec"]
     bad = []
     xyz = pl["xyz"]
@@ -213,7 +213,7 @@ def check(pl: dict) -> list[str]:
     if half > sp.tank_inner_mm[0] / 2 - 30:
         bad.append("존재가 수조 벽 30 mm 안으로 들어옴")
     if 2 * half + 10 > sp.bridge_hole_mm:
-        bad.append(f"존재 폭 {2 * half:.0f} mm 가 다리 구멍 {sp.bridge_hole_mm:g} mm 를 못 지나감 (봉째 뽑기)")
+        bad.append(f"존재 폭 {2 * half:.0f} mm 가 다리 구멍 {sp.bridge_hole_mm:g} mm 를 못 지나감 (막대째 뽑기)")
     return bad
 
 
@@ -221,7 +221,7 @@ def describe(pl: dict, proc: Process) -> str:
     sp, p = pl["spec"], pl["piece"]
     n = len(pl["mat"])
     lines = [f"[{sp.name} — {proc.name}] 높이 {p.height_mm:.1f} mm · 칸 {n} · 영점 {tuple(round(v, 1) for v in pl['zero_mm'])} mm (존재 좌표)",
-             f"  봉 Ø{sp.stick.diameter_mm:g} ({sp.stick.leads}) · 주사기 GO {sp.syringes.go_mg_ml:g} mg/mL ×3 (p · n · 막) + PVA {sp.syringes.pva_wt:g} % — 염은 배지 154 mM",
+             f"  막대 Ø{sp.stick.diameter_mm:g} ({sp.stick.leads}) · 주사기 GO {sp.syringes.go_mg_ml:g} mg/mL ×3 (p · n · 막) + PVA {sp.syringes.pva_wt:g} % — 염은 배지 154 mM",
              f"  껍질 {int(pl['shell'][-1]) + 1}개 × {sp.shell_mm} mm → 단계 {len(proc.steps)}개 (단계 = 껍질 {sp.shells_per_step}) · 흐름 {pl['flow_mm3_s']:.2f} mm³/s",
              f"  시간 약 {proc.total_s() / 3600:.1f} h (반복 · 수정 반영) · 고친 것 {len(proc.edits)}건"]
     for s in proc.steps[:3] + ([{"i": "…"}] if len(proc.steps) > 6 else []) + proc.steps[-3:]:
@@ -231,7 +231,7 @@ def describe(pl: dict, proc: Process) -> str:
         flag = " (건너뜀)" if s["skip"] else f" ×{s['repeat']}" if s["repeat"] > 1 else ""
         lines.append(f"    단계 {s['i']:>2}  r {s['r_mm'][0]:5.1f}–{s['r_mm'][1]:5.1f} mm · 칸 {s['voxels']:>6} · {s['seconds'] / 60:5.1f} 분{flag}")
     bad = check(pl)
-    lines.append("  점검: " + ("통과 — 수면 아래 · 수조 안에서 자라고 봉째 뽑힘" if not bad else "; ".join(bad)))
+    lines.append("  점검: " + ("통과 — 수면 아래 · 수조 안에서 자라고 막대째 뽑힘" if not bad else "; ".join(bad)))
     return "\n".join(lines)
 
 

@@ -1,6 +1,6 @@
 """SD / microSD 굽기 — 이 컴퓨터가 계산해 굽고, 수조 밑 양자 아날로그 데스크톱이 재생한다 (명세: spec/CANDY.md §4).
 
-굽기(burn)는 과정(candy.Process)을 **아날로그 제어 전압(CV) 표**로 펼친다: 봉 각도 · 팔 r · 팔 z · 주사기 넷 · 빛 · 트리거.
+굽기(burn)는 과정(candy.Process)을 **아날로그 제어 전압(CV) 표**로 펼친다: 막대 각도 · 팔 r · 팔 z · 주사기 넷 · 빛 · 트리거.
 데스크톱은 계산하지 않는다 — SD 를 읽어 그 전압을 양자 기준 시계(10 MHz → 1 PPS)에 맞춰 내보내고, 모니터에는 구워 둔 화면을 띄운다.
 키보드 · 마우스로 단계 표시점(cue) 사이를 오가며 반복 · 건너뛰기를 하고, 고친 것은 SD 의 edits.json 에 적는다 → 이 컴퓨터가 읽어 다시 굽는다.
 
@@ -95,7 +95,7 @@ def _monitor_frames(pl: dict, proc: Process, folder: Path) -> list[str]:
             img.paste(Image.fromarray(rgb), (panel * W, 0), Image.fromarray((g * 255).astype(np.uint8)))
             d.ellipse((panel * W + W / 2 - 3, W / 2 - 3, panel * W + W / 2 + 3, W / 2 + 3), fill=(255, 80, 60))  # 영점
         d.text((8, 8), f"{proc.name} · 단계 {s['i']} · r {s['r_mm'][1]:.1f} mm · 위", fill=(255, 220, 120), font=font)
-        d.text((W + 8, 8), "옆 (봉은 위로)", fill=(255, 220, 120), font=font)
+        d.text((W + 8, 8), "옆 (막대는 위로)", fill=(255, 220, 120), font=font)
         f = folder / f"step_{s['i']:02d}.png"
         img.save(f)
         files.append(f.name)
