@@ -518,7 +518,7 @@ def build_sc3(D, parts, shapes):
     zc, fill, bz = sp["work_center_z"], sp["fill"], sp["bridge_z"]
     zx, zy, zz = k["zero_mm"]
     sc = scene("SC-3 영점 막대")
-    root = coll(sc, "영점 막대 SC-3 SC-3")
+    root = coll(sc, "영점 막대 SC-3")
     d = dims(sc, coll(root, "치수"), [("Grow", 24.0, f"자란 반지름 mm (영점에서, 다 자라면 {k['r_max']:.0f})", 0, k["r_max"] + 2),
                                        ("TurnTable", 0.0, "막대 회전 도 (주사 중 계속 돎 · HW 뷰포트 돌려 보기)", -180, 180),
                                        ("ArmR", 24.0, "주사 팔 반지름 mm (영점에서)", 0, 80), ("ArmZ", 0.0, "주사 팔 높이 mm (영점 기준)", -60, 60)])
