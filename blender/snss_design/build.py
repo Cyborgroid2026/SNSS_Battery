@@ -542,16 +542,25 @@ def build_shapes(D):
 
 
 def build_cells(D, reduce=0.1):
-    import numpy as np
-
     job = D.get("jobs", {}).get("sc1")
     if not job:
         return None
-    npz = next(Path(job["folder"]).glob("*_mesh.npz"), None)
+    return load_cells(Path(job["folder"]), reduce)
+
+
+def load_cells(folder: Path, reduce=0.1):
+    """작업 폴더의 이름_mesh.npz (p · n · 막 표면망) → '빚은 세포' 장면 (있으면 비우고 다시)."""
+    import numpy as np
+
+    npz = next(Path(folder).glob("*_mesh.npz"), None)
     if npz is None:
         return None
-    sc = scene("빚은 세포")
-    c = coll(sc, f"마지막 작업 {Path(job['folder']).name} — 양자 인공세포")
+    sc = bpy.data.scenes.get("빚은 세포") or scene("빚은 세포")
+    for c in list(sc.collection.children):
+        for o in list(c.all_objects):
+            bpy.data.objects.remove(o)
+        bpy.data.collections.remove(c)
+    c = coll(sc, f"작업 {Path(folder).name} — 양자 인공세포")
     z = np.load(npz)
     for role, label, k in (("pos", "p 세포질 (+)", "pos"), ("neg", "n 세포질 (−)", "neg"), ("mem", "막 · 피부 (GO)", "mem")):
         if f"{role}_v" not in z.files:
@@ -565,11 +574,6 @@ def build_cells(D, reduce=0.1):
         me.polygons.add(len(f))
         me.polygons.foreach_set("loop_start", np.arange(0, len(f) * 3, 3, dtype=np.int32))
         me.update(calc_edges=True)
-        bm = bmesh.new()
-        bm.from_mesh(me)
-        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
-        bm.to_mesh(me)
-        bm.free()
         o = bpy.data.objects.new(label, me)
         c.objects.link(o)
         dm = o.modifiers.new("줄이기", "DECIMATE")
@@ -580,7 +584,8 @@ def build_cells(D, reduce=0.1):
         bpy.data.meshes.remove(me)
         o.name = f"{label} — 삼각형 {len(small.polygons)}"
         paint(o, k)
-    _camera(sc, (0, 0, 36), 120, (0.4, -1, 0.4))
+    if sc.camera is None:
+        _camera(sc, (0, 0, 36), 120, (0.4, -1, 0.4))
     return sc
 
 

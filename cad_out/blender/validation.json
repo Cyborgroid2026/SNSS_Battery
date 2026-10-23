@@ -177,10 +177,10 @@
   {
    "key": "level_probe",
    "name": "배지 전도도 전극 집게",
-   "volume_cm3": 9.024,
+   "volume_cm3": 9.0193,
    "sdf_volume_cm3": 9.04035,
-   "rel": -0.001811526507605482,
-   "nonmanifold_edges": 3,
+   "rel": -0.0023292547938180913,
+   "nonmanifold_edges": 0,
    "qty": 1
   },
   {
@@ -463,5 +463,5 @@
   "layers": 35,
   "top_z_mm": 1.501813530921936
  },
- "seconds": 14.1
+ "seconds": 13.4
 }

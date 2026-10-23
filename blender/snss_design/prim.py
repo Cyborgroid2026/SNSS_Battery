@@ -135,6 +135,7 @@ def realize(node, mat_coll, name):
                 _hide(k, sub)
             m = base.modifiers.new("더하기", "BOOLEAN")
             m.operation, m.operand_type, m.collection, m.solver = "UNION", "COLLECTION", sub, "EXACT"
+            m.use_hole_tolerant = True  # 같은 평면에서 만나는 면 (예: 전극 집게 걸이)
         return base
     base = realize(node[1], mat_coll, name)
     tools = [realize(k, mat_coll, name) for k in node[2]]
