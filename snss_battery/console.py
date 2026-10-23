@@ -115,10 +115,10 @@ class Console:
     def klipper_macros(self) -> str:
         t, v = self.turntable, self.view_light
         return "\n".join([
-            "[gcode_macro TURN]", "description: 회전 받침 (±%g°) — HW 뷰포트 돌려 보기" % t.limit_deg, "gcode:",
+            "[gcode_macro TURN]", f"description: 회전 받침 (±{t.limit_deg:g}°) — HW 뷰포트 돌려 보기", "gcode:",
             "  {% set a = params.A|default(0)|float %}",
-            "  {% if a|abs > %g %}{ action_raise_error('회전 한도 ±%g°') }{% endif %}" % (t.limit_deg, t.limit_deg),
-            "  MANUAL_STEPPER STEPPER=turn MOVE={a} SPEED=%g" % t.deg_s, "",
+            f"  {{% if a|abs > {t.limit_deg:g} %}}{{ action_raise_error('회전 한도 ±{t.limit_deg:g}°') }}{{% endif %}}",
+            f"  MANUAL_STEPPER STEPPER=turn MOVE={{a}} SPEED={t.deg_s:g}", "",
             "[gcode_macro VIEW_LIGHT]", f"description: 보기 빛 {v.nm:g} nm (굳지 않음) — 고른 곳 비춤", "gcode:",
             "  RESPOND MSG=\"VIEW_LIGHT {rawparams}\"  ; 데스크톱 프로젝터 창이 빨강 원(또는 층 단면)을 그림", ""])
 
