@@ -3013,11 +3013,11 @@
  },
  "jobs": {
   "sc1": {
-   "folder": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/02_new_bl_being",
+   "folder": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/03_new_web_being",
    "stl": {
-    "pos": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/02_new_bl_being/bl_being_pos.stl",
-    "neg": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/02_new_bl_being/bl_being_neg.stl",
-    "mem": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/02_new_bl_being/bl_being_mem.stl"
+    "pos": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/03_new_web_being/web_being_pos.stl",
+    "neg": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/03_new_web_being/web_being_neg.stl",
+    "mem": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/03_new_web_being/web_being_mem.stl"
    }
   }
  },
@@ -3033,8 +3033,32 @@
    "fin_mm": 18.0,
    "feet_mm": 25.0,
    "rating": "IP67 밀폐 · 팬 없음 (양 옆 방열 핀) · 앞판 IP67 M12 · USB-C 단자 · 뒤 방수 케이블 (프로젝터 HDMI · Z · 전극)",
-   "pc": "데스크톱 (GPU · Blender · 설계 콘솔 · Klipper 호스트) — 팬 없는 산업용 본체, 약 65 W 를 핀으로 방에",
-   "pc_w": 65.0
+   "pc": "양자 아날로그 데스크톱 — 계산하지 않음: SD / microSD 에 구워 온 아날로그 제어 전압(CV) 표를 양자 기준 시계(10 MHz → 1 PPS)에 맞춰 DAC 로 내보내고, 구워 온 화면을 모니터에 띄움 (굽기 · 설계 · 시뮬레이션은 지금 컴퓨터)",
+   "pc_w": 25.0,
+   "slots": [
+    "SD (SDXC, 앞판 왼쪽 · 방수 덮개)",
+    "microSD (앞판 오른쪽 · 방수 덮개)"
+   ],
+   "monitors": [
+    [
+     "모니터 1 — 지금 단계",
+     "SD 의 monitors/step_NN.png — 그 단계까지 자란 모습 (위 · 옆), 영점 표시"
+    ],
+    [
+     "모니터 2 — 시간표",
+     "monitors/timeline.png + 진행 막대 · 단계 표시점 (반복 = 주황)"
+    ],
+    [
+     "모니터 3 — 수조 카메라",
+     "앞 유리 카메라 — 실제로 자라는 존재 (사람이 보는 그대로)"
+    ],
+    [
+     "모니터 4 — 아날로그 계측",
+     "CV 채널 9개 · 배지 전도도 · 누설 · 10 MHz / PPS 잠김"
+    ]
+   ],
+   "video_out": "HDMI 2 · DisplayPort 2 (뒤판, IP67 덮개) — 모니터 4대, 수조 옆 받침 팔",
+   "analog": "DAC 16비트 × 9 (±10 V) → 주사기 펌프 · 봉 회전 · 팔 r · z · 405 nm 빛 · 트리거, ADC × 8 ← 배지 전도도 · 누설 · 발 단자 · C–V — SD 읽기와 화면 띄우기만 하는 작은 디지털 부분 (마이크로컨트롤러), 그 밖은 아날로그 신호 길"
   },
   "inputs": {
    "tray_mm": [
@@ -3128,11 +3152,149 @@
    ],
    [
     "Space · ← →",
-    "재생 · 한 층",
-    "빚기 시간표 재생 (빛 조각가 콘솔과 같음)",
+    "재생 · 한 단계",
+    "SD 재생 멈춤 · 이어서 · 앞뒤 단계 표시점으로 (모니터 2 에 표시)",
+    "PAUSE · RESUME"
+   ],
+   [
+    "R · S · F",
+    "다시 · 건너뛰기 · 흐름",
+    "SC-3: 이 단계 한 번 더 · 건너뛰기 · 흐름 배율 — SD 의 edits.json 에 적어 지금 컴퓨터가 다시 구움",
     "—"
    ]
   ],
   "heat_into_bath_w": 0.7145833333333333
+ },
+ "candy": {
+  "spec": {
+   "fill": 330.0,
+   "work_center_z": 170.0,
+   "bridge_z": 380.0,
+   "bridge_hole": 120.0,
+   "stick_d": 6.0,
+   "tank_inner": [
+    350.0,
+    350.0,
+    350.0
+   ]
+  },
+  "zero_mm": [
+   0.0,
+   0.0,
+   34.0
+  ],
+  "steps": [
+   {
+    "i": 0,
+    "r_mm": [
+     0.0,
+     3.28
+    ],
+    "seconds": 74.6,
+    "voxels": 1456
+   },
+   {
+    "i": 1,
+    "r_mm": [
+     3.28,
+     6.56
+    ],
+    "seconds": 888.3,
+    "voxels": 17332
+   },
+   {
+    "i": 2,
+    "r_mm": [
+     6.56,
+     9.84
+    ],
+    "seconds": 2581.8,
+    "voxels": 50376
+   },
+   {
+    "i": 3,
+    "r_mm": [
+     9.84,
+     13.12
+    ],
+    "seconds": 3530.8,
+    "voxels": 68894
+   },
+   {
+    "i": 4,
+    "r_mm": [
+     13.12,
+     16.4
+    ],
+    "seconds": 2582.6,
+    "voxels": 50393
+   },
+   {
+    "i": 5,
+    "r_mm": [
+     16.4,
+     19.68
+    ],
+    "seconds": 2315.5,
+    "voxels": 45181
+   },
+   {
+    "i": 6,
+    "r_mm": [
+     19.68,
+     22.96
+    ],
+    "seconds": 1709.3,
+    "voxels": 33353
+   },
+   {
+    "i": 7,
+    "r_mm": [
+     22.96,
+     26.24
+    ],
+    "seconds": 1573.2,
+    "voxels": 30696
+   },
+   {
+    "i": 8,
+    "r_mm": [
+     26.24,
+     29.52
+    ],
+    "seconds": 1772.4,
+    "voxels": 34583
+   },
+   {
+    "i": 9,
+    "r_mm": [
+     29.52,
+     32.8
+    ],
+    "seconds": 2031.7,
+    "voxels": 39642
+   },
+   {
+    "i": 10,
+    "r_mm": [
+     32.8,
+     36.08
+    ],
+    "seconds": 1742.0,
+    "voxels": 33991
+   },
+   {
+    "i": 11,
+    "r_mm": [
+     36.08,
+     38.95
+    ],
+    "seconds": 341.6,
+    "voxels": 6665
+   }
+  ],
+  "r_max": 38.95,
+  "total_s": 21143.8,
+  "sd": "cad_out/sd/being"
  }
 }

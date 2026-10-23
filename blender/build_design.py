@@ -38,6 +38,8 @@ def main():
     step("SC-2 도구 · 빛 조각가")
     st, tools = build.build_tools(D)
     s2 = build.build_sc2(D, parts, tools, shapes)
+    step("SC-3 솜사탕 조각가")
+    s3 = build.build_sc3(D, parts, shapes)
     step("빚은 세포 · 시험편 · 양자 모듈 · 병 결정")
     sc_cells = build.build_cells(D)
     rest = [build.build_coupons(D), build.build_qmodule(D), build.build_bottle(D)]
@@ -52,7 +54,7 @@ def main():
     dg = build.dg_of(q)
     layers = [o for o in q.objects if o.type == "MESH"]
     V["quantum"] = {"layers": len(layers), "top_z_mm": max(o.evaluated_get(dg).location.z + o.evaluated_get(dg).scale.z for o in layers)}
-    order = [s1, sp, s2, st, ss] + ([sc_cells] if sc_cells else []) + rest
+    order = [s3, s1, sp, s2, st, ss] + ([sc_cells] if sc_cells else []) + rest
     for sc in order:
         V["scenes"].append(check.scene_report(sc))
     if "--no-render" not in argv:

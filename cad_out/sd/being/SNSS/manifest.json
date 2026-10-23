@@ -1,0 +1,240 @@
+{
+ "format": "SNSS-SD 1",
+ "name": "being",
+ "burned": "2026-10-23 12:38:20",
+ "rate_hz": 50.0,
+ "channels": [
+  {
+   "name": "theta",
+   "unit": "도",
+   "at_0V": 0.0,
+   "at_10V": 180.0
+  },
+  {
+   "name": "r",
+   "unit": "mm",
+   "at_0V": 0.0,
+   "at_10V": 80.0
+  },
+  {
+   "name": "z",
+   "unit": "mm",
+   "at_0V": 0.0,
+   "at_10V": 350.0
+  },
+  {
+   "name": "go_p",
+   "unit": "몫",
+   "at_0V": 0.0,
+   "at_10V": 1.0
+  },
+  {
+   "name": "go_n",
+   "unit": "몫",
+   "at_0V": 0.0,
+   "at_10V": 1.0
+  },
+  {
+   "name": "go_mem",
+   "unit": "몫",
+   "at_0V": 0.0,
+   "at_10V": 1.0
+  },
+  {
+   "name": "pva",
+   "unit": "몫",
+   "at_0V": 0.0,
+   "at_10V": 1.0
+  },
+  {
+   "name": "light405",
+   "unit": "켬",
+   "at_0V": 0.0,
+   "at_10V": 1.0
+  },
+  {
+   "name": "trig",
+   "unit": "단계",
+   "at_0V": 0.0,
+   "at_10V": 1.0
+  }
+ ],
+ "samples": 1057190,
+ "seconds": 21143.8,
+ "cues": [
+  {
+   "step": 0,
+   "pass": 1,
+   "sample0": 0,
+   "sample1": 3730,
+   "t0": 0.0,
+   "t1": 74.6,
+   "r_mm": [
+    0.0,
+    3.28
+   ]
+  },
+  {
+   "step": 1,
+   "pass": 1,
+   "sample0": 3730,
+   "sample1": 48145,
+   "t0": 74.6,
+   "t1": 962.9,
+   "r_mm": [
+    3.28,
+    6.56
+   ]
+  },
+  {
+   "step": 2,
+   "pass": 1,
+   "sample0": 48145,
+   "sample1": 177235,
+   "t0": 962.9,
+   "t1": 3544.7,
+   "r_mm": [
+    6.56,
+    9.84
+   ]
+  },
+  {
+   "step": 3,
+   "pass": 1,
+   "sample0": 177235,
+   "sample1": 353775,
+   "t0": 3544.7,
+   "t1": 7075.5,
+   "r_mm": [
+    9.84,
+    13.12
+   ]
+  },
+  {
+   "step": 4,
+   "pass": 1,
+   "sample0": 353775,
+   "sample1": 482905,
+   "t0": 7075.5,
+   "t1": 9658.1,
+   "r_mm": [
+    13.12,
+    16.4
+   ]
+  },
+  {
+   "step": 5,
+   "pass": 1,
+   "sample0": 482905,
+   "sample1": 598680,
+   "t0": 9658.1,
+   "t1": 11973.6,
+   "r_mm": [
+    16.4,
+    19.68
+   ]
+  },
+  {
+   "step": 6,
+   "pass": 1,
+   "sample0": 598680,
+   "sample1": 684145,
+   "t0": 11973.6,
+   "t1": 13682.9,
+   "r_mm": [
+    19.68,
+    22.96
+   ]
+  },
+  {
+   "step": 7,
+   "pass": 1,
+   "sample0": 684145,
+   "sample1": 762805,
+   "t0": 13682.9,
+   "t1": 15256.1,
+   "r_mm": [
+    22.96,
+    26.24
+   ]
+  },
+  {
+   "step": 8,
+   "pass": 1,
+   "sample0": 762805,
+   "sample1": 851425,
+   "t0": 15256.1,
+   "t1": 17028.5,
+   "r_mm": [
+    26.24,
+    29.52
+   ]
+  },
+  {
+   "step": 9,
+   "pass": 1,
+   "sample0": 851425,
+   "sample1": 953010,
+   "t0": 17028.5,
+   "t1": 19060.2,
+   "r_mm": [
+    29.52,
+    32.8
+   ]
+  },
+  {
+   "step": 10,
+   "pass": 1,
+   "sample0": 953010,
+   "sample1": 1040110,
+   "t0": 19060.2,
+   "t1": 20802.2,
+   "r_mm": [
+    32.8,
+    36.08
+   ]
+  },
+  {
+   "step": 11,
+   "pass": 1,
+   "sample0": 1040110,
+   "sample1": 1057190,
+   "t0": 20802.2,
+   "t1": 21143.8,
+   "r_mm": [
+    36.08,
+    38.95
+   ]
+  }
+ ],
+ "files": {
+  "program.cv": "5d3c6bd9",
+  "process.json": "93f5c8f0",
+  "monitors/step_00.png": "22bcb6a4",
+  "monitors/step_01.png": "8f1be2b1",
+  "monitors/step_02.png": "58226891",
+  "monitors/step_03.png": "004c63db",
+  "monitors/step_04.png": "b98450fe",
+  "monitors/step_05.png": "9274c380",
+  "monitors/step_06.png": "724fecc4",
+  "monitors/step_07.png": "b1aa41aa",
+  "monitors/step_08.png": "8c5b50e7",
+  "monitors/step_09.png": "e9a4b87b",
+  "monitors/step_10.png": "e0cb7136",
+  "monitors/step_11.png": "d5d7c15f",
+  "monitors/timeline.png": "c9483f2c"
+ },
+ "bytes": 19130355,
+ "clock": "외부 10 MHz → 1 PPS (Q1 · Q2) 에 표본 시계 맞춤",
+ "zero_mm": [
+  0.0,
+  0.0,
+  34.0
+ ],
+ "monitors": {
+  "1": "monitors/step_NN.png (지금 단계)",
+  "2": "monitors/timeline.png + 진행 막대",
+  "3": "카메라 (수조 앞)",
+  "4": "아날로그 계측 (CV · 배지 전도도 · 누설)"
+ }
+}

@@ -525,6 +525,47 @@ def cmd_blender_design(a: argparse.Namespace) -> None:
     print("Blender 에서 열기: python3 -m snss_battery blender-design --open · 기록 cad_out/blender/validation.json")
 
 
+def cmd_candy(a: argparse.Namespace) -> None:
+    from pathlib import Path
+
+    from . import candy, sdcard
+
+    if a.op == "new":
+        pl = candy.plan(a.shape, a.height, name=a.name or Path(a.shape).stem)
+        proc = candy.Process.from_plan(pl, a.name or Path(a.shape).stem)
+        for e in a.edit or []:  # 예: 3:repeat=2  ·  5:flow=0.6  ·  7:skip=1
+            i, kv = e.split(":")
+            k, v = kv.split("=")
+            proc.edit(int(i), **{k: (v not in ("0", "false")) if k == "skip" else float(v) if k == "flow" else int(v) if k == "repeat" else v})
+        print(candy.describe(pl, proc))
+        job = candy.write_job(pl, proc, a.out)
+        print(f"작업 폴더: {job}")
+        target = a.burn or str(Path("cad_out") / "sd" / proc.name)
+        r = sdcard.burn(pl, proc, target)
+        print(f"SD 굽기 → {r['root']} · {r['samples']} 표본 ({r['seconds'] / 3600:.2f} h) · 단계 표시점 {r['cues']} · 모니터 화면 {r['monitors']}장 · "
+              f"{r['bytes'] / 1e6:.1f} MB")
+        v = sdcard.verify(target)
+        print("다시 읽기: " + ("맞음 (CRC · 표본 수)" if v["ok"] else f"틀림 {v['bad']}"))
+    elif a.op == "play":
+        keys = [("repeat", s) for s in a.repeat or []] + [("skip", s) for s in a.skip or []]
+        print(sdcard.header(a.path))
+        r = sdcard.play(a.path, keys)
+        print("\n".join("  " + l for l in r["log"]))
+        print(f"재생 {r['seconds'] / 3600:.2f} h · SD 에 적은 고친 것 {len(r['edits'])}건 → `candy reburn {a.path}`")
+    elif a.op == "reburn":
+        pl = None
+        proc = sdcard.reburn_edits(a.path)
+        pl = candy.plan(a.shape, a.height, name=proc.name)
+        steps = {s["i"]: s for s in proc.steps}
+        fresh = candy.Process.from_plan(pl, proc.name)
+        for s in fresh.steps:
+            if s["i"] in steps:
+                s.update({k: steps[s["i"]][k] for k in ("repeat", "flow", "skip", "note")})
+        fresh.edits = proc.edits
+        r = sdcard.burn(pl, fresh, a.path)
+        print(f"고친 것 {len(fresh.edits)}건 반영해 다시 구움 → {r['root']} ({r['seconds'] / 3600:.2f} h)")
+
+
 def cmd_ports(_: argparse.Namespace) -> None:
     from .interfaces import describe
 
@@ -726,6 +767,18 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--web", action="store_true", help="브라우저 속 Blender — Blender 가 웹 서버가 됨 (VS Code 통합 브라우저로)")
     p.add_argument("--port", type=int, default=8790)
     p.set_defaults(func=cmd_blender_design)
+    p = sub.add_parser("candy", help="솜사탕 조각가 SC-3 — 봉 끝 영점에서 자라는 존재 · 과정(반복 · 수정) · SD 굽기 · 아날로그 재생")
+    p.add_argument("op", choices=["new", "play", "reburn"], help="new 계획 · 굽기 · play SD 재생(데스크톱 흉내) · reburn 고친 것 반영해 다시 굽기")
+    p.add_argument("shape", nargs="?", default="being", help="new/reburn: 모양 (being · seed · bud · .stl)")
+    p.add_argument("--path", default="cad_out/sd/being", help="play/reburn: SD 자리 (그 아래 SNSS/)")
+    p.add_argument("--name", default="")
+    p.add_argument("--height", type=float, default=0.0)
+    p.add_argument("--edit", action="append", help="단계 고치기 i:repeat=2 · i:flow=0.6 · i:skip=1 (여러 번)")
+    p.add_argument("--burn", help="굽는 자리 (SD 가 꽂힌 폴더, 기본 cad_out/sd/이름)")
+    p.add_argument("--repeat", type=int, action="append", help="play: 이 단계 한 번 더 (키보드 R)")
+    p.add_argument("--skip", type=int, action="append", help="play: 이 단계 건너뛰기")
+    p.add_argument("--out", default="sculpt_out")
+    p.set_defaults(func=cmd_candy)
     sub.add_parser("ports", help="아날로그 · 디지털 · 양자 공학기기 호환 단자").set_defaults(func=cmd_ports)
     p = sub.add_parser("scpi", help="SCPI 다리 (TCP 5025) — 계측기처럼 조각가를 다룸 (G-code 는 화면에 출력)")
     p.add_argument("--host", default="127.0.0.1")

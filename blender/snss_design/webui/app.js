@@ -89,6 +89,7 @@ async function loadScene(name, keepView = false) {
   document.querySelectorAll("#scenes button").forEach((b) => b.classList.toggle("on", b.dataset.s === name));
   buildTree(head.items);
   showDims();
+  showProcess();
   applyHidden();
   if (!keepView) frameAll(true);
   updateHUD();
@@ -155,7 +156,7 @@ function hwSend(action, args) { // 너무 자주 보내지 않게 (기계는 천
     $("#hwlog").textContent = r.log.join("\n");
     $("#hwlog").scrollTop = 1e9;
     syncDims(r.dims);
-    await refreshFrame();
+    if (r.geometry) await loadScene(SCENE, true); else await refreshFrame();
     updateHUD();
   }, 120);
 }
@@ -353,6 +354,25 @@ async function showSelection(it) {
   add.innerHTML = '더하기: <button data-t="BALL">+ 구</button> <button data-t="CAPSULE">+ 캡슐</button> <button data-t="ELLIPSOID">+ 타원체</button>';
   add.querySelectorAll("button").forEach((b) => (b.onclick = async () => { await api("/api/meta", { object: m.name, add: b.dataset.t }); await loadScene(SCENE, true); showSelection(it); }));
   el.appendChild(add);
+}
+async function showProcess() {
+  const box = $("#procBox");
+  box.hidden = SCENE !== "SC-3 솜사탕 조각가";
+  if (box.hidden) return;
+  const p = await api("/api/process").catch((e) => ({ error: e.message }));
+  const el = $("#proc");
+  if (p.error) { el.innerHTML = `<p class="dim">${p.error}</p>`; return; }
+  el.innerHTML = `<p class="dim">${p.sd} · ${p.name} · ${(p.total_s / 3600).toFixed(1)} h · 구움 ${p.burned} · 고친 것 ${p.edits.length}건 (→ <code>candy reburn</code>)</p>`;
+  for (const s of p.steps) {
+    const row = document.createElement("div");
+    row.className = "dimrow";
+    row.innerHTML = `<label><span>단계 ${s.i} · r ${s.r_mm[0]}–${s.r_mm[1]} mm · ${(s.seconds / 60).toFixed(0)} 분${s.repeat > 1 ? " ×" + s.repeat : ""}${s.skip ? " (건너뜀)" : ""}</span>
+      <span><button data-go>보기</button> <button data-r>R 반복</button> <button data-s>S 건너뛰기</button></span></label>`;
+    row.querySelector("[data-go]").onclick = async () => { await api("/api/set", { scene: SCENE, key: "Grow", value: s.r_mm[1] }); syncDims({ Grow: s.r_mm[1] }); await loadScene(SCENE, true); };
+    row.querySelector("[data-r]").onclick = async () => { await api("/api/process", { op: "repeat", step: s.i }); showProcess(); status(`단계 ${s.i} 반복 — SD edits.json 에 적음`); };
+    row.querySelector("[data-s]").onclick = async () => { await api("/api/process", { op: "skip", step: s.i }); showProcess(); status(`단계 ${s.i} 건너뛰기 — SD edits.json 에 적음`); };
+    el.appendChild(row);
+  }
 }
 function updateHUD() {
   const sc = INFO.scenes.find((s) => s.name === SCENE);

@@ -59,6 +59,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(on_main(web.meta_get, q["object"]))
             if u.path == "/api/check":
                 return self._json(on_main(web.run_check, q["scene"]))
+            if u.path == "/api/process":
+                return self._json(on_main(web.process_get))
             if u.path == "/api/log":
                 return self._json(on_main(web.log))
             body, ctype = web.static(unquote(u.path))
@@ -87,6 +89,8 @@ class Handler(BaseHTTPRequestHandler):
                 png = on_main(web.render, b["scene"], b["eye"], b["target"], b.get("fov", 40), b.get("w", 960), b.get("h", 640),
                               b.get("engine", "BLENDER_EEVEE"))
                 return self._send(png, "image/png")
+            if u.path == "/api/process":
+                return self._json(on_main(web.process_set, b["op"], b["step"], b.get("to")))
             if u.path == "/api/save":
                 return self._json(on_main(web.save))
             self._json({"error": "없음"}, 404)

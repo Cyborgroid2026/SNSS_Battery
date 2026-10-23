@@ -26,8 +26,8 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 OUT = ROOT / "cad_out" / "blender"
 UI = Path(__file__).resolve().parent / "webui"
 VENDOR = ROOT / "snss_battery" / "vendor" / "three"
-GEOMETRY_KEYS = {"Rod", "Lm8uu"}  # 이 값은 부품 모양을 바꿈 → 메시를 다시 보냄
-HW_SCENES = {"SC-1 조각가": "sc1", "SC-2 빛 조각가": "sc2"}
+GEOMETRY_KEYS = {"Rod", "Lm8uu", "Grow"}  # 이 값은 부품 모양을 바꿈 → 메시를 다시 보냄
+HW_SCENES = {"SC-3 솜사탕 조각가": "sc3", "SC-1 조각가": "sc1", "SC-2 빛 조각가": "sc2"}
 
 
 class State:
@@ -149,7 +149,7 @@ def info() -> dict:
                 dims.append({"key": k, "value": float(d[k]), "min": ui.get("min", 0), "max": ui.get("max", 1), "desc": ui.get("description", "")})
         view = build.pad_view(sc) if sc.name in HW_SCENES else None
         out.append({"name": sc.name, "dims": dims, "hw": HW_SCENES.get(sc.name), "pad": list(view) if view else None})
-    order = ["SC-1 조각가", "SC-2 빛 조각가", "존재 모양", "빚은 세포", "SC-1 부품", "SC-2 도구", "시험편", "양자 모듈", "병 결정"]
+    order = ["SC-3 솜사탕 조각가", "SC-1 조각가", "SC-2 빛 조각가", "존재 모양", "빚은 세포", "SC-1 부품", "SC-2 도구", "시험편", "양자 모듈", "병 결정"]
     out.sort(key=lambda s: order.index(s["name"]) if s["name"] in order else 99)
     c = state().design.get("console", {})
     return {"scenes": out, "keymap": c.get("keymap", []), "turn_limit": c.get("turntable", {}).get("limit_deg", 180),
@@ -205,8 +205,8 @@ def meta_set(name: str, i: int, co=None, r=None, size=None, add=None, remove=Fal
 # ---------- 점검 · 조각가 · 렌더 · 저장 ----------
 def run_check(scene_name: str) -> dict:
     key = HW_SCENES.get(scene_name)
-    if key is None:
-        return {"error": "SC-1 조각가 · SC-2 빛 조각가 장면에서"}
+    if key is None or key == "sc3":
+        return {"error": "공간 점검은 SC-1 · SC-2 장면에서 (SC-3 은 `candy new` 의 점검)"}
     sc = bpy.data.scenes[scene_name]
     D = state().design
     return {"clearance": check.clearance(sc, D[key]["layout"]), "motion": check.bed_motion(sc, D[key]["build"][2])}
@@ -300,7 +300,7 @@ def hw(scene_name: str, action: str, **kw) -> dict:
     sc = bpy.data.scenes[scene_name]
     d = bpy.data.objects[sc["snss_dims"]]
     lim = state().design.get("console", {}).get("turntable", {}).get("limit_deg", 180)
-    bz = state().design[key]["build"][2]
+    bz = state().design.get(key, {}).get("build", [0, 0, 90])[2]
     g = []
 
     def put(k, v):
@@ -308,6 +308,14 @@ def hw(scene_name: str, action: str, **kw) -> dict:
             ui = d.id_properties_ui(k).as_dict()
             d[k] = max(ui.get("min", -1e9), min(ui.get("max", 1e9), float(v)))
 
+    if key == "sc3" and action in ("bed", "zoom"):  # SC-3: 받침 대신 자람 반지름
+        g_ = max(0.0, min(float(d.id_properties_ui("Grow").as_dict().get("max", 40)), float(d["Grow"]) + float(kw.get("delta", 0))))
+        put("Grow", g_)
+        g.append(f"; 시뮬레이션: 영점에서 r {g_:.1f} mm 까지 (SD 단계 표시점으로 가기)")
+        d.update_tag()
+        build.dg_of(sc)
+        state().hw_log = (state().hw_log + g)[-60:]
+        return {"gcode": g, "log": state().hw_log, "dims": {k: float(d[k]) for k in d.keys()}, "geometry": True}
     if action == "turn":
         a = max(-lim, min(lim, float(d["TurnTable"]) + float(kw.get("delta", 0)))) if "delta" in kw else max(-lim, min(lim, float(kw["deg"])))
         put("TurnTable", a)
@@ -344,6 +352,29 @@ def hw(scene_name: str, action: str, **kw) -> dict:
     build.dg_of(sc)
     state().hw_log = (state().hw_log + g)[-60:]
     return {"gcode": g, "log": state().hw_log, "dims": {k: float(d[k]) for k in d.keys()}}
+
+
+# ---------- SC-3 과정 (SD 에 구운 것) — 단계로 가기 · 반복 · 건너뛰기 ----------
+def process_get() -> dict:
+    root = ROOT / state().design.get("candy", {}).get("sd", "cad_out/sd/being") / "SNSS"
+    if not (root / "process.json").exists():
+        return {"error": "SD 가 아직 없음 — python3 -m snss_battery candy new being"}
+    p = json.loads((root / "process.json").read_text(encoding="utf-8"))
+    man = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    edits = json.loads((root / "edits.json").read_text(encoding="utf-8"))
+    return {"name": p["name"], "steps": p["steps"], "total_s": p["total_s"], "burned": man["burned"], "edits": edits, "sd": str(root.relative_to(ROOT))}
+
+
+def process_set(op: str, step: int, to: float | None = None) -> dict:
+    """데스크톱 키보드와 같은 길: SD 의 edits.json 에 적음 → 지금 컴퓨터가 `candy reburn` 으로 다시 굽기."""
+    import time as _t
+
+    root = ROOT / state().design.get("candy", {}).get("sd", "cad_out/sd/being") / "SNSS"
+    f = root / "edits.json"
+    e = json.loads(f.read_text(encoding="utf-8"))
+    e.append({"key": op, "step": int(step), **({"to": float(to)} if to is not None else {}), "at": _t.strftime("%H:%M:%S"), "from": "브라우저"})
+    f.write_text(json.dumps(e, ensure_ascii=False, indent=1), encoding="utf-8")
+    return process_get()
 
 
 def static(path: str):

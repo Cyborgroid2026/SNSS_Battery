@@ -128,7 +128,21 @@ def design() -> dict:
                                          "cut_z": bd.cut_z, "gel_r": bd.gel_radius},
         "jobs": _jobs(),
         "console": __import__("snss_battery.console", fromlist=["Console"]).Console().to_json(),
+        "candy": _candy(),
     }
+
+
+def _candy() -> dict:
+    """SC-3 솜사탕 조각가 — 기본 존재의 영점 · 단계 (Blender 장면 · 브라우저 과정 판)."""
+    from .candy import CandySpec, Process, plan
+
+    sp = CandySpec()
+    pl = plan("being", spec=sp)
+    proc = Process.from_plan(pl, "being")
+    return {"spec": {"fill": sp.fill_mm, "work_center_z": sp.work_center_z, "bridge_z": sp.bridge_z, "bridge_hole": sp.bridge_hole_mm,
+                     "stick_d": sp.stick.diameter_mm, "tank_inner": sp.tank_inner_mm},
+            "zero_mm": list(pl["zero_mm"]), "steps": [{k: s[k] for k in ("i", "r_mm", "seconds", "voxels")} for s in proc.steps],
+            "r_max": float(proc.steps[-1]["r_mm"][1]), "total_s": proc.total_s(), "sd": "cad_out/sd/being"}
 
 
 def _jobs() -> dict:

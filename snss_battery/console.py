@@ -23,8 +23,18 @@ class Desktop:
     fin_mm: float = 18.0  # 양 옆 방열 핀 (방 공기로)
     feet_mm: float = 25.0
     rating: str = "IP67 밀폐 · 팬 없음 (양 옆 방열 핀) · 앞판 IP67 M12 · USB-C 단자 · 뒤 방수 케이블 (프로젝터 HDMI · Z · 전극)"
-    pc: str = "데스크톱 (GPU · Blender · 설계 콘솔 · Klipper 호스트) — 팬 없는 산업용 본체, 약 65 W 를 핀으로 방에"
-    pc_w: float = 65.0
+    pc: str = ("양자 아날로그 데스크톱 — 계산하지 않음: SD / microSD 에 구워 온 아날로그 제어 전압(CV) 표를 양자 기준 시계(10 MHz → 1 PPS)에 맞춰 "
+               "DAC 로 내보내고, 구워 온 화면을 모니터에 띄움 (굽기 · 설계 · 시뮬레이션은 지금 컴퓨터)")
+    pc_w: float = 25.0
+    slots: tuple[str, ...] = ("SD (SDXC, 앞판 왼쪽 · 방수 덮개)", "microSD (앞판 오른쪽 · 방수 덮개)")
+    monitors: tuple[tuple[str, str], ...] = (
+        ("모니터 1 — 지금 단계", "SD 의 monitors/step_NN.png — 그 단계까지 자란 모습 (위 · 옆), 영점 표시"),
+        ("모니터 2 — 시간표", "monitors/timeline.png + 진행 막대 · 단계 표시점 (반복 = 주황)"),
+        ("모니터 3 — 수조 카메라", "앞 유리 카메라 — 실제로 자라는 존재 (사람이 보는 그대로)"),
+        ("모니터 4 — 아날로그 계측", "CV 채널 9개 · 배지 전도도 · 누설 · 10 MHz / PPS 잠김"))
+    video_out: str = "HDMI 2 · DisplayPort 2 (뒤판, IP67 덮개) — 모니터 4대, 수조 옆 받침 팔"
+    analog: str = ("DAC 16비트 × 9 (±10 V) → 주사기 펌프 · 봉 회전 · 팔 r · z · 405 nm 빛 · 트리거, ADC × 8 ← 배지 전도도 · 누설 · 발 단자 · C–V — "
+                   "SD 읽기와 화면 띄우기만 하는 작은 디지털 부분 (마이크로컨트롤러), 그 밖은 아날로그 신호 길")
 
     @property
     def top_z(self) -> float:
@@ -80,7 +90,8 @@ HW_KEYMAP: tuple[tuple[str, str, str, str], ...] = (
     ("숫자판 1 · 3 · 7", "앞 · 옆 · 위 시점", "회전 0° · 90° · (위) 받침을 수면 바로 아래로", "TURN A=0|90 · G1 Z"),
     ("Home", "전체 보기", "회전 0° · 받침 기본 · 보기 빛 끔", "TURN A=0 · G1 Z · VIEW_LIGHT R=0"),
     ("Ctrl + 휠 · Alt + B", "단면 (층) 보기", "SC-2: 그 층의 설계 단면을 보기 빛으로 수면에 비춤", "VIEW_LIGHT LAYER=<k>"),
-    ("Space · ← →", "재생 · 한 층", "빚기 시간표 재생 (빛 조각가 콘솔과 같음)", "—"),
+    ("Space · ← →", "재생 · 한 단계", "SD 재생 멈춤 · 이어서 · 앞뒤 단계 표시점으로 (모니터 2 에 표시)", "PAUSE · RESUME"),
+    ("R · S · F", "다시 · 건너뛰기 · 흐름", "SC-3: 이 단계 한 번 더 · 건너뛰기 · 흐름 배율 — SD 의 edits.json 에 적어 지금 컴퓨터가 다시 구움", "—"),
 )
 
 
@@ -129,6 +140,9 @@ class Console:
             f"  데스크톱: 수조 바로 밑 {d.footprint_mm[0]:g}×{d.footprint_mm[1]:g} mm — 받침 테 {d.tray_mm:g} · XPS {d.insulation_mm:g} · "
             f"본체 {d.body_h_mm:g} mm (윗면 z {d.top_z:g}) · {d.rating}",
             f"    {d.pc} → 배지로 새는 열 약 {self.heat_into_bath_w():.1f} W (XPS 너머)",
+            f"    슬롯: {' · '.join(d.slots)} · 화면: {d.video_out}",
+            *[f"      {n}: {w}" for n, w in d.monitors],
+            f"    신호: {d.analog}",
             f"  입력: 데스크톱 앞판에 경첩으로 붙은 접는 받침판 {i.tray_mm[0]:g}×{i.tray_mm[1]:g} 위 — {i.keyboard} · {i.mouse}",
             f"  회전 받침: ±{t.limit_deg:g}° · {t.motor} · 빚는 동안은 0° 에 묶음",
             f"  보기 빛: {v.nm:g} nm {v.mw_cm2:g} mW/cm² (SC-2 광엔진 세 번째 색) — {v.note}",
