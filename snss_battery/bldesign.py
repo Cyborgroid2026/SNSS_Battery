@@ -56,6 +56,9 @@ def run_build(out: Path = OUT, render: bool = True) -> dict:
     if exe is None:
         raise RuntimeError("blender 가 없습니다 (sudo snap install blender --classic)")
     out.mkdir(parents=True, exist_ok=True)
+    from . import sc3_build
+
+    sc3_build.write()  # SC-3 출력 부품 STL — Blender 장면이 이 모양을 그대로 씀
     f = out / "design.json"
     f.write_text(json.dumps(design(), ensure_ascii=False, indent=1, default=float), encoding="utf-8")
     val = out / "validation.json"

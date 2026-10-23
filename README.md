@@ -21,6 +21,7 @@ GO · SNSS(멸균생리식염수) · PVA 가 따로 펜에 들어가 끝에서 �
 | **FreeCAD 설계** — 모든 작품(SC-1 · 부품 20종 · SC-2 · 도구 T0–T5 · 존재 · 시험편 · 양자 모듈 · 병 결정)을 매개변수 CAD 로, 고친 존재 모양을 조각가로 ([spec/FREECAD.md](spec/FREECAD.md)) | `./tools.sh freecad` → `./tools.sh view-freecad` (워크벤치 'SNSS 설계': 치수 표 · 속성 고치기 → '조각가 SC-1 / 빛 조각가 SC-2 로 빚기') |
 | **Blender 설계** — 같은 작품 전부를 Blender 장면 9개로 (치수는 드라이버, 부품은 비파괴 불리언, 존재는 메타볼 = SDF 의 부드러운 합), 고친 모양을 조각가로 ([spec/BLENDER_DESIGN.md](spec/BLENDER_DESIGN.md)) | `./tools.sh blender-design` → `./tools.sh view-blender-design` (사이드바 N → 'SNSS': 설계 값 · 'SC-1 / SC-2 로 빚기' · 점검) |
 | **브라우저 속 Blender** — VS Code 통합 브라우저에서 Blender 설계를 돌려 보고 고치고 빚기 · **HW 뷰포트** (같은 키 · 마우스로 수조 속 존재를: 회전 받침 · 받침 · 보기 빛) ([spec/CONSOLE.md](spec/CONSOLE.md)) | `./tools.sh blender-web` → `http://127.0.0.1:8790/` (`Ctrl+Shift+P` → Browser: Open Integrated Browser) |
+| **SC-3 + 콘솔 실제로 만들기** — 출력 부품 16종 STL · 살 것 · 조립 16단계 · 조립 점검 (뜬 것 · 부딪침 · 노즐 틈 · 꺼내는 길) · 재료마다 노즐 따로 ([spec/SC3_BUILD.md](spec/SC3_BUILD.md)) | `python3 -m snss_battery sc3 build` → `cad_out/sc3/ASSEMBLY.md` |
 | 수조 콘솔 — 수조 밑에 붙는 방수 데스크톱 · 바닥에 놓는 IP68 키보드 · 마우스 · IP66 모니터 · 회전 받침 · 키맵 | `python3 -c "from snss_battery.console import Console; print(Console().describe())"` |
 | 웹 뷰어 ('조각가 · 존재' 탭) | `./tools.sh web` |
 | **빛 조각가 SC-2** — 펜 없이 잉크층 + 405 nm 빛, 배지가 모니터 ([spec/LIGHT.md](spec/LIGHT.md)) | `./tools.sh light` → `python -m snss_battery light being [--go 2 --irradiance 6]` · Blender `./tools.sh light-blender` · 웹 '빛 조각가 · 콘솔' 탭 |

@@ -28,9 +28,14 @@ from .sculpt import MEM, NEG, POS
 FORMAT = "SNSS-SD 1"
 RATE_HZ = 50.0
 # (이름, 단위, 0 V 일 때 값, 10 V 일 때 값)
+# theta: 막대를 돌릴 각 (−180…180 → −10…10 V) · nozzle: 고른 노즐 자리 (p −30° · 막 0 · n +30°, 데스크톱이 팔 관을 그만큼 반대로 돌림)
 CHANNELS = (("theta", "도", 0.0, 180.0), ("r", "mm", 0.0, 80.0), ("z", "mm", 0.0, 350.0),
             ("go_p", "몫", 0.0, 1.0), ("go_n", "몫", 0.0, 1.0), ("go_mem", "몫", 0.0, 1.0), ("pva", "몫", 0.0, 1.0),
-            ("light405", "켬", 0.0, 1.0), ("trig", "단계", 0.0, 1.0))
+            ("light405", "켬", 0.0, 1.0), ("trig", "단계", 0.0, 1.0), ("nozzle", "도", 0.0, 30.0))
+NOZZLE_DEG = {POS: -30.0, MEM: 0.0, NEG: 30.0}
+SWITCH_S = 0.4  # 고르개 서보가 돌고 멈추는 시간 (흐름 없음)
+PURGE_UL = 1.0  # 새로 고른 노즐 끝의 식염수 · 엉긴 끝을 밀어내는 양 — 팔을 5 mm 물려서
+BACKOFF_MM = 5.0
 
 
 def _crc(b: bytes) -> str:
@@ -49,18 +54,37 @@ def program(pl: dict, proc: Process, rate: float = RATE_HZ) -> tuple[np.ndarray,
     shell = pl["shell"]
     sp = pl["spec"]
     ratio = sp.syringes.ratio
-    rows, cues, n0 = [], [], 0
+    rows, cues, n0, last = [], [], 0, -1
+    n_sw = max(1, int(round(SWITCH_S * rate)))
+    n_pg = max(1, int(round(PURGE_UL / pl["flow_mm3_s"] * rate)))
     for seg in proc.timeline():
         s = proc.steps[seg["step"]]
         a, b = np.searchsorted(shell, s["shells"][0]), np.searchsorted(shell, s["shells"][1])
         n = max(1, int(round((seg["t1"] - seg["t0"]) * rate)))
         idx = np.minimum(a + (np.arange(n) * (b - a) / n).astype(int), max(a, b - 1))
         th, r, z, m = st[idx, 0], st[idx, 1], st[idx, 2], st[idx, 3].astype(int)
-        go = np.array([ratio.get(k, (0, 0))[0] for k in range(4)])[m]
-        pva = np.array([ratio.get(k, (0, 0))[1] for k in range(4)])[m]
+        flow = np.ones(n)
+        light = (m != MEM).astype(float)
+        # 재료가 바뀌는 곳마다: 팔을 5 mm 물려 고르개를 돌리고(흐름 없음) → 새 노즐로 PURGE_UL 밀어냄 (빛 끔) → 이어서
+        sw = [i for i in range(n) if m[i] != (m[i - 1] if i else last)]
+        if sw:
+            parts = []
+            for j, i in enumerate(sw):
+                parts.append(np.arange(sw[j - 1] if j else 0, i))
+                parts.append(np.full(n_sw + n_pg, i))
+            parts.append(np.arange(sw[-1], n))
+            sel = np.concatenate(parts).astype(int)
+            ins = np.concatenate([np.zeros(len(p_), int) if k % 2 == 0 else np.r_[np.full(n_sw, 1), np.full(n_pg, 2)] for k, p_ in enumerate(parts)])
+            th, r, z, m = th[sel], r[sel] + BACKOFF_MM * (ins > 0), z[sel], m[sel]
+            flow = (ins != 1).astype(float)
+            light = (m != MEM).astype(float) * (ins == 0)
+        last = int(m[-1])
+        n = len(m)
+        go = np.array([ratio.get(k, (0, 0))[0] for k in range(4)])[m] * flow
+        pva = np.array([ratio.get(k, (0, 0))[1] for k in range(4)])[m] * flow
         ch = {"theta": th, "r": r, "z": z, "go_p": np.where(m == POS, go, 0), "go_n": np.where(m == NEG, go, 0),
-              "go_mem": np.where(m == MEM, go, 0), "pva": pva * seg["flow"], "light405": (m != MEM).astype(float),
-              "trig": np.r_[1.0, np.zeros(n - 1)]}
+              "go_mem": np.where(m == MEM, go, 0), "pva": pva * seg["flow"], "light405": light,
+              "trig": np.r_[1.0, np.zeros(n - 1)], "nozzle": np.array([NOZZLE_DEG.get(int(k), 0.0) for k in m])}
         rows.append(np.stack([_cv(c[0], ch[c[0]]) for c in CHANNELS], 1))
         cues.append({"step": seg["step"], "pass": seg["pass"], "sample0": n0, "sample1": n0 + n, "t0": seg["t0"], "t1": seg["t1"],
                      "r_mm": s["r_mm"]})

@@ -36,6 +36,7 @@ COLORS = {
     "sio2": ((0.70, 0.85, 1.0), 0.7), "sin": ((0.95, 0.80, 0.45), 0.7), "active": ((0.95, 0.25, 0.20), 1),
     "bottle": ((0.85, 0.92, 0.95), 0.25), "crystal": ((0.35, 0.55, 0.85), 0.85), "red": ((0.85, 0.15, 0.12), 1),
     "black": ((0.08, 0.08, 0.08), 1), "label": ((1.0, 0.86, 0.35), 1), "screen": ((0.20, 0.40, 0.80), 1),
+    "alu": ((0.72, 0.74, 0.77), 1), "steel": ((0.55, 0.57, 0.60), 1),
 }
 STIFF = 4.0  # 메타볼 강성 — 서 있는 존재 부피가 SDF(부드러운 합) 와 0.2 % 안 (시험으로 고름)
 THRESH = 0.6
@@ -376,13 +377,12 @@ def _console(root, D, parts, machine):
     X, Y = dk["footprint_mm"]
     t0 = -6.0
     tray_lo = t0 - dk["tray_mm"]
-    paint(P.box_lohi(c, "수조 받침 테 — PETG 판 + EPDM 패킹", (-X / 2 - 10, -Y / 2 - 10, tray_lo), (X / 2 + 10, Y / 2 + 10, t0 - 2)), "petg_dark")
+    paint(P.box_lohi(c, "아크릴 받침판 10 mm (수조 받침)", (-X / 2, -Y / 2, tray_lo), (X / 2, Y / 2, t0 - 2)), "glass")
     paint(P.box_lohi(c, "EPDM 패킹 2 mm", (-X / 2, -Y / 2, t0 - 2), (X / 2, Y / 2, t0)), "black")
-    for i, (lo, hi) in enumerate((((-X / 2 - 10, -Y / 2 - 10, t0 - 2), (X / 2 + 10, -Y / 2 - 1, t0 + 10)),
-                                  ((-X / 2 - 10, Y / 2 + 1, t0 - 2), (X / 2 + 10, Y / 2 + 10, t0 + 10)),
-                                  ((-X / 2 - 10, -Y / 2 - 1, t0 - 2), (-X / 2 - 1, Y / 2 + 1, t0 + 10)),
-                                  ((X / 2 + 1, -Y / 2 - 1, t0 - 2), (X / 2 + 10, Y / 2 + 1, t0 + 10)))):
-        paint(P.box_lohi(c, f"받침 테 턱 {i + 1} (수조가 미끄러지지 않게)", lo, hi), "petg_dark")
+    folder = D.get("sc3", {}).get("stl_dir", "")
+    for it in D.get("sc3", {}).get("items", []):
+        if it["name"].startswith("수조 모서리 잡이"):
+            _sc3_item(c, it, folder)
     top = k["desktop_top_z"]
     paint(P.box_lohi(c, f"XPS 단열 {dk['insulation_mm']:g} mm (본체 열 → 배지 약 {k['heat_into_bath_w']:.1f} W)",
                      (-X / 2, -Y / 2, top), (X / 2, Y / 2, tray_lo)), "xps")
@@ -435,24 +435,22 @@ def _console(root, D, parts, machine):
 
 
 def _monitors(c, D, X, Y, fl):
-    """IP66 방수 모니터 — 보통 1대 (F1–F4 로 화면 바꿈), 더 이으면 최대 4대. 모두 데스크톱과 같은 바닥에 받침 발로 섬.
+    """IP66 방수 모니터 — 보통 1대 (F1–F4 로 화면 바꿈), 더 이으면 최대 4대. 바닥에 놓은 모니터 발 + 2020 기둥 + VESA 판 (sc3_build 자리).
     화면은 SD 에 구운 그림 (렌더에서 보임)."""
     dk = D["console"]["desktop"]
     mons = dk.get("monitors", [])[: dk.get("monitor_count", 1)]
-    W, H, T = dk.get("monitor_mm", (400.0, 240.0, 24.0))
-    sw, sd_, sh = dk.get("monitor_stand_mm", (180.0, 140.0, 160.0))
-    # 1대: 데스크톱 오른쪽 옆 바닥 · 2–4대: 오른쪽 · 왼쪽 · 오른쪽 바깥 · 왼쪽 바깥
-    spots = [(1, 0), (-1, 0), (1, 1), (-1, 1)]
+    S = D.get("sc3", {})
     sd = Path(__file__).resolve().parent.parent.parent / "cad_out" / "sd" / "being" / "SNSS" / "monitors"
     pics = [sd / "step_06.png", sd / "timeline.png", None, None]
-    for k, ((side, col), m) in enumerate(zip(spots, mons)):
-        x = side * (X / 2 + 60 + W / 2 + col * (W + 40))
-        y = -Y / 2 + 40
-        paint(P.box_lohi(c, f"모니터 {k + 1} 받침 발 — 바닥에 놓임 (PETG, 고무 패드)", (x - sw / 2, y - sd_ / 2, fl), (x + sw / 2, y + sd_ / 2, fl + 12)), "petg_dark")
-        paint(P.box_lohi(c, f"모니터 {k + 1} 받침 기둥", (x - 15, y + sd_ / 2 - 40, fl + 12), (x + 15, y + sd_ / 2 - 20, fl + sh + H / 2)), "pc")
-        zc = fl + sh + H / 2
-        paint(P.box(c, f"{m[0]} — IP66 방수 틀", (x, y + sd_ / 2 - 30 - T / 2 - 10, zc), (W + 16, T, H + 16), 4), "pc")
-        scr = P.box(c, f"{m[0]} — 화면 ({m[1][:30]}…)", (x - side * 2, y + sd_ / 2 - 30 - T - 11, zc), (W, 2, H))
+    for k, m in enumerate(mons):
+        for it in S.get("items", []):
+            if it["name"].startswith((f"모니터 {k + 1} ", f"IP66 방수 모니터 {k + 1}")):
+                _sc3_item(c, it, S["stl_dir"])
+        mon = next((it for it in S.get("items", []) if it["name"] == f"IP66 방수 모니터 {k + 1}"), None)
+        if mon is None:
+            continue
+        lo, hi = mon["lo"], mon["hi"]
+        scr = P.box_lohi(c, f"{m[0]} — 화면 ({m[1][:30]}…)", (lo[0] + 8, lo[1] - 1, lo[2] + 8), (hi[0] - 8, lo[1], hi[2] - 8))
         scr["monitor"] = k + 1
         paint(scr, "screen")
         if pics[k] is not None and pics[k].exists():
@@ -515,45 +513,115 @@ def paint_curve(o, key):
 
 
 # ---------- SC-3 영점 막대 ----------
+_STL = {}
+
+
+def stl_mesh(key, folder):
+    """sc3_build 이 SDF 로 만든 출력 부품 STL → 메시 (한 번 읽고 여러 개체가 함께 씀). 없으면 None."""
+    if key in _STL:
+        return _STL[key]
+    f = Path(folder) / f"{key}.stl"
+    me = None
+    if f.exists():
+        before = set(bpy.data.objects)
+        try:
+            bpy.ops.wm.stl_import(filepath=str(f))
+        except AttributeError:
+            bpy.ops.import_mesh.stl(filepath=str(f))
+        new = [o for o in bpy.data.objects if o not in before]
+        if new:
+            me = new[0].data
+            me.name = f"SC-3 출력 — {key}"
+            for o in new:
+                bpy.data.objects.remove(o)
+    _STL[key] = me
+    return me
+
+
+def _sc3_item(c, it, folder):
+    """sc3_build.layout() 의 한 줄 → 개체 (출력 부품은 STL, 산 것은 기본형)."""
+    lo, hi = it["lo"], it["hi"]
+    if it["shape"] == "stl":
+        me = stl_mesh(it["key"], folder)
+        if me is not None:
+            o = bpy.data.objects.new(it["name"], me)
+            c.objects.link(o)
+            o.location, o.rotation_euler = it["pos"], (0, 0, math.radians(it["rot"]))
+            return paint(o, it["mat"])
+        return paint(P.box_lohi(c, it["name"], lo, hi), it["mat"])
+    if it["shape"] == "cyl_z":
+        return paint(P.cyl0(c, it["name"], ((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, lo[2]), min(hi[0] - lo[0], hi[1] - lo[1]) / 2, hi[2] - lo[2]), it["mat"])
+    if it["shape"] == "ellipsoid":
+        return paint(P.ellipsoid(c, it["name"], tuple((a + b) / 2 for a, b in zip(lo, hi)), tuple((b - a) / 2 for a, b in zip(lo, hi))), it["mat"])
+    if it["shape"] == "seg":
+        a = math.radians(it["rot"])
+        p0 = Vector(it["pos"])
+        return paint(P.cyl_ab(c, it["name"], tuple(p0), tuple(p0 + Vector((math.cos(a), math.sin(a), 0)) * it["len"]), 0.795), it["mat"])
+    return paint(P.box_lohi(c, it["name"], lo, hi), it["mat"])
+
+
 def build_sc3(D, parts, shapes):
-    """패드 없이 — 위 다리에서 내려온 영점 막대 끝(영점)부터 존재가 자람. 모터 · 펌프는 물 밖(다리 위)."""
+    """실제로 조립하는 SC-3 — 부품 자리는 sc3_build.layout() 그대로 (출력 부품은 STL). 치수: 팔 r · z · 막대 회전 · 노즐 고르개 · 분해 · 조립 단계."""
     k = D["candy"]
+    S = D["sc3"]
+    g = S["geometry"]
     sp = k["spec"]
-    zc, fill, bz = sp["work_center_z"], sp["fill"], sp["bridge_z"]
+    zc, fill = g["zero_z"], g["fill"]
     zx, zy, zz = k["zero_mm"]
     sc = scene("SC-3 영점 막대")
-    root = coll(sc, "영점 막대 SC-3")
+    root = coll(sc, "영점 막대 SC-3 — 조립")
     d = dims(sc, coll(root, "치수"), [("Grow", 24.0, f"자란 반지름 mm (영점에서, 다 자라면 {k['r_max']:.0f})", 0, k["r_max"] + 2),
                                        ("TurnTable", 0.0, "막대 회전 도 (주사 중 계속 돎 · HW 뷰포트 돌려 보기)", -180, 180),
-                                       ("ArmR", 24.0, "주사 팔 반지름 mm (영점에서)", 0, 80), ("ArmZ", 0.0, "주사 팔 높이 mm (영점 기준)", -60, 60)])
+                                       ("ArmR", 24.0, "노즐 끝 반지름 mm (영점에서)", g["r_travel"][0], g["r_travel"][1]),
+                                       ("ArmZ", 0.0, "노즐 끝 높이 mm (영점 기준)", g["z_travel"][0] - zc, g["z_travel"][1] - zc),
+                                       ("Nozzle", 0.0, "고른 노즐 — p −30 · 막 0 · n +30 (팔 관을 반대로 돎)", -30, 30),
+                                       ("Explode", 0.0, "분해 보기 0 … 1 (조립 방향으로 벌림)", 0, 1),
+                                       ("Step", 15.0, "조립 단계까지만 보기 (0 … 15, cad_out/sc3/ASSEMBLY.md)", 0, 15)])
     _bath(root, sp["tank_inner"], fill)
-    TI = sp["tank_inner"][0]
-    dry = coll(root, "물 밖 — 다리 · 모터 · 주사기 펌프")
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            paint(P.box_lohi(dry, "다리 기둥 (수조 테에 걸침)", (sx * (TI / 2 + 4) - 8, sy * (TI / 2 + 4) - 8, sp["tank_inner"][2]), (sx * (TI / 2 + 4) + 8, sy * (TI / 2 + 4) + 8, bz)), "petg_dark")
-    hole = sp["bridge_hole"] / 2
-    for lo, hi in (((-TI / 2 - 12, -TI / 2 - 12, bz), (TI / 2 + 12, -hole, bz + 10)), ((-TI / 2 - 12, hole, bz), (TI / 2 + 12, TI / 2 + 12, bz + 10)),
-                   ((-TI / 2 - 12, -hole, bz), (-hole, hole, bz + 10)), ((hole, -hole, bz), (TI / 2 + 12, hole, bz + 10))):
-        paint(P.box_lohi(dry, "다리 판 (가운데 구멍 — 존재가 막대째 올라옴)", lo, hi), "petg")
-    paint(P.cyl0(dry, "막대 회전 모터 (NEMA17, 물 밖)", (0, -hole - 30, bz + 10), 21, 40), "dark")
-    paint(P.box_lohi(dry, "막대 회전 벨트 · 고정 집게", (-10, -hole - 30, bz + 10), (10, 0, bz + 22)), "petg_dark")
-    for i, lab in enumerate(("GO p (NBD)", "GO n (PEI)", "GO 막", "PVA 10 %")):
-        y = -120 + i * 40
-        paint(P.cyl(dry, f"주사기 {lab} (물 밖)", (TI / 2 - 40, y, bz + 25), 11, 110, 0), "pipette")
-        paint(P.box_lohi(dry, f"주사기 펌프 {lab}", (TI / 2 - 100, y - 14, bz + 10), (TI / 2 + 20, y + 14, bz + 14)), "petg")
-    paint(P.box_lohi(dry, "팔 레일 (r 방향, 탄소섬유)", (-hole, 40, bz + 10), (TI / 2, 52, bz + 22)), "cf")
-    # 봉 (돎) + 존재
-    spin = empty(root, "영점 막대 (TurnTable 로 돎)", (0, 0, 0))
+    folder = S["stl_dir"]
+    cx0 = g["reach_mm"]
+    arm_r = empty(root, "팔 r (ArmR)")
+    P.drive(arm_r, "location", 0, "r", r=(d, '["ArmR"]'))
+    arm_z = empty(root, "팔 z (ArmZ)", parent=arm_r)
+    P.drive(arm_z, "location", 2, "z", z=(d, '["ArmZ"]'))
+    sel = empty(root, "노즐 고르개 (Nozzle)", (cx0, 0, 0), parent=arm_z)
+    P.drive(sel, "rotation_euler", 2, "-v * 0.0174533", v=(d, '["Nozzle"]'))
+    spin = empty(root, "영점 막대 (TurnTable)")
     P.drive(spin, "rotation_euler", 2, "v * 0.0174533", v=(d, '["TurnTable"]'))
-    wet = coll(root, "물속 — 막대 · 팔 · 주사 끝 (비금속)")
-    s = paint(P.cyl0(wet, f"영점 막대 Ø{sp['stick_d']:g} (PETG 관, 뽑아 꺼냄)", (0, 0, zc), sp["stick_d"] / 2, bz + 30 - zc), "petg")
-    s.parent = spin
-    for sx, key, lab in ((-1, "red", "+"), (1, "neg", "−")):
-        g = paint(P.cyl0(wet, f"막대 흑연 심 {lab} (끝 12 mm 드러남 — 존재의 단자)", (sx * 1.6, 0, zc - 0.5), 1.0, 12.5), "graphite")
-        g.parent = spin
-        t = paint(P.cyl0(wet, f"단자 테 {lab}", (sx * 1.6, 0, zc + 12), 1.2, 0.8), key)
-        t.parent = spin
+    groups = {}
+    turns_with_sel = ("팔 관", "노즐 머리", "PEEK 노즐", "팔 관 기어")
+    for it in S["items"]:
+        if it["step"] in (1, 2, 3, 13, 14):  # 콘솔 · 수조 · 바닥은 _console · _bath 가 그림
+            continue
+        gname = {4: "4 수조 테 안장", 5: "5 보", 6: "6 가로대", 7: "7 팔 r", 8: "8 팔 Z · 고르개", 9: "9 노즐 머리 · 팔 관",
+                 10: "10 펌프 · 밸브", 11: "11 막대 · 축받이"}.get(it["step"], str(it["step"]))
+        if gname not in groups:
+            groups[gname] = coll(root, gname)
+        if it["shape"] == "seg":
+            it = dict(it, len=g["reach_mm"] - 9)
+        o = _sc3_item(groups[gname], it, folder)
+        o["sc3_step"] = it["step"]
+        o["sc3_kind"] = it["kind"]
+        par = None
+        if it["move"] == "r":
+            par = arm_r
+        elif it["move"] == "rz":
+            par = sel if it["name"].startswith(turns_with_sel) else arm_z
+        elif it["move"] == "turn":
+            par = spin
+        if par is not None:
+            o.parent = par
+            if par is sel:
+                o.location = (o.location[0] - cx0, o.location[1], o.location[2])
+        base = tuple(o.location)
+        ex = it["explode"]
+        for i in range(3):
+            if ex[i]:
+                P.drive(o, "location", i, f"{base[i]:.4f} + {ex[i]:.4f} * e", e=(d, '["Explode"]'))
+        for prop in ("hide_viewport", "hide_render"):
+            P.drive(o, prop, None, f"s < {it['step']}", s=(d, '["Step"]'))
+    # 막대 끝에서 자라는 존재
+    wet = coll(root, "물속 — 자라는 존재")
     zp = paint(P.sphere(wet, "3D 프린팅 영점 — 영점 막대 끝", (0, 0, zc), 1.6), "label")
     zp.parent = spin
     being_mesh = next(iter(shapes["being"].objects))
@@ -562,28 +630,23 @@ def build_sc3(D, parts, shapes):
     grow.location = (-zx, -zy, zc - zz)
     grow.parent = spin
     paint(grow, "being")
-    cut = P.sphere(wet, "자람 경계 (Grow 구)", (0, 0, zc), 1.0)
-    cut.display_type, cut.hide_render = "WIRE", True
+    cut_ = P.sphere(wet, "자람 경계 (Grow 구)", (0, 0, zc), 1.0)
+    cut_.display_type, cut_.hide_render = "WIRE", True
     for ax in range(3):
-        P.drive(cut, "scale", ax, "max(0.01, g)", g=(d, '["Grow"]'))
+        P.drive(cut_, "scale", ax, "max(0.01, g)", g=(d, '["Grow"]'))
     m = grow.modifiers.new("자람 (영점에서 Grow 까지)", "BOOLEAN")
-    m.operation, m.object, m.solver = "INTERSECT", cut, "FLOAT"
-    # 주사 팔: r · z (막대는 돌고 팔은 한 자리에서 반지름 · 높이만)
-    arm = empty(root, "주사 팔 (ArmR · ArmZ)", (0, 0, 0))
-    P.drive(arm, "location", 0, "r", r=(d, '["ArmR"]'))
-    P.drive(arm, "location", 2, "z", z=(d, '["ArmZ"]'))
-    for o in (paint(P.cyl0(wet, "팔 (탄소섬유 Ø8, 다리에서 내려옴)", (0, 46, zc + 8), 4, bz + 16 - zc - 8), "cf"),
-              paint(P.box_lohi(wet, "팔 끝 노즐 받침", (-5, 0, zc + 2), (5, 50, zc + 8)), "petg"),
-              cone(wet, "혼합 노즐 PEEK Ø0.41 (GO · PVA)", (0, 2, zc - 6), 0.205, 1.8, 8, "peek"),
-              paint(P.cyl0(wet, "405 nm 빛 (세포질만 — 전자기파로 구조화)", (0, 8, zc + 1), 2.2, 2), "lens")):
-        o.parent = arm
+    m.operation, m.object, m.solver = "INTERSECT", cut_, "FLOAT"
     _console(root, D, parts, "sc3")
-    _labels(root, [("3D 프린팅 영점 — 영점 좌표 막대 끝 (패드 없음)", (0, 0, zc), (-470, -260, zc + 40)),
-                   ("자라는 존재 — 영점에서 껍질처럼 바깥으로", (0, 0, zc - 20), (-470, -260, zc)),
-                   ("GO · PVA 주사 + 405 nm (물속은 비금속)", (24, 0, zc), (-470, -260, zc - 40)),
-                   ("모터 · 펌프는 물 밖 다리 위", (0, -90, bz + 20), (-470, -260, bz + 40)),
-                   ("양자 아날로그 데스크톱 + SD · 바닥 모니터", (-150, -179, -100), (-470, -260, -100))])
-    _camera(sc, (0, -60, 140), 1900, (1.0, -1.3, 0.6))
+    top = g["beam_z"] + 40
+    _labels(root, [("3D 프린팅 영점 — 영점 막대 끝 (패드 없음)", (0, 0, zc), (-560, -300, zc + 40)),
+                   ("노즐 셋 따로 — p · 막 · n (고르개 ±30°)", (cx0 + 24 - g["reach_mm"] + 5, 0, zc), (-560, -300, zc - 10)),
+                   ("노즐 머리 — 혼합기 3 (물속, 금속 없음)", (cx0 + 24, 0, zc), (-560, -300, zc - 60)),
+                   ("막대 축받이 — 걸쇠를 풀면 막대째 뽑힘", (0, 0, top + 30), (-560, -300, top + 160)),
+                   ("팔 r · Z (MGN9) · 고르개 서보 — 물 밖", (cx0 + 24, 30, top + 120), (-560, -300, top + 260)),
+                   ("주사기 펌프 4 · 핀치 밸브 3 (PVA 세 갈래)", (-150, 40, top + 30), (-560, -300, top + 60)),
+                   ("수조 테 안장 + 2020 보 (물 밖)", (-g["wall_x"], -150, top - 40), (-560, -300, top - 40)),
+                   ("양자 아날로그 데스크톱 + SD · 바닥 모니터", (-150, -179, -100), (-560, -300, -100))])
+    _camera(sc, (0, -60, 200), 2100, (1.0, -1.3, 0.6))
     return sc
 
 

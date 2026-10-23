@@ -17,7 +17,7 @@ class Desktop:
     """수조 바로 밑에 붙는 방수 데스크톱 (팬 없는 밀폐 본체). 위에서 아래로: 수조 받침 테 → XPS 단열 → 본체 → 다리."""
 
     footprint_mm: tuple[float, float] = (358.0, 358.0)  # = 수조 바깥 (안 350 + 유리 4 × 2)
-    tray_mm: float = 12.0  # 수조 받침 테: EPDM 패킹 + PETG 테 (수조가 미끄러지지 않고, 새는 물은 앞 홈으로)
+    tray_mm: float = 12.0  # 수조 받침: 아크릴 10 + EPDM 2 — 모서리 잡이 4 (sc3_build) 가 수조와 함께 잡음
     insulation_mm: float = 30.0  # XPS — 본체 열이 배지로 가지 않게 (lightsculpt.Desktop 과 같음)
     body_h_mm: float = 110.0  # 밀폐 본체 (IP67, 팬 없음)
     fin_mm: float = 18.0  # 양 옆 방열 핀 (방 공기로)

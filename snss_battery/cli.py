@@ -525,6 +525,18 @@ def cmd_blender_design(a: argparse.Namespace) -> None:
     print("Blender 에서 열기: python3 -m snss_battery blender-design --open · 기록 cad_out/blender/validation.json")
 
 
+def cmd_sc3(a: argparse.Namespace) -> None:
+    """SC-3 영점 막대 + 수조 콘솔 — 실제로 만들기: 출력 부품 STL · 살 것 · 조립 순서 · 조립 점검."""
+    from . import sc3_build
+
+    if a.op == "check":
+        print(sc3_build.describe())
+        return
+    r = sc3_build.write(a.out)
+    print(sc3_build.describe(r["check"]))
+    print(f"→ {r['folder']}/ (stl/ · parts.csv · buy.csv · ASSEMBLY.md · layout.json)")
+
+
 def cmd_candy(a: argparse.Namespace) -> None:
     from pathlib import Path
 
@@ -779,6 +791,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--skip", type=int, action="append", help="play: 이 단계 건너뛰기")
     p.add_argument("--out", default="sculpt_out")
     p.set_defaults(func=cmd_candy)
+    p = sub.add_parser("sc3", help="SC-3 + 수조 콘솔 조립 — 출력 부품 STL · 살 것 · 조립 순서 · 조립 점검 (뜬 것 · 부딪침 · 노즐 틈)")
+    p.add_argument("op", choices=["build", "check"], nargs="?", default="build")
+    p.add_argument("--out", default="cad_out/sc3")
+    p.set_defaults(func=cmd_sc3)
     sub.add_parser("ports", help="아날로그 · 디지털 · 양자 공학기기 호환 단자").set_defaults(func=cmd_ports)
     p = sub.add_parser("scpi", help="SCPI 다리 (TCP 5025) — 계측기처럼 조각가를 다룸 (G-code 는 화면에 출력)")
     p.add_argument("--host", default="127.0.0.1")

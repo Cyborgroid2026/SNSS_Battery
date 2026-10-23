@@ -206,7 +206,7 @@ def meta_set(name: str, i: int, co=None, r=None, size=None, add=None, remove=Fal
 def run_check(scene_name: str) -> dict:
     key = HW_SCENES.get(scene_name)
     if key is None or key == "sc3":
-        return {"error": "공간 점검은 SC-1 · SC-2 장면에서 (SC-3 은 `candy new` 의 점검)"}
+        return {"error": "공간 점검은 SC-1 · SC-2 장면에서 (SC-3 은 `python3 -m snss_battery sc3 check` — 뜬 것 · 부딪침 · 노즐 틈)"}
     sc = bpy.data.scenes[scene_name]
     D = state().design
     return {"clearance": check.clearance(sc, D[key]["layout"]), "motion": check.bed_motion(sc, D[key]["build"][2])}

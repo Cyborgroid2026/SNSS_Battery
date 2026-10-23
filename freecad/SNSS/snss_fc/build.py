@@ -293,7 +293,7 @@ def _console(doc, D, parts, root, machine):
     t0, tray_lo = -6.0, -6.0 - dk["tray_mm"]
     tray = prim.cut(prim.box_lohi((-X / 2 - 10, -Y / 2 - 10, tray_lo), (X / 2 + 10, Y / 2 + 10, t0 + 10)),
                     prim.box_lohi((-X / 2 - 1, -Y / 2 - 1, t0 - 2), (X / 2 + 1, Y / 2 + 1, t0 + 11)))
-    feat(doc, "수조 받침 테 — PETG + EPDM 패킹 (수조가 앉는 턱)", tray, g, "petg_dark")
+    feat(doc, "수조 받침 — 아크릴 10 + EPDM 2 (모서리 잡이는 sc3_build)", tray, g, "petg_dark")
     top, bot = k["desktop_top_z"], k["desktop_bottom_z"]
     pbox(doc, f"XPS 단열 {dk['insulation_mm']:g} mm (본체 열 → 배지 약 {k['heat_into_bath_w']:.1f} W)", (-X / 2, -Y / 2, top), (X / 2, Y / 2, tray_lo), g, "xps")
     feat(doc, "방수 데스크톱 본체 — IP67 · 팬 없음", prim.box((0, 0, (top + bot) / 2), (X, Y, top - bot), 6), g, "pc")

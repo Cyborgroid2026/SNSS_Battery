@@ -1,0 +1,2501 @@
+{
+ "items": [
+  {
+   "name": "방수 데스크톱 함체 (IP67)",
+   "lo": [
+    -179.0,
+    -179.0,
+    -158.0
+   ],
+   "hi": [
+    179.0,
+    179.0,
+    -48.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "pc",
+   "on": "고무 다리 1",
+   "move": "",
+   "step": 1,
+   "explode": [
+    0,
+    0,
+    -60
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "고무 다리 1",
+   "lo": [
+    -164.0,
+    -164.0,
+    -183.0
+   ],
+   "hi": [
+    -134.0,
+    -134.0,
+    -158.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "cyl_z",
+   "mat": "black",
+   "on": "바닥",
+   "move": "",
+   "step": 1,
+   "explode": [
+    0,
+    0,
+    -90
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "고무 다리 2",
+   "lo": [
+    134.0,
+    -164.0,
+    -183.0
+   ],
+   "hi": [
+    164.0,
+    -134.0,
+    -158.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "cyl_z",
+   "mat": "black",
+   "on": "바닥",
+   "move": "",
+   "step": 1,
+   "explode": [
+    0,
+    0,
+    -90
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "고무 다리 3",
+   "lo": [
+    -164.0,
+    134.0,
+    -183.0
+   ],
+   "hi": [
+    -134.0,
+    164.0,
+    -158.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "cyl_z",
+   "mat": "black",
+   "on": "바닥",
+   "move": "",
+   "step": 1,
+   "explode": [
+    0,
+    0,
+    -90
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "고무 다리 4",
+   "lo": [
+    134.0,
+    134.0,
+    -183.0
+   ],
+   "hi": [
+    164.0,
+    164.0,
+    -158.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "cyl_z",
+   "mat": "black",
+   "on": "바닥",
+   "move": "",
+   "step": 1,
+   "explode": [
+    0,
+    0,
+    -90
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "XPS 단열판 30",
+   "lo": [
+    -179.0,
+    -179.0,
+    -48.0
+   ],
+   "hi": [
+    179.0,
+    179.0,
+    -18.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "xps",
+   "on": "방수 데스크톱 함체 (IP67)",
+   "move": "",
+   "step": 2,
+   "explode": [
+    0,
+    0,
+    40
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "아크릴 받침판 10",
+   "lo": [
+    -179.0,
+    -179.0,
+    -18.0
+   ],
+   "hi": [
+    179.0,
+    179.0,
+    -8.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "glass",
+   "on": "XPS 단열판 30",
+   "move": "",
+   "step": 2,
+   "explode": [
+    0,
+    0,
+    70
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "EPDM 패킹 2",
+   "lo": [
+    -179.0,
+    -179.0,
+    -8.0
+   ],
+   "hi": [
+    179.0,
+    179.0,
+    -6.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "black",
+   "on": "아크릴 받침판 10",
+   "move": "",
+   "step": 2,
+   "explode": [
+    0,
+    0,
+    90
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "수조 모서리 잡이 1",
+   "lo": [
+    129.5,
+    129.5,
+    -48.0
+   ],
+   "hi": [
+    184.5,
+    184.5,
+    20.0
+   ],
+   "kind": "printed",
+   "key": "tank_corner",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "방수 데스크톱 함체 (IP67)",
+   "move": "",
+   "step": 2,
+   "explode": [
+    60,
+    60,
+    0
+   ],
+   "wet": false,
+   "pos": [
+    179.5,
+    179.5,
+    -48.0
+   ],
+   "rot": 0,
+   "solid": false
+  },
+  {
+   "name": "수조 모서리 잡이 2",
+   "lo": [
+    -184.5,
+    129.5,
+    -48.0
+   ],
+   "hi": [
+    -129.5,
+    184.5,
+    20.0
+   ],
+   "kind": "printed",
+   "key": "tank_corner",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "방수 데스크톱 함체 (IP67)",
+   "move": "",
+   "step": 2,
+   "explode": [
+    -60,
+    60,
+    0
+   ],
+   "wet": false,
+   "pos": [
+    -179.5,
+    179.5,
+    -48.0
+   ],
+   "rot": 90,
+   "solid": false
+  },
+  {
+   "name": "수조 모서리 잡이 3",
+   "lo": [
+    -184.5,
+    -184.5,
+    -48.0
+   ],
+   "hi": [
+    -129.5,
+    -129.5,
+    20.0
+   ],
+   "kind": "printed",
+   "key": "tank_corner",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "방수 데스크톱 함체 (IP67)",
+   "move": "",
+   "step": 2,
+   "explode": [
+    -60,
+    -60,
+    0
+   ],
+   "wet": false,
+   "pos": [
+    -179.5,
+    -179.5,
+    -48.0
+   ],
+   "rot": 180,
+   "solid": false
+  },
+  {
+   "name": "수조 모서리 잡이 4",
+   "lo": [
+    129.5,
+    -184.5,
+    -48.0
+   ],
+   "hi": [
+    184.5,
+    -129.5,
+    20.0
+   ],
+   "kind": "printed",
+   "key": "tank_corner",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "방수 데스크톱 함체 (IP67)",
+   "move": "",
+   "step": 2,
+   "explode": [
+    60,
+    -60,
+    0
+   ],
+   "wet": false,
+   "pos": [
+    179.5,
+    -179.5,
+    -48.0
+   ],
+   "rot": 270,
+   "solid": false
+  },
+  {
+   "name": "36 큐브 유리 수조",
+   "lo": [
+    -179.0,
+    -179.0,
+    -6.0
+   ],
+   "hi": [
+    179.0,
+    179.0,
+    350.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "glass",
+   "on": "EPDM 패킹 2",
+   "move": "",
+   "step": 3,
+   "explode": [
+    0,
+    0,
+    160
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "배지 — 멸균생리식염수 330 mm",
+   "lo": [
+    -175.0,
+    -175.0,
+    0.0
+   ],
+   "hi": [
+    175.0,
+    175.0,
+    330.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "bath",
+   "on": "36 큐브 유리 수조",
+   "move": "",
+   "step": 14,
+   "explode": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "실리콘 바닥 깔개",
+   "lo": [
+    -240.0,
+    -439.0,
+    -183.0
+   ],
+   "hi": [
+    240.0,
+    -219.0,
+    -180.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "black",
+   "on": "바닥",
+   "move": "",
+   "step": 13,
+   "explode": [
+    0,
+    -80,
+    0
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "IP68 실리콘 키보드",
+   "lo": [
+    -220.0,
+    -389.0,
+    -180.0
+   ],
+   "hi": [
+    140.0,
+    -269.0,
+    -164.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "silicone",
+   "on": "실리콘 바닥 깔개",
+   "move": "",
+   "step": 13,
+   "explode": [
+    0,
+    -80,
+    40
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "IP68 방수 마우스",
+   "lo": [
+    156.0,
+    -384.0,
+    -180.0
+   ],
+   "hi": [
+    220.0,
+    -274.0,
+    -144.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "ellipsoid",
+   "mat": "silicone",
+   "on": "실리콘 바닥 깔개",
+   "move": "",
+   "step": 13,
+   "explode": [
+    0,
+    -80,
+    40
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "모니터 1 발",
+   "lo": [
+    349.0,
+    -209.0,
+    -183.0
+   ],
+   "hi": [
+    529.0,
+    -69.0,
+    -151.0
+   ],
+   "kind": "printed",
+   "key": "monitor_foot",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "바닥",
+   "move": "",
+   "step": 13,
+   "explode": [
+    0,
+    0,
+    -40
+   ],
+   "wet": false,
+   "pos": [
+    439.0,
+    -139.0,
+    -183.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "모니터 1 기둥 2020 × 300",
+   "lo": [
+    429.0,
+    -109.0,
+    -171.0
+   ],
+   "hi": [
+    449.0,
+    -89.0,
+    129.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "alu",
+   "on": "모니터 1 발",
+   "move": "",
+   "step": 13,
+   "explode": [
+    0,
+    0,
+    60
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "모니터 1 VESA 판",
+   "lo": [
+    389.0,
+    -125.0,
+    47.0
+   ],
+   "hi": [
+    489.0,
+    -109.0,
+    147.0
+   ],
+   "kind": "printed",
+   "key": "vesa_plate",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "모니터 1 기둥 2020 × 300",
+   "move": "",
+   "step": 13,
+   "explode": [
+    0,
+    -40,
+    80
+   ],
+   "wet": false,
+   "pos": [
+    439.0,
+    -125.0,
+    97.0
+   ],
+   "rot": 0,
+   "solid": true
+  },
+  {
+   "name": "IP66 방수 모니터 1",
+   "lo": [
+    239.0,
+    -149.0,
+    -23.0
+   ],
+   "hi": [
+    639.0,
+    -125.0,
+    217.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "pc",
+   "on": "모니터 1 VESA 판",
+   "move": "",
+   "step": 13,
+   "explode": [
+    0,
+    -120,
+    80
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "수조 테 안장 1",
+   "lo": [
+    -197.0,
+    -170.0,
+    335.0
+   ],
+   "hi": [
+    -157.0,
+    -130.0,
+    365.0
+   ],
+   "kind": "printed",
+   "key": "rim_saddle",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "36 큐브 유리 수조",
+   "move": "",
+   "step": 4,
+   "explode": [
+    0,
+    0,
+    40
+   ],
+   "wet": false,
+   "pos": [
+    -177.0,
+    -150.0,
+    335.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "수조 테 안장 2",
+   "lo": [
+    157.0,
+    -170.0,
+    335.0
+   ],
+   "hi": [
+    197.0,
+    -130.0,
+    365.0
+   ],
+   "kind": "printed",
+   "key": "rim_saddle",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "36 큐브 유리 수조",
+   "move": "",
+   "step": 4,
+   "explode": [
+    0,
+    0,
+    40
+   ],
+   "wet": false,
+   "pos": [
+    177.0,
+    -150.0,
+    335.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "수조 테 안장 3",
+   "lo": [
+    -197.0,
+    130.0,
+    335.0
+   ],
+   "hi": [
+    -157.0,
+    170.0,
+    365.0
+   ],
+   "kind": "printed",
+   "key": "rim_saddle",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "36 큐브 유리 수조",
+   "move": "",
+   "step": 4,
+   "explode": [
+    0,
+    0,
+    40
+   ],
+   "wet": false,
+   "pos": [
+    -177.0,
+    150.0,
+    335.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "수조 테 안장 4",
+   "lo": [
+    157.0,
+    130.0,
+    335.0
+   ],
+   "hi": [
+    197.0,
+    170.0,
+    365.0
+   ],
+   "kind": "printed",
+   "key": "rim_saddle",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "36 큐브 유리 수조",
+   "move": "",
+   "step": 4,
+   "explode": [
+    0,
+    0,
+    40
+   ],
+   "wet": false,
+   "pos": [
+    177.0,
+    150.0,
+    335.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "2020 보 420 (y -150)",
+   "lo": [
+    -210.0,
+    -160.0,
+    365.0
+   ],
+   "hi": [
+    210.0,
+    -140.0,
+    385.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "alu",
+   "on": "수조 테 안장 2",
+   "move": "",
+   "step": 5,
+   "explode": [
+    0,
+    0,
+    80
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "2020 보 420 (y +150)",
+   "lo": [
+    -210.0,
+    140.0,
+    365.0
+   ],
+   "hi": [
+    210.0,
+    160.0,
+    385.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "alu",
+   "on": "수조 테 안장 4",
+   "move": "",
+   "step": 5,
+   "explode": [
+    0,
+    0,
+    80
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "2020 팔 가로대 320 (x +150)",
+   "lo": [
+    140.0,
+    -160.0,
+    385.0
+   ],
+   "hi": [
+    160.0,
+    160.0,
+    405.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "alu",
+   "on": "2020 보 420 (y +150)",
+   "move": "",
+   "step": 6,
+   "explode": [
+    0,
+    0,
+    120
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "2020 펌프 가로대 320 (x -150)",
+   "lo": [
+    -160.0,
+    -160.0,
+    385.0
+   ],
+   "hi": [
+    -140.0,
+    160.0,
+    405.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "alu",
+   "on": "2020 보 420 (y +150)",
+   "move": "",
+   "step": 6,
+   "explode": [
+    0,
+    0,
+    120
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "2020 팔 보 150",
+   "lo": [
+    25.0,
+    25.0,
+    405.0
+   ],
+   "hi": [
+    175.0,
+    45.0,
+    425.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "alu",
+   "on": "2020 팔 가로대 320 (x +150)",
+   "move": "",
+   "step": 7,
+   "explode": [
+    0,
+    0,
+    160
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "MGN9 r 레일 150",
+   "lo": [
+    25.0,
+    30.5,
+    425.0
+   ],
+   "hi": [
+    175.0,
+    39.5,
+    431.5
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "steel",
+   "on": "2020 팔 보 150",
+   "move": "",
+   "step": 7,
+   "explode": [
+    0,
+    0,
+    180
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "MGN9H r 캐리지",
+   "lo": [
+    30.0,
+    25.0,
+    428.0
+   ],
+   "hi": [
+    70.0,
+    45.0,
+    435.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "steel",
+   "on": "MGN9 r 레일 150",
+   "move": "r",
+   "step": 7,
+   "explode": [
+    0,
+    0,
+    190
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "r 모터 받침",
+   "lo": [
+    175.0,
+    25.0,
+    405.0
+   ],
+   "hi": [
+    220.0,
+    78.0,
+    431.0
+   ],
+   "kind": "printed",
+   "key": "r_motor_mount",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "2020 팔 보 150",
+   "move": "",
+   "step": 7,
+   "explode": [
+    60,
+    0,
+    160
+   ],
+   "wet": false,
+   "pos": [
+    175.0,
+    35.0,
+    415.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "r 모터 NEMA17",
+   "lo": [
+    175.0,
+    34.0,
+    378.0
+   ],
+   "hi": [
+    217.0,
+    76.0,
+    418.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "dark",
+   "on": "r 모터 받침",
+   "move": "",
+   "step": 7,
+   "explode": [
+    60,
+    0,
+    100
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "아이들러 받침",
+   "lo": [
+    16.0,
+    45.0,
+    405.0
+   ],
+   "hi": [
+    34.0,
+    64.0,
+    424.0
+   ],
+   "kind": "printed",
+   "key": "idler_mount",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "2020 팔 보 150",
+   "move": "",
+   "step": 7,
+   "explode": [
+    -40,
+    30,
+    160
+   ],
+   "wet": false,
+   "pos": [
+    25.0,
+    45.0,
+    405.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "r 판 (Z 기둥)",
+   "lo": [
+    25.0,
+    -10.0,
+    427.0
+   ],
+   "hi": [
+    75.0,
+    56.0,
+    657.0
+   ],
+   "kind": "printed",
+   "key": "r_plate",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "MGN9H r 캐리지",
+   "move": "r",
+   "step": 8,
+   "explode": [
+    0,
+    0,
+    260
+   ],
+   "wet": false,
+   "pos": [
+    50.0,
+    0.0,
+    435.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "MGN9 Z 레일 200",
+   "lo": [
+    45.5,
+    43.5,
+    446.0
+   ],
+   "hi": [
+    54.5,
+    50.0,
+    646.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "steel",
+   "on": "r 판 (Z 기둥)",
+   "move": "r",
+   "step": 8,
+   "explode": [
+    0,
+    0,
+    260
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "Z 모터 NEMA17",
+   "lo": [
+    29.0,
+    9.0,
+    657.0
+   ],
+   "hi": [
+    71.0,
+    51.0,
+    697.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "dark",
+   "on": "r 판 (Z 기둥)",
+   "move": "r",
+   "step": 8,
+   "explode": [
+    0,
+    0,
+    320
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "T8 리드 나사 200",
+   "lo": [
+    46.0,
+    26.0,
+    457.0
+   ],
+   "hi": [
+    54.0,
+    34.0,
+    657.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "cyl_z",
+   "mat": "steel",
+   "on": "Z 모터 NEMA17",
+   "move": "r",
+   "step": 8,
+   "explode": [
+    0,
+    0,
+    300
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "MGN9H Z 캐리지",
+   "lo": [
+    40.0,
+    40.0,
+    506.0
+   ],
+   "hi": [
+    60.0,
+    43.5,
+    546.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "steel",
+   "on": "MGN9 Z 레일 200",
+   "move": "rz",
+   "step": 8,
+   "explode": [
+    0,
+    0,
+    280
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "Z 집게",
+   "lo": [
+    30.0,
+    -12.0,
+    506.0
+   ],
+   "hi": [
+    98.0,
+    40.0,
+    546.0
+   ],
+   "kind": "printed",
+   "key": "z_clamp",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "MGN9H Z 캐리지",
+   "move": "rz",
+   "step": 8,
+   "explode": [
+    0,
+    -40,
+    280
+   ],
+   "wet": false,
+   "pos": [
+    50.0,
+    0.0,
+    526.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "고르개 서보 MG90S",
+   "lo": [
+    72.5,
+    -6.2,
+    506.0
+   ],
+   "hi": [
+    95.5,
+    6.2,
+    535.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "dark",
+   "on": "Z 집게",
+   "move": "rz",
+   "step": 8,
+   "explode": [
+    30,
+    -40,
+    300
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "팔 관 기어 30T",
+   "lo": [
+    34.0,
+    -16.0,
+    546.0
+   ],
+   "hi": [
+    66.0,
+    16.0,
+    552.0
+   ],
+   "kind": "printed",
+   "key": "tube_gear",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "Z 집게",
+   "move": "rz",
+   "step": 8,
+   "explode": [
+    0,
+    -40,
+    320
+   ],
+   "wet": false,
+   "pos": [
+    50.0,
+    0.0,
+    546.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "서보 기어 15T",
+   "lo": [
+    64.0,
+    -8.5,
+    546.0
+   ],
+   "hi": [
+    81.0,
+    8.5,
+    552.0
+   ],
+   "kind": "printed",
+   "key": "servo_gear",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "Z 집게",
+   "move": "rz",
+   "step": 8,
+   "explode": [
+    30,
+    -40,
+    320
+   ],
+   "wet": false,
+   "pos": [
+    72.5,
+    0.0,
+    546.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "405 nm LED p",
+   "lo": [
+    30.0,
+    -18.0,
+    546.0
+   ],
+   "hi": [
+    42.0,
+    -6.0,
+    560.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "lens",
+   "on": "Z 집게",
+   "move": "rz",
+   "step": 8,
+   "explode": [
+    0,
+    -60,
+    320
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "405 nm LED n",
+   "lo": [
+    58.0,
+    -18.0,
+    546.0
+   ],
+   "hi": [
+    70.0,
+    -6.0,
+    560.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "lens",
+   "on": "Z 집게",
+   "move": "rz",
+   "step": 8,
+   "explode": [
+    0,
+    -60,
+    320
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "팔 관 탄소 Ø10 × 400",
+   "lo": [
+    45.0,
+    -5.0,
+    184.0
+   ],
+   "hi": [
+    55.0,
+    5.0,
+    584.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "cyl_z",
+   "mat": "cf",
+   "on": "Z 집게",
+   "move": "rz",
+   "step": 9,
+   "explode": [
+    0,
+    -40,
+    120
+   ],
+   "wet": true,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "노즐 머리",
+   "lo": [
+    37.0,
+    -13.0,
+    160.0
+   ],
+   "hi": [
+    63.0,
+    13.0,
+    194.0
+   ],
+   "kind": "printed",
+   "key": "nozzle_head",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "팔 관 탄소 Ø10 × 400",
+   "move": "rz",
+   "step": 9,
+   "explode": [
+    0,
+    -40,
+    -40
+   ],
+   "wet": true,
+   "pos": [
+    50.0,
+    0.0,
+    170.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "PEEK 노즐 p 세포질 (+, GO p · PVA)",
+   "lo": [
+    6.698729810778062,
+    3.6999999999999993,
+    169.2
+   ],
+   "hi": [
+    42.20577136594005,
+    25.799999999999997,
+    170.8
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "seg",
+   "mat": "peek",
+   "on": "노즐 머리",
+   "move": "rz",
+   "step": 9,
+   "explode": [
+    0,
+    -40,
+    -40
+   ],
+   "wet": true,
+   "pos": [
+    42.20577136594005,
+    4.499999999999999,
+    170.0
+   ],
+   "rot": 150.0,
+   "solid": false
+  },
+  {
+   "name": "PEEK 노즐 막 · 피부 (GO 막 · PVA)",
+   "lo": [
+    0.0,
+    -0.7999999999999989,
+    169.2
+   ],
+   "hi": [
+    41.0,
+    0.8000000000000062,
+    170.8
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "seg",
+   "mat": "peek",
+   "on": "노즐 머리",
+   "move": "rz",
+   "step": 9,
+   "explode": [
+    0,
+    -40,
+    -40
+   ],
+   "wet": true,
+   "pos": [
+    41.0,
+    1.102182119232618e-15,
+    170.0
+   ],
+   "rot": 180.0,
+   "solid": false
+  },
+  {
+   "name": "PEEK 노즐 n 세포질 (−, GO n · PVA)",
+   "lo": [
+    6.698729810778062,
+    -25.799999999999986,
+    169.2
+   ],
+   "hi": [
+    42.20577136594005,
+    -3.6999999999999975,
+    170.8
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "seg",
+   "mat": "peek",
+   "on": "노즐 머리",
+   "move": "rz",
+   "step": 9,
+   "explode": [
+    0,
+    -40,
+    -40
+   ],
+   "wet": true,
+   "pos": [
+    42.20577136594005,
+    -4.499999999999997,
+    170.0
+   ],
+   "rot": 210.0,
+   "solid": false
+  },
+  {
+   "name": "펌프 받침 GO p",
+   "lo": [
+    -180.0,
+    -154.0,
+    405.0
+   ],
+   "hi": [
+    -120.0,
+    -102.0,
+    415.0
+   ],
+   "kind": "printed",
+   "key": "pump_saddle",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "2020 펌프 가로대 320 (x -150)",
+   "move": "",
+   "step": 10,
+   "explode": [
+    0,
+    0,
+    60
+   ],
+   "wet": false,
+   "pos": [
+    -150.0,
+    -128.0,
+    405.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "주사기 펌프 GO p (SC-1 출력)",
+   "lo": [
+    -215.0,
+    -150.0,
+    409.0
+   ],
+   "hi": [
+    -85.0,
+    -106.0,
+    456.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "petg",
+   "on": "펌프 받침 GO p",
+   "move": "",
+   "step": 10,
+   "explode": [
+    0,
+    0,
+    100
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "펌프 받침 GO n",
+   "lo": [
+    -180.0,
+    -34.0,
+    405.0
+   ],
+   "hi": [
+    -120.0,
+    18.0,
+    415.0
+   ],
+   "kind": "printed",
+   "key": "pump_saddle",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "2020 펌프 가로대 320 (x -150)",
+   "move": "",
+   "step": 10,
+   "explode": [
+    0,
+    0,
+    60
+   ],
+   "wet": false,
+   "pos": [
+    -150.0,
+    -8.0,
+    405.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "주사기 펌프 GO n (SC-1 출력)",
+   "lo": [
+    -215.0,
+    -30.0,
+    409.0
+   ],
+   "hi": [
+    -85.0,
+    14.0,
+    456.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "petg",
+   "on": "펌프 받침 GO n",
+   "move": "",
+   "step": 10,
+   "explode": [
+    0,
+    0,
+    100
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "펌프 받침 GO 막",
+   "lo": [
+    -180.0,
+    20.0,
+    405.0
+   ],
+   "hi": [
+    -120.0,
+    72.0,
+    415.0
+   ],
+   "kind": "printed",
+   "key": "pump_saddle",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "2020 펌프 가로대 320 (x -150)",
+   "move": "",
+   "step": 10,
+   "explode": [
+    0,
+    0,
+    60
+   ],
+   "wet": false,
+   "pos": [
+    -150.0,
+    46.0,
+    405.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "주사기 펌프 GO 막 (SC-1 출력)",
+   "lo": [
+    -215.0,
+    24.0,
+    409.0
+   ],
+   "hi": [
+    -85.0,
+    68.0,
+    456.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "petg",
+   "on": "펌프 받침 GO 막",
+   "move": "",
+   "step": 10,
+   "explode": [
+    0,
+    0,
+    100
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "펌프 받침 PVA",
+   "lo": [
+    -180.0,
+    74.0,
+    405.0
+   ],
+   "hi": [
+    -120.0,
+    126.0,
+    415.0
+   ],
+   "kind": "printed",
+   "key": "pump_saddle",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "2020 펌프 가로대 320 (x -150)",
+   "move": "",
+   "step": 10,
+   "explode": [
+    0,
+    0,
+    60
+   ],
+   "wet": false,
+   "pos": [
+    -150.0,
+    100.0,
+    405.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "주사기 펌프 PVA (SC-1 출력)",
+   "lo": [
+    -215.0,
+    78.0,
+    409.0
+   ],
+   "hi": [
+    -85.0,
+    122.0,
+    456.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "petg",
+   "on": "펌프 받침 PVA",
+   "move": "",
+   "step": 10,
+   "explode": [
+    0,
+    0,
+    100
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "밸브 판",
+   "lo": [
+    -130.0,
+    130.0,
+    385.0
+   ],
+   "hi": [
+    -20.0,
+    170.0,
+    391.0
+   ],
+   "kind": "printed",
+   "key": "valve_plate",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "2020 보 420 (y +150)",
+   "move": "",
+   "step": 10,
+   "explode": [
+    0,
+    40,
+    60
+   ],
+   "wet": false,
+   "pos": [
+    -75.0,
+    150.0,
+    385.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "핀치 밸브 → 노즐 p (SC-1 출력)",
+   "lo": [
+    -125.0,
+    139.0,
+    387.0
+   ],
+   "hi": [
+    -95.0,
+    161.0,
+    402.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "petg",
+   "on": "밸브 판",
+   "move": "",
+   "step": 10,
+   "explode": [
+    0,
+    40,
+    90
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "핀치 밸브 → 노즐 mem (SC-1 출력)",
+   "lo": [
+    -90.0,
+    139.0,
+    387.0
+   ],
+   "hi": [
+    -60.0,
+    161.0,
+    402.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "petg",
+   "on": "밸브 판",
+   "move": "",
+   "step": 10,
+   "explode": [
+    0,
+    40,
+    90
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "핀치 밸브 → 노즐 n (SC-1 출력)",
+   "lo": [
+    -55.0,
+    139.0,
+    387.0
+   ],
+   "hi": [
+    -25.0,
+    161.0,
+    402.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "petg",
+   "on": "밸브 판",
+   "move": "",
+   "step": 10,
+   "explode": [
+    0,
+    40,
+    90
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "2020 축받이 막대 320 (y −45)",
+   "lo": [
+    -160.0,
+    -55.0,
+    405.0
+   ],
+   "hi": [
+    160.0,
+    -35.0,
+    425.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "alu",
+   "on": "2020 팔 가로대 320 (x +150)",
+   "move": "",
+   "step": 11,
+   "explode": [
+    0,
+    0,
+    200
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "축받이 막대 걸쇠 1",
+   "lo": [
+    130.0,
+    -35.0,
+    405.0
+   ],
+   "hi": [
+    170.0,
+    5.0,
+    430.0
+   ],
+   "kind": "printed",
+   "key": "hub_clamp",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "2020 팔 가로대 320 (x +150)",
+   "move": "",
+   "step": 11,
+   "explode": [
+    0,
+    40,
+    180
+   ],
+   "wet": false,
+   "pos": [
+    150.0,
+    -15.0,
+    405.0
+   ],
+   "rot": 0,
+   "solid": false
+  },
+  {
+   "name": "축받이 막대 걸쇠 2",
+   "lo": [
+    -170.0,
+    -95.0,
+    405.0
+   ],
+   "hi": [
+    -130.0,
+    -55.0,
+    430.0
+   ],
+   "kind": "printed",
+   "key": "hub_clamp",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "2020 펌프 가로대 320 (x -150)",
+   "move": "",
+   "step": 11,
+   "explode": [
+    0,
+    -40,
+    180
+   ],
+   "wet": false,
+   "pos": [
+    -150.0,
+    -75.0,
+    405.0
+   ],
+   "rot": 180,
+   "solid": false
+  },
+  {
+   "name": "막대 축받이",
+   "lo": [
+    -80.0,
+    -55.0,
+    425.0
+   ],
+   "hi": [
+    20.0,
+    25.0,
+    480.0
+   ],
+   "kind": "printed",
+   "key": "hub_block",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "2020 축받이 막대 320 (y −45)",
+   "move": "",
+   "step": 11,
+   "explode": [
+    0,
+    0,
+    220
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    425.0
+   ],
+   "rot": 90,
+   "solid": true
+  },
+  {
+   "name": "막대 모터 NEMA17",
+   "lo": [
+    -73.45472555511313,
+    -21.0,
+    480.0
+   ],
+   "hi": [
+    -31.454725555113136,
+    21.0,
+    520.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "box",
+   "mat": "dark",
+   "on": "막대 축받이",
+   "move": "",
+   "step": 11,
+   "explode": [
+    0,
+    0,
+    260
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": true
+  },
+  {
+   "name": "막대 집게 + 60T",
+   "lo": [
+    -19.2,
+    -19.2,
+    423.0
+   ],
+   "hi": [
+    19.2,
+    19.2,
+    489.0
+   ],
+   "kind": "printed",
+   "key": "stick_collet",
+   "shape": "stl",
+   "mat": "petg",
+   "on": "막대 축받이",
+   "move": "turn",
+   "step": 11,
+   "explode": [
+    0,
+    0,
+    300
+   ],
+   "wet": false,
+   "pos": [
+    0.0,
+    0.0,
+    425.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "영점 막대 PC Ø6 × 320",
+   "lo": [
+    -3.0,
+    -3.0,
+    170.0
+   ],
+   "hi": [
+    3.0,
+    3.0,
+    490.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "cyl_z",
+   "mat": "petg",
+   "on": "막대 집게 + 60T",
+   "move": "turn",
+   "step": 11,
+   "explode": [
+    0,
+    0,
+    300
+   ],
+   "wet": true,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "흑연 봉 + Ø2 × 300",
+   "lo": [
+    -2.0,
+    -1.0,
+    158.0
+   ],
+   "hi": [
+    0.0,
+    1.0,
+    458.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "cyl_z",
+   "mat": "graphite",
+   "on": "영점 막대 PC Ø6 × 320",
+   "move": "turn",
+   "step": 11,
+   "explode": [
+    0,
+    0,
+    300
+   ],
+   "wet": true,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  },
+  {
+   "name": "흑연 봉 − Ø2 × 300",
+   "lo": [
+    0.0,
+    -1.0,
+    158.0
+   ],
+   "hi": [
+    2.0,
+    1.0,
+    458.0
+   ],
+   "kind": "bought",
+   "key": "",
+   "shape": "cyl_z",
+   "mat": "graphite",
+   "on": "영점 막대 PC Ø6 × 320",
+   "move": "turn",
+   "step": 11,
+   "explode": [
+    0,
+    0,
+    300
+   ],
+   "wet": true,
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot": 0.0,
+   "solid": false
+  }
+ ],
+ "geometry": {
+  "tank_inner": 350.0,
+  "glass": 4.0,
+  "fill": 330.0,
+  "zero_z": 170.0,
+  "saddle_slot_depth": 15.0,
+  "beam_y": 150.0,
+  "bar_x": 150.0,
+  "hub_bar_y": -45.0,
+  "arm_beam_y": 35.0,
+  "reach_mm": 50.0,
+  "nozzle_deg": 30.0,
+  "r_travel": [
+   0.0,
+   60.0
+  ],
+  "tube_drop": 356.0,
+  "z_rail_lo": 446.0,
+  "z_rail_len": 200.0,
+  "carriage_len": 40.0,
+  "belt_len": 188.0,
+  "pulley_teeth": [
+   20,
+   60
+  ],
+  "z_travel": [
+   110.0,
+   270.0
+  ],
+  "belt_center": 52.454725555113136,
+  "beam_z": 365.0,
+  "wall_x": 177.0,
+  "saddle_z": 335.0
+ },
+ "nozzles": [
+  {
+   "key": "p",
+   "name": "p 세포질 (+, GO p · PVA)",
+   "side": -1,
+   "deg": -30.0
+  },
+  {
+   "key": "mem",
+   "name": "막 · 피부 (GO 막 · PVA)",
+   "side": 0,
+   "deg": 0.0
+  },
+  {
+   "key": "n",
+   "name": "n 세포질 (−, GO n · PVA)",
+   "side": 1,
+   "deg": 30.0
+  }
+ ],
+ "stl_dir": "/home/a71143055/Desktop/SNSS_Battery/cad_out/sc3/stl",
+ "steps": [
+  {
+   "n": 0,
+   "title": "부품 뽑기 · 사기"
+  },
+  {
+   "n": 1,
+   "title": "데스크톱을 바닥에"
+  },
+  {
+   "n": 2,
+   "title": "단열 · 받침판 · 모서리 잡이"
+  },
+  {
+   "n": 3,
+   "title": "수조 올리기"
+  },
+  {
+   "n": 4,
+   "title": "수조 테 안장"
+  },
+  {
+   "n": 5,
+   "title": "2020 보 둘"
+  },
+  {
+   "n": 6,
+   "title": "가로대 둘"
+  },
+  {
+   "n": 7,
+   "title": "팔 r 축"
+  },
+  {
+   "n": 8,
+   "title": "팔 Z 축 · 고르개"
+  },
+  {
+   "n": 9,
+   "title": "노즐 머리 · 팔 관"
+  },
+  {
+   "n": 10,
+   "title": "펌프 · 밸브 · 관"
+  },
+  {
+   "n": 11,
+   "title": "막대 · 축받이"
+  },
+  {
+   "n": 12,
+   "title": "배선"
+  },
+  {
+   "n": 13,
+   "title": "바닥 — 모니터 · 키보드 · 마우스"
+  },
+  {
+   "n": 14,
+   "title": "물 · 영점 맞추기 · 시운전"
+  },
+  {
+   "n": 15,
+   "title": "꺼내기"
+  }
+ ]
+}

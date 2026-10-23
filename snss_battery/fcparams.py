@@ -129,6 +129,7 @@ def design() -> dict:
         "jobs": _jobs(),
         "console": __import__("snss_battery.console", fromlist=["Console"]).Console().to_json(),
         "candy": _candy(),
+        "sc3": __import__("snss_battery.sc3_build", fromlist=["to_json"]).to_json(),
     }
 
 

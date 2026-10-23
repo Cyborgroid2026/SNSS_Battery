@@ -25,14 +25,15 @@ class Stick:
     """영점 막대 — 위 다리에서 아래로. 끝이 영점, 그 둘레에 존재가 붙어 자람. 막대째 뽑아 꺼냄."""
 
     diameter_mm: float = 6.0  # PETG 관 + 흑연 심 두 줄 (+ · −, 실리콘으로 갈라 둠)
-    leads: str = "연필심 Ø2 두 줄 (+ 한쪽 · − 반대쪽, 끝 12 mm 만 드러남) — 존재의 단자"
+    leads: str = "흑연 봉 Ø2 두 줄 (+ 한쪽 · − 반대쪽, 끝 12 mm 만 드러남, 윗끝은 물 밖에서 전선) — 존재의 단자"
     zero_mm: tuple[float, float, float] = (0.0, 0.0, 34.0)  # 존재 좌표의 영점 (몸통 가운데) — 막대는 머리 위로 빠짐
     rpm_max: float = 6.0
 
 
 @dataclass(frozen=True)
 class Syringes:
-    """주사기 넷 (물 밖 펌프 → 실리콘 관 → 팔 끝 혼합 노즐): GO 세 통(p · n · 막) + PVA. 염은 배지가 줌."""
+    """주사기 넷 (물 밖 펌프) → 재료마다 노즐 따로 셋 (p · 막 · n): GO 통 하나 + PVA 한 갈래(핀치 밸브)가 노즐 머리의 제 혼합기에서 만남.
+    노즐 셋은 팔 관 둘레 30° 씩 — 고르개가 팔 관을 돌려 하나만 막대 쪽을 봄 (sc3_build). 염은 배지가 줌."""
 
     go_mg_ml: float = 10.0
     pva_wt: float = 10.0
@@ -48,7 +49,7 @@ class CandySpec:
     tank_inner_mm: tuple[float, float, float] = (350.0, 350.0, 350.0)
     fill_mm: float = 330.0
     work_center_z: float = 170.0  # 수조 안에서 영점 높이 (가운데쯤 — 사방이 비어 자람)
-    bridge_z: float = 380.0  # 수조 위 다리 (모터 · 막대 회전 · 팔 레일, 물 밖)
+    bridge_z: float = 365.0  # 수조 위 2020 보 밑면 (안장 위, 물 밖) — 자세한 자리는 sc3_build
     bridge_hole_mm: float = 120.0  # 다리 가운데 구멍 — 막대를 빼면 존재가 이 구멍으로 올라옴
     stick: Stick = field(default_factory=Stick)
     syringes: Syringes = field(default_factory=Syringes)
@@ -84,7 +85,8 @@ def plan(shape: str = "being", height_mm: float = 0.0, spec: CandySpec | None = 
     mat = piece.material[I, J, K][keep]
     d, x, y, z = d[keep], x[keep], y[keep], z[keep]
     shell = np.floor(d / spec.shell_mm).astype(int)
-    order = np.lexsort((np.arctan2(y - zy, x - zx), z, shell))  # 껍질 → 높이 → 각도 (막대가 도는 방향)
+    # 껍질 → 재료 → 높이 → 각도: 한 껍질 안에서 재료를 묶어 노즐 바꿈을 껍질마다 많아야 세 번으로
+    order = np.lexsort((np.arctan2(y - zy, x - zx), z, mat, shell))
     vox_mm3 = px * px * pz
     flow = spec.syringes.nozzle_mm * spec.layer_mm * spec.syringes.speed_mm_s  # mm³/s
     n_shell = int(shell.max()) + 1
@@ -186,15 +188,21 @@ def state_at(pl: dict, proc: Process, t: float) -> dict:
 
 
 def strokes(pl: dict, spec: CandySpec | None = None) -> np.ndarray:
-    """칸 순서 → 기계 좌표 (막대 각도 θ°, 팔 r mm, 팔 z mm, 재료) — 막대가 θ 로 돌고 팔은 반지름 · 높이만 움직임."""
+    """칸 순서 → 기계 좌표 (막대 각도 θ°, 노즐 끝 반지름 r mm, 노즐 끝 높이 z mm, 재료) — 막대가 θ 로 돌고 팔은 반지름 · 높이만 움직임."""
     spec = spec or pl["spec"]
     zx, zy, zz = pl["zero_mm"]
     xyz = pl["xyz"]
     dx, dy = xyz[:, 0] - zx, xyz[:, 1] - zy
-    th = np.degrees(np.arctan2(dy, dx))
+    th = -np.degrees(np.arctan2(dy, dx))  # 막대를 −φ 돌리면 그 칸이 +x (팔 · 노즐 쪽) 로 옴
     r = np.hypot(dx, dy)
     zt = spec.work_center_z + (xyz[:, 2] - zz)
     return np.stack([th, r, zt, pl["mat"].astype(float)], 1)
+
+
+def switches(pl: dict) -> int:
+    """쌓는 순서에서 재료(= 노즐)가 바뀌는 횟수 (처음 고르는 것 포함)."""
+    m = pl["mat"]
+    return int(1 + np.count_nonzero(m[1:] != m[:-1])) if len(m) else 0
 
 
 def check(pl: dict) -> list[str]:
@@ -222,6 +230,7 @@ def describe(pl: dict, proc: Process) -> str:
     n = len(pl["mat"])
     lines = [f"[{sp.name} — {proc.name}] 높이 {p.height_mm:.1f} mm · 칸 {n} · 영점 {tuple(round(v, 1) for v in pl['zero_mm'])} mm (존재 좌표)",
              f"  막대 Ø{sp.stick.diameter_mm:g} ({sp.stick.leads}) · 주사기 GO {sp.syringes.go_mg_ml:g} mg/mL ×3 (p · n · 막) + PVA {sp.syringes.pva_wt:g} % — 염은 배지 154 mM",
+             f"  노즐 셋 따로 (p · 막 · n, 30° 고르개) — 노즐 바꿈 {switches(pl)}번 (껍질마다 많아야 3)",
              f"  껍질 {int(pl['shell'][-1]) + 1}개 × {sp.shell_mm} mm → 단계 {len(proc.steps)}개 (단계 = 껍질 {sp.shells_per_step}) · 흐름 {pl['flow_mm3_s']:.2f} mm³/s",
              f"  시간 약 {proc.total_s() / 3600:.1f} h (반복 · 수정 반영) · 고친 것 {len(proc.edits)}건"]
     for s in proc.steps[:3] + ([{"i": "…"}] if len(proc.steps) > 6 else []) + proc.steps[-3:]:
@@ -252,4 +261,4 @@ def write_job(pl: dict, proc: Process, out: str | Path = "sculpt_out") -> Path:
     return f
 
 
-__all__ = ["CandySpec", "Process", "plan", "state_at", "strokes", "check", "describe", "write_job", "replace"]
+__all__ = ["CandySpec", "Process", "plan", "state_at", "strokes", "switches", "check", "describe", "write_job", "replace"]
