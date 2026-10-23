@@ -95,10 +95,10 @@ class ToolSpec:
         return [t.name for t in self.tools if not t.elements <= ok]
 
     def max_work_height_mm(self, light: LightSculptorSpec) -> float:
-        """도구 면까지 내렸을 때 너트 판이 Z 모터 방수 통(높이 46) 위 2 mm 에 머무는 작업물 높이."""
-        from .layout import BED_CARRIAGE, PLATE, RISER
+        """도구 면까지 내렸을 때 너트 판이 Z 모터 방수 통(높이 49 = 통 44 + 뚜껑 5) 위 2 mm 에 머무는 작업물 높이."""
+        from .layout import BED_CARRIAGE, PLATE, POD_H, RISER
 
-        return self.head.tip_z - (46 + 2 + BED_CARRIAGE + RISER + PLATE)
+        return self.head.tip_z - (POD_H + 2 + BED_CARRIAGE + RISER + PLATE)
 
 
 def _cells(job: dict):

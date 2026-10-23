@@ -14,3 +14,5 @@ elab/certs/
 elab/data/
 results/
 sculpt_out/
+cad_out/freecad/build.log
+cad_out/freecad/*.FCBak

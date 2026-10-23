@@ -189,7 +189,7 @@ class Chamber:
 @dataclass
 class SculptorSpec:
     name: str = "SNSS 조각가 SC-1"
-    build_mm: tuple[float, float, float] = (110.0, 110.0, 100.0)
+    build_mm: tuple[float, float, float] = (110.0, 110.0, 90.0)  # 높이: 너트 판이 방수 통 위 · XY 방수 통이 위 꼭짓점 아래 (layout · FreeCAD)
     frame_mm: tuple[float, float, float] = (330.0, 330.0, 300.0)  # 36 큐브 수조 안에 통째로
     frame: str = "RepRap 방식, 통째로 물속 — 출력한 PETG 꼭짓점 8개 + 탄소섬유 봉 Ø8 12개 (금속 없음)"
     kinematics: str = ("CoreXY (펜 XY, 탄소섬유 봉 + 출력 PETG 미끄럼 부싱) + Z (나일론 나사봉 M8 3개) — "

@@ -13,6 +13,8 @@
 #   ./tools.sh blender-anim  위 + 쌓기→깨어남 동영상 (mp4)
 #   ./tools.sh view-blender  마지막 작업의 .blend 를 Blender 창으로 열기
 #   ./tools.sh parts         조각가 출력 부품 STL (흔한 FDM 프린터로 뽑음) + 시중 구매 목록 + Blender 부품판
+#   ./tools.sh freecad       FreeCAD 설계 — 모든 작품을 매개변수 CAD 문서로 짓고 B-rep 점검 (처음이면 FreeCAD 1.1.4 를 ~/Applications 에 받음)
+#   ./tools.sh view-freecad  지은 문서를 FreeCAD 창으로 (워크벤치 'SNSS 설계': 고치기 → 조각가로 빚기)
 #   ./tools.sh ports         아날로그 · 디지털 · 양자 공학기기 호환 단자
 #   ./tools.sh web           웹 뷰어 → http://127.0.0.1:8765/#tools (VS Code: Browser: Open Integrated Browser 에 붙여 넣기)
 #   ./tools.sh chem          용액 화학 (PHREEQC): 활동도, 어는점, 막전위 보정
@@ -132,6 +134,19 @@ last_job() {  # 메시가 있는 가장 최근 작업 폴더
     done
 }
 need_blender() { command -v blender >/dev/null || { echo "Blender 가 없습니다 (sudo snap install blender --classic)" >&2; exit 1; }; }
+# FreeCAD: PATH 에 없으면 ~/Applications 에 공식 AppImage 를 받아 풀어 씀 (sudo 불필요)
+FC_VER=1.1.4
+need_freecad() {
+    local d=~/Applications/freecad-$FC_VER
+    if [[ ! -x $d/usr/bin/freecadcmd ]] && ! command -v freecadcmd >/dev/null; then
+        echo "FreeCAD $FC_VER 을(를) ~/Applications 에 내려받습니다 (약 730 MB)…" >&2
+        mkdir -p ~/Applications && cd ~/Applications
+        curl -L -o FreeCAD_$FC_VER.AppImage "https://github.com/FreeCAD/FreeCAD/releases/download/$FC_VER/FreeCAD_$FC_VER-Linux-x86_64-py311.AppImage"
+        chmod +x FreeCAD_$FC_VER.AppImage && ./FreeCAD_$FC_VER.AppImage --appimage-extract >/dev/null && mv squashfs-root freecad-$FC_VER
+        rm -f FreeCAD_$FC_VER.AppImage
+        cd - >/dev/null
+    fi
+}
 cmd_being() { "$PY" -m snss_battery sculpt new being; }
 cmd_blender() {
     need_blender
@@ -167,6 +182,8 @@ case "${1:-}" in
     blender-anim) cmd_blender --anim ;;
     view-blender) cmd_view_blender ;;
     parts) "$PY" -m snss_battery parts && { command -v blender >/dev/null && blender -b --factory-startup --python sim/blender_parts.py -- sculpt_out/parts 2>&1 | grep -E "렌더|저장|Error" || true; } ;;
+    freecad) shift; need_freecad; "$PY" -m snss_battery freecad "$@" ;;
+    view-freecad) need_freecad; [[ -f cad_out/freecad/SC1_Sculptor.FCStd ]] || "$PY" -m snss_battery freecad; "$PY" -m snss_battery freecad --open ;;
     ports) "$PY" -m snss_battery ports ;;
     web) cmd_web ;;
     chem) cmd_chem ;;

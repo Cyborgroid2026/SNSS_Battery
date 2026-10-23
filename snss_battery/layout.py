@@ -68,6 +68,15 @@ class Layout:
                         bad.append(f"{g.name} ↔ {b.name}: 갠트리가 프레임 위 봉에 닿음")
                 elif b.kind == "static" and g.gap(b) < 2.0:
                     bad.append(f"{g.name} ↔ {b.name}: {g.gap(b):.1f} mm")
+        # 받침 너트 (가장 낮을 때) ↔ Z 모터 방수 통 · XY 모터 방수 통 ↔ 위 꼭짓점 (상자 점검이 놓치던 것)
+        for nut in (b for b in self.boxes if b.name.startswith("받침 너트 (가장 낮을")):
+            for b in frame_static:
+                if nut.gap(b) < 2.0 and "나사봉" not in b.name:
+                    bad.append(f"{nut.name} ↔ {b.name}: {nut.gap(b):.1f} mm (받침이 다 내려갔을 때)")
+        for b in pods:
+            for c in (c for c in frame_static if c.name == "꼭짓점 (위)"):
+                if b.gap(c) < 2.0:
+                    bad.append(f"{b.name} ↔ {c.name}: {b.gap(c):.1f} mm")
         sp = self.spec
         if self.travel[0] < sp.build_mm[0] / 2 or self.travel[1] < sp.build_mm[1] / 2:
             bad.append("펜 XY 이동이 출력 공간을 다 덮지 못함")
@@ -119,6 +128,8 @@ PLATE = 6.0  # 배양 받침 두께
 BED_CARRIAGE = 10.0  # 받침 아래 나사봉 너트 판
 HAND = 70.0  # 손 · 수확 통로 반폭 (받침 손잡이 포함)
 Z_SCREW = 102.0  # Z 나사봉 · 모터 방수 통 중심 (펜 작업 공간 · 손 통로 밖, 프레임 꼭짓점 안)
+POD_H = 49.0  # 모터 방수 통 44 + 뚜껑 5 (parts.motor_pod · pod_lid — FreeCAD 조립에서 잰 실제 높이)
+NUT_R = 14.0  # 받침 너트 판의 나사봉 너트 (나일론) 반지름
 
 
 def make_layout(spec: SculptorSpec | None = None) -> Layout:
@@ -126,7 +137,7 @@ def make_layout(spec: SculptorSpec | None = None) -> Layout:
     FX, FY, FZ = sp.frame_mm
     bx, by, bz = sp.build_mm[0] / 2, sp.build_mm[1] / 2, sp.build_mm[2]
     h = FX / 2 - 18  # 세로 봉 중심
-    bed_bottom_min = 2.0
+    bed_bottom_min = POD_H + 2  # 너트 판이 나사봉을 타고 내려가도 Z 모터 방수 통 위 2 mm (FreeCAD 움직임 점검으로 찾음)
     z_tip = bed_bottom_min + BED_CARRIAGE + PLATE + bz
     gz = z_tip + PEN_STACK
     park = (0.0, HAND + 2 + 31 + 2)  # 뒤쪽 가운데: 캐리지(반폭 31)가 손 통로 밖
@@ -146,11 +157,12 @@ def make_layout(spec: SculptorSpec | None = None) -> Layout:
     z_screw_top = z_tip - PLATE - BED_CARRIAGE + 8
     for x, y in ((Z_SCREW, -Z_SCREW), (Z_SCREW, Z_SCREW), (-Z_SCREW, -Z_SCREW)):
         boxes.append(_cyl("Z 나일론 나사봉", x, y, 4, 0, z_screw_top))
-        boxes.append(_cyl("Z 모터 방수 통", x, y, 28, 0, 46))
+        boxes.append(_cyl("Z 모터 방수 통", x, y, 28, 0, POD_H))
+        boxes.append(_cyl("받침 너트 (가장 낮을 때)", x, y, NUT_R, bed_bottom_min, bed_bottom_min + BED_CARRIAGE, "bed"))
     # 원료 펌프 3 (왼쪽 벽, 세로: 방수 통 아래 · 주사기 위)
     for i, (y, lab) in enumerate(((-20, "GO"), (40, "SNSS"), (100, "PVA"))):
-        boxes.append(_cyl(f"원료 펌프 방수 통 {lab}", -118, y, 28, 0, 46))
-        boxes.append(_cyl(f"원료 주사기 {lab}", -118, y, 11, 46, 156))
+        boxes.append(_cyl(f"원료 펌프 방수 통 {lab}", -118, y, 28, 0, POD_H))
+        boxes.append(_cyl(f"원료 주사기 {lab}", -118, y, 11, POD_H, POD_H + 110))
     # 전자 방수 통 (오른쪽 벽) · 전극 (뒤 왼쪽 구석) · 방수 케이블 (프레임 밖)
     boxes.append(Box("전자 방수 통", (93, -60, 0), (143, 60, 90), "static"))
     boxes.append(Box("배지 전도도 · 누설 전극", (-133, 132, 60), (-127, 141, 100), "static"))
@@ -249,7 +261,7 @@ def make_light_layout(spec=None, tools=True) -> LightLayout:
             boxes.append(Box(f"탄소섬유 봉 (가로, {lab}, Y)", (s * h - 4, -h, zc - 4), (s * h + 4, h, zc + 4), "frame"))
     for x, y in ((Z_SCREW, -Z_SCREW), (Z_SCREW, Z_SCREW), (-Z_SCREW, -Z_SCREW)):
         boxes.append(_cyl("Z 나일론 나사봉", x, y, 4, 0, FZ - 20))  # 280 — 도구 갠트리(283~) 아래
-        boxes.append(_cyl("Z 모터 방수 통", x, y, 28, 0, 46))
+        boxes.append(_cyl("Z 모터 방수 통", x, y, 28, 0, POD_H))
     boxes.append(Box("받침 너트 판 (가장 높을 때)", (-Z_SCREW - 12, -Z_SCREW - 12, nut_hi - BED_CARRIAGE), (Z_SCREW + 12, Z_SCREW + 12, nut_hi), "bed"))
     boxes.append(Box("배양 받침 기둥 (쓸림)", (-60, -60, bed_bottom_min), (60, 60, z_tip), "bed"))
     # 전극: 배지 전도도 · 누설 기준 (뒤 왼쪽 구석, 잉크 우물 밖)
@@ -294,8 +306,8 @@ def _tool_gantry(sp, boxes: list, zones: list, bx: float, by: float) -> None:
         x = -75 + 30 * i
         boxes.append(_cyl(f"도구 걸이 {t.key} {t.name}", x, ty, 10, tip - 2, g - 24, "static"))
     for y, lab in zip((-40, 7, 53, 100), th.pumps[:4]):
-        boxes.append(_cyl(f"주사기 펌프 방수 통 {lab}", -118, y, 28, 0, 46))
-        boxes.append(_cyl(f"원료 주사기 {lab}", -118, y, 11, 46, 156))
-    boxes.append(_cyl(f"주사기 펌프 방수 통 {th.pumps[4]}", 118, 0, 28, 0, 46))
-    boxes.append(_cyl(f"회수 주사기 {th.pumps[4]}", 118, 0, 11, 46, 156))
+        boxes.append(_cyl(f"주사기 펌프 방수 통 {lab}", -118, y, 28, 0, POD_H))
+        boxes.append(_cyl(f"원료 주사기 {lab}", -118, y, 11, POD_H, POD_H + 110))
+    boxes.append(_cyl(f"주사기 펌프 방수 통 {th.pumps[4]}", 118, 0, 28, 0, POD_H))
+    boxes.append(_cyl(f"회수 주사기 {th.pumps[4]}", 118, 0, 11, POD_H, POD_H + 110))
     zones.append(Box("도구 작업 공간 (도구 면 위)", (-bx - 16, -by - 16, tip - 2), (bx + 16, by + 16, g - 21), "zone"))

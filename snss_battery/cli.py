@@ -500,6 +500,17 @@ def cmd_parts(a: argparse.Namespace) -> None:
     print(f"저장: {a.out}/stl/*.stl · {a.out}/parts.csv · {a.out}/buy.csv (시중 구매: 약국·마트·문구점·철물점·온라인)")
 
 
+def cmd_freecad(a: argparse.Namespace) -> None:
+    from . import fcparams
+
+    if a.open:
+        print(f"FreeCAD 창을 엽니다: {fcparams.open_gui()}")
+        return
+    v = fcparams.run_build(only=a.only, gui=not a.headless)
+    print(fcparams.describe(v))
+    print(f"FreeCAD 에서 열기: python3 -m snss_battery freecad --open (워크벤치 'SNSS 설계') · 기록 {fcparams.OUT.relative_to(fcparams.ROOT)}/validation.json")
+
+
 def cmd_ports(_: argparse.Namespace) -> None:
     from .interfaces import describe
 
@@ -690,6 +701,11 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("parts", help="조각가 출력 부품 STL (부모 프린터로 뽑음) + 시중 구매 목록")
     p.add_argument("--out", default="sculpt_out/parts")
     p.set_defaults(func=cmd_parts)
+    p = sub.add_parser("freecad", help="FreeCAD 설계 — 모든 작품을 매개변수 CAD 문서로 짓고 B-rep 점검 (SNSS 설계 워크벤치)")
+    p.add_argument("--only", default="", help="쉼표로 고르기: sc1 · sc2 · cells · small (부품 · 존재 모양은 늘)")
+    p.add_argument("--headless", action="store_true", help="GUI 없이 (색 · 투명도 없이 저장)")
+    p.add_argument("--open", action="store_true", help="지은 문서를 FreeCAD 창으로 열기")
+    p.set_defaults(func=cmd_freecad)
     sub.add_parser("ports", help="아날로그 · 디지털 · 양자 공학기기 호환 단자").set_defaults(func=cmd_ports)
     p = sub.add_parser("scpi", help="SCPI 다리 (TCP 5025) — 계측기처럼 조각가를 다룸 (G-code 는 화면에 출력)")
     p.add_argument("--host", default="127.0.0.1")
