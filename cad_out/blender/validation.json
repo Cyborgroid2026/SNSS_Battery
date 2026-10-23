@@ -98,7 +98,7 @@
    "name": "모터 받침 (NEMA17)",
    "volume_cm3": 28.6897,
    "sdf_volume_cm3": 28.6965,
-   "rel": -0.00023733737610252253,
+   "rel": -0.00023731191228693754,
    "nonmanifold_edges": 0,
    "qty": 5
   },
@@ -107,7 +107,7 @@
    "name": "펜 캐리지 (키네마틱 마운트)",
    "volume_cm3": 28.6264,
    "sdf_volume_cm3": 28.64264,
-   "rel": -0.0005674267913616125,
+   "rel": -0.0005675963517363804,
    "nonmanifold_edges": 0,
    "qty": 1
   },
@@ -116,16 +116,16 @@
    "name": "X 봉 끝단",
    "volume_cm3": 27.4164,
    "sdf_volume_cm3": 27.44062,
-   "rel": -0.000883600457949545,
+   "rel": -0.000883228467472604,
    "nonmanifold_edges": 0,
    "qty": 2
   },
   {
    "key": "pen_body",
    "name": "SNSS 펜 몸체",
-   "volume_cm3": 0.0035,
+   "volume_cm3": 29.5382,
    "sdf_volume_cm3": 29.61363,
-   "rel": -0.9998822367450656,
+   "rel": -0.0025455107537128195,
    "nonmanifold_edges": 0,
    "qty": 1
   },
@@ -134,7 +134,7 @@
    "name": "나선형 혼합기 4 요소",
    "volume_cm3": 0.0122,
    "sdf_volume_cm3": 0.01204,
-   "rel": 0.015639190793173812,
+   "rel": 0.015642625739941962,
    "nonmanifold_edges": 0,
    "qty": 2
   },
@@ -143,7 +143,7 @@
    "name": "주사기 펌프",
    "volume_cm3": 71.5301,
    "sdf_volume_cm3": 71.45933,
-   "rel": 0.0009907569741490498,
+   "rel": 0.0009908172522759995,
    "nonmanifold_edges": 0,
    "qty": 3
   },
@@ -152,16 +152,16 @@
    "name": "핀치 밸브",
    "volume_cm3": 8.1893,
    "sdf_volume_cm3": 8.19565,
-   "rel": -0.0007796532569056129,
+   "rel": -0.0007796550694775342,
    "nonmanifold_edges": 0,
    "qty": 3
   },
   {
    "key": "tank_base",
    "name": "배양조 받침",
-   "volume_cm3": 143.7011,
+   "volume_cm3": 143.701,
    "sdf_volume_cm3": 142.70886,
-   "rel": 0.006952715860760528,
+   "rel": 0.0069525312470343145,
    "nonmanifold_edges": 0,
    "qty": 1
   },
@@ -170,7 +170,7 @@
    "name": "배양 받침 (수확 손잡이)",
    "volume_cm3": 10.5861,
    "sdf_volume_cm3": 10.60263,
-   "rel": -0.0015566964926506954,
+   "rel": -0.0015568390941759363,
    "nonmanifold_edges": 0,
    "qty": 1
   },
@@ -179,7 +179,7 @@
    "name": "배지 전도도 전극 집게",
    "volume_cm3": 9.024,
    "sdf_volume_cm3": 9.04035,
-   "rel": -0.001811373246330513,
+   "rel": -0.001811526507605482,
    "nonmanifold_edges": 3,
    "qty": 1
   },
@@ -188,7 +188,7 @@
    "name": "단자판 (아날로그 · 디지털 · 양자)",
    "volume_cm3": 55.7809,
    "sdf_volume_cm3": 54.9276,
-   "rel": 0.01553494958247678,
+   "rel": 0.015534953239102657,
    "nonmanifold_edges": 0,
    "qty": 1
   },
@@ -197,52 +197,52 @@
    "name": "전자 방수 통 (몸)",
    "volume_cm3": 116.1114,
    "sdf_volume_cm3": 115.39478,
-   "rel": 0.006210468847186583,
+   "rel": 0.00621043322940975,
    "nonmanifold_edges": 0,
    "qty": 1
   },
   {
    "key": "motor_pod",
    "name": "모터 방수 통",
-   "volume_cm3": 0.001,
+   "volume_cm3": 35.6203,
    "sdf_volume_cm3": 35.68064,
-   "rel": -0.9999710601592982,
+   "rel": -0.0016902451755095018,
    "nonmanifold_edges": 0,
    "qty": 8
   },
   {
    "key": "pod_lid",
    "name": "방수 통 뚜껑",
-   "volume_cm3": 0.0029,
+   "volume_cm3": 13.876,
    "sdf_volume_cm3": 13.87311,
-   "rel": -0.9997918404261453,
+   "rel": 0.0002069670245263888,
    "nonmanifold_edges": 0,
    "qty": 8
   },
   {
    "key": "coupler",
    "name": "자석 커플링 원판",
-   "volume_cm3": 0.0027,
+   "volume_cm3": 7.9199,
    "sdf_volume_cm3": 7.94047,
-   "rel": -0.999656537854337,
+   "rel": -0.0025860451942180474,
    "nonmanifold_edges": 0,
    "qty": 16
   },
   {
    "key": "bushing",
    "name": "미끄럼 부싱",
-   "volume_cm3": 0.0021,
+   "volume_cm3": 2.8377,
    "sdf_volume_cm3": 2.83014,
-   "rel": -0.9992572766254202,
+   "rel": 0.002674502526304247,
    "nonmanifold_edges": 0,
    "qty": 8
   },
   {
    "key": "led_ring",
    "name": "405 nm 빛 고리",
-   "volume_cm3": 0.0016,
+   "volume_cm3": 2.6885,
    "sdf_volume_cm3": 2.66921,
-   "rel": -0.9994191344585834,
+   "rel": 0.007220061764906005,
    "nonmanifold_edges": 0,
    "qty": 1
   },
@@ -251,7 +251,7 @@
    "name": "스캐너 받침",
    "volume_cm3": 21.7083,
    "sdf_volume_cm3": 21.70384,
-   "rel": 0.00020739120563826544,
+   "rel": 0.00020728053804751277,
    "nonmanifold_edges": 0,
    "qty": 1
   },
@@ -260,7 +260,7 @@
    "name": "벨트 물림",
    "volume_cm3": 1.7925,
    "sdf_volume_cm3": 1.79411,
-   "rel": -0.000895693881621756,
+   "rel": -0.0008970529874516743,
    "nonmanifold_edges": 0,
    "qty": 2
   }
@@ -269,7 +269,7 @@
   "being": {
    "volume_cm3": 21.1944,
    "sdf_volume_cm3": 21.2322,
-   "rel": -0.0017817580824625752,
+   "rel": -0.0017817779617282795,
    "height": 71.0,
    "nonmanifold_edges": 0,
    "triangles": 187402,
@@ -278,7 +278,7 @@
   "seed": {
    "volume_cm3": 51.3163,
    "sdf_volume_cm3": 51.323,
-   "rel": -0.00013019832131565834,
+   "rel": -0.00013021024006569686,
    "height": 58.0,
    "nonmanifold_edges": 0,
    "triangles": 218130,
@@ -287,17 +287,17 @@
   "bud": {
    "volume_cm3": 1.608,
    "sdf_volume_cm3": 1.6221,
-   "rel": -0.008697797194330833,
+   "rel": -0.00869781689343278,
    "height": 19.19,
    "nonmanifold_edges": 0,
    "triangles": 22852,
    "stl": "cad_out/blender/shapes/bud.stl"
   },
   "coupon": {
-   "volume_cm3": 0.001,
+   "volume_cm3": 1.728,
    "sdf_volume_cm3": 1.728,
-   "rel": -0.9994212962962964,
-   "height": 1.0,
+   "rel": 0.0,
+   "height": 12.0,
    "nonmanifold_edges": 0,
    "triangles": 20,
    "stl": "cad_out/blender/shapes/coupon.stl"
@@ -463,5 +463,5 @@
   "layers": 35,
   "top_z_mm": 1.501813530921936
  },
- "seconds": 13.3
+ "seconds": 14.1
 }
