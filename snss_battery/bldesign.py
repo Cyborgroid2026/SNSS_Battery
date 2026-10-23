@@ -90,8 +90,37 @@ def serve_web(port: int = 8790, host: str = "127.0.0.1", out: Path = OUT) -> int
         raise RuntimeError("blender 가 없습니다")
     if not f.exists():
         run_build(out)
+    port = _free_port(host, port)
+    if port is None:
+        return 0
     print(f"브라우저 속 Blender → http://{host}:{port}/   (VS Code: Ctrl+Shift+P → 'Browser: Open Integrated Browser' 에 붙여 넣기)", flush=True)
-    return subprocess.call([exe, "-b", str(f), "--python", str(ROOT / "blender" / "serve_web.py"), "--", "--port", str(port), "--host", host])
+    try:
+        return subprocess.call(
+            [exe, "-b", str(f), "--python", str(ROOT / "blender" / "serve_web.py"), "--", "--port", str(port), "--host", host])
+    except KeyboardInterrupt:
+        print("\n브라우저 속 Blender 를 멈췄습니다.")
+        return 0
+
+
+def _free_port(host: str, port: int) -> int | None:
+    """그 포트에 이미 SNSS 서버가 있으면 주소만 알려 주고 None, 다른 프로그램이 쓰고 있으면 다음 빈 포트."""
+    import socket
+    import urllib.request
+
+    for p in range(port, port + 20):
+        with socket.socket() as s:
+            if s.connect_ex((host, p)) != 0:
+                return p
+        try:
+            with urllib.request.urlopen(f"http://{host}:{p}/api/info", timeout=3) as r:
+                if "blender" in json.loads(r.read()):
+                    print(f"브라우저 속 Blender 가 이미 켜져 있습니다 → http://{host}:{p}/\n"
+                          f"  (끄려면: 그 터미널에서 Ctrl+C, 또는 pkill -x blender)")
+                    return None
+        except Exception:  # noqa: BLE001
+            pass
+        print(f"포트 {p} 는 다른 프로그램이 쓰고 있어 다음 포트로 갑니다.")
+    raise RuntimeError(f"포트 {port}–{port + 19} 가 모두 쓰이고 있습니다 (--port 로 다른 포트를)")
 
 
 def describe(v: dict) -> str:
