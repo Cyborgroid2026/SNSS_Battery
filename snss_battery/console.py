@@ -27,12 +27,17 @@ class Desktop:
                "DAC 로 내보내고, 구워 온 화면을 모니터에 띄움 (굽기 · 설계 · 시뮬레이션은 지금 컴퓨터)")
     pc_w: float = 25.0
     slots: tuple[str, ...] = ("SD (SDXC, 앞판 왼쪽 · 방수 덮개)", "microSD (앞판 오른쪽 · 방수 덮개)")
+    # 화면 4가지 — 보통 모니터 1대에서 F1–F4 로 바꿔 봄. 모니터를 더 이으면(최대 4) 1번부터 한 대에 하나씩.
+    monitor_count: int = 1
     monitors: tuple[tuple[str, str], ...] = (
         ("모니터 1 — 지금 단계", "SD 의 monitors/step_NN.png — 그 단계까지 자란 모습 (위 · 옆), 영점 표시"),
         ("모니터 2 — 시간표", "monitors/timeline.png + 진행 막대 · 단계 표시점 (반복 = 주황)"),
         ("모니터 3 — 수조 카메라", "앞 유리 카메라 — 실제로 자라는 존재 (사람이 보는 그대로)"),
         ("모니터 4 — 아날로그 계측", "CV 채널 9개 · 배지 전도도 · 누설 · 10 MHz / PPS 잠김"))
-    video_out: str = "HDMI 2 · DisplayPort 2 (뒤판, IP67 덮개) — 모니터 4대, 수조 옆 받침 팔"
+    video_out: str = "HDMI 2 · DisplayPort 2 (뒤판, IP67 덮개 · IP68 방수 케이블) — 보통 모니터 1대 (F1–F4 로 화면 바꿈), 더 이으면 최대 4대, 데스크톱과 같은 바닥에 세움"
+    monitor_rating: str = "IP66 방수 모니터 (전면 IP66 · 뒤 밀폐, 팬 없음, 물·식염수 닦아도 됨) — 금속 없는 PETG 받침 발로 바닥에 섬"
+    monitor_mm: tuple[float, float, float] = (400.0, 240.0, 24.0)  # 화면 너비 · 높이 · 틀 두께
+    monitor_stand_mm: tuple[float, float, float] = (180.0, 140.0, 160.0)  # 바닥 받침 발 너비 · 깊이, 바닥에서 화면 아래끝까지
     analog: str = ("DAC 16비트 × 9 (±10 V) → 주사기 펌프 · 막대 회전 · 팔 r · z · 405 nm 빛 · 트리거, ADC × 8 ← 배지 전도도 · 누설 · 발 단자 · C–V — "
                    "SD 읽기와 화면 띄우기만 하는 작은 디지털 부분 (마이크로컨트롤러), 그 밖은 아날로그 신호 길")
 
@@ -45,13 +50,18 @@ class Desktop:
     def bottom_z(self) -> float:
         return self.top_z - self.body_h_mm
 
+    @property
+    def floor_z(self) -> float:
+        """바닥 — 데스크톱 고무 다리가 서는 곳. 키보드 · 마우스 · 모니터도 모두 이 바닥에 놓고 씀."""
+        return self.bottom_z - self.feet_mm
+
 
 @dataclass(frozen=True)
 class Inputs:
-    """데스크톱 앞에 붙는 입력 — 접는 받침판(데스크톱 앞판에 경첩) 위 IP68 키보드 · 마우스, 짧은 IP67 M12 선으로 데스크톱에."""
+    """데스크톱 앞 바닥에 놓고 쓰는 입력 — 방수 실리콘 바닥 깔개 위 IP68 키보드 · 마우스, IP67 M12 선으로 데스크톱 앞판에."""
 
-    tray_mm: tuple[float, float, float] = (420.0, 190.0, 10.0)  # 접는 받침판 (펼친 크기)
-    tray_drop_mm: float = 20.0  # 본체 윗면에서 받침판까지 아래로
+    mat_mm: tuple[float, float, float] = (480.0, 220.0, 3.0)  # 바닥 깔개 (IP68 실리콘, 미끄럼 막이 · 물 고임 홈)
+    front_gap_mm: float = 40.0  # 데스크톱 앞 (다리 끝) 에서 깔개까지
     keyboard: str = "IP68 실리콘 키보드 (의료용, 물·식염수 세척 가능) — 숫자판 있는 것 (Blender 숫자판 시점)"
     keyboard_mm: tuple[float, float, float] = (360.0, 120.0, 16.0)
     mouse: str = "IP68 방수 마우스 (의료용, 밀봉 휠 · 가운데 버튼) — Blender 처럼 가운데 끌기로 돌려 보기"
@@ -91,6 +101,7 @@ HW_KEYMAP: tuple[tuple[str, str, str, str], ...] = (
     ("Home", "전체 보기", "회전 0° · 받침 기본 · 보기 빛 끔", "TURN A=0 · G1 Z · VIEW_LIGHT R=0"),
     ("Ctrl + 휠 · Alt + B", "단면 (층) 보기", "SC-2: 그 층의 설계 단면을 보기 빛으로 수면에 비춤", "VIEW_LIGHT LAYER=<k>"),
     ("Space · ← →", "재생 · 한 단계", "SD 재생 멈춤 · 이어서 · 앞뒤 단계 표시점으로 (모니터 2 에 표시)", "PAUSE · RESUME"),
+    ("F1 – F4", "화면 바꾸기", "모니터 1대일 때 지금 단계 · 시간표 · 수조 카메라 · 계측 중 하나를 띄움 (여러 대면 그 대로 고정)", "—"),
     ("R · S · F", "다시 · 건너뛰기 · 흐름", "SC-3: 이 단계 한 번 더 · 건너뛰기 · 흐름 배율 — SD 의 edits.json 에 적어 지금 컴퓨터가 다시 구움", "—"),
 )
 
@@ -141,9 +152,11 @@ class Console:
             f"본체 {d.body_h_mm:g} mm (윗면 z {d.top_z:g}) · {d.rating}",
             f"    {d.pc} → 배지로 새는 열 약 {self.heat_into_bath_w():.1f} W (XPS 너머)",
             f"    슬롯: {' · '.join(d.slots)} · 화면: {d.video_out}",
-            *[f"      {n}: {w}" for n, w in d.monitors],
+            f"    모니터 {d.monitor_count}대 (최대 {len(d.monitors)}) — 화면 4가지:",
+            *[f"      F{k + 1} {n}: {w}" for k, (n, w) in enumerate(d.monitors)],
             f"    신호: {d.analog}",
-            f"  입력: 데스크톱 앞판에 경첩으로 붙은 접는 받침판 {i.tray_mm[0]:g}×{i.tray_mm[1]:g} 위 — {i.keyboard} · {i.mouse}",
+            f"    모니터: {d.monitor_rating}",
+            f"  입력: 데스크톱 앞 바닥(z {d.floor_z:g})의 방수 실리콘 깔개 {i.mat_mm[0]:g}×{i.mat_mm[1]:g} 위 — {i.keyboard} · {i.mouse}",
             f"  회전 받침: ±{t.limit_deg:g}° · {t.motor} · 빚는 동안은 0° 에 묶음",
             f"  보기 빛: {v.nm:g} nm {v.mw_cm2:g} mW/cm² (SC-2 광엔진 세 번째 색) — {v.note}",
             "  키 · 마우스 (Blender 와 같음) → Blender 화면 / 수조 모니터:"]
@@ -155,4 +168,5 @@ class Console:
         from dataclasses import asdict
 
         return asdict(self) | {"desktop_top_z": self.desktop.top_z, "desktop_bottom_z": self.desktop.bottom_z,
+                               "floor_z": self.desktop.floor_z,
                                "keymap": [list(r) for r in HW_KEYMAP], "heat_into_bath_w": self.heat_into_bath_w()}

@@ -3,8 +3,8 @@
  "scenes": [
   {
    "scene": "SC-3 영점 막대",
-   "objects": 191,
-   "meshes": 180,
+   "objects": 186,
+   "meshes": 175,
    "instances": 0,
    "drivers": 6,
    "bad_drivers": [],
@@ -12,8 +12,8 @@
   },
   {
    "scene": "SC-1 조각가",
-   "objects": 245,
-   "meshes": 197,
+   "objects": 240,
+   "meshes": 192,
    "instances": 36,
    "drivers": 4,
    "bad_drivers": [],
@@ -30,8 +30,8 @@
   },
   {
    "scene": "SC-2 빛 조각가",
-   "objects": 241,
-   "meshes": 202,
+   "objects": 236,
+   "meshes": 197,
    "instances": 26,
    "drivers": 8,
    "bad_drivers": [],
@@ -510,5 +510,5 @@
   "layers": 35,
   "top_z_mm": 1.502994179725647
  },
- "seconds": 54.0
+ "seconds": 74.0
 }

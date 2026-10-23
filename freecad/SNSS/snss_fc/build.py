@@ -285,7 +285,7 @@ def build_sc1(D, out, parts, being_shape=None):
 
 
 def _console(doc, D, parts, root, machine):
-    """수조 바로 밑에 붙는 방수 데스크톱 + 앞판 접는 받침판의 IP68 키보드 · 마우스 (snss_battery/console.py)."""
+    """수조 바로 밑에 붙는 방수 데스크톱 + 바닥에 놓는 IP68 키보드 · 마우스 · IP66 모니터 (snss_battery/console.py)."""
     k = D["console"]
     dk, ip = k["desktop"], k["inputs"]
     g = group(doc, "수조 콘솔 — 방수 데스크톱 · 키보드 · 마우스 (HW 뷰포트)", root)
@@ -305,14 +305,23 @@ def _console(doc, D, parts, root, machine):
     fy = -Y / 2
     feat(doc, "앞판 IP67 단자 (M12 키보드 · 마우스 · USB-C · 예비)",
          Part.makeCompound([prim.cyl((-90 + i * 40, fy - 4, top - 30), 7, 8, 1) for i in range(4)]), g, "silicone")
-    tw, td, tt = ip["tray_mm"]
-    tz = top - ip["tray_drop_mm"]
-    pcyl(doc, "받침판 경첩 (PETG 핀)", (-(tw - 20) / 2, fy - 6, tz), 4, tw - 20, 0, g, "petg")
-    pbox(doc, "접는 받침판 (데스크톱 앞판에 경첩)", (-tw / 2, fy - 6 - td, tz - tt), (tw / 2, fy - 6, tz), g, "petg_dark")
+    # 바닥에 놓고 쓰는 키보드 · 마우스 · 모니터 (데스크톱 고무 다리와 같은 바닥)
+    fl = k["floor_z"]
+    mw0, md0, mt = ip["mat_mm"]
+    my = fy - ip["front_gap_mm"] - md0 / 2
+    pbox(doc, "바닥 깔개 — IP68 실리콘", (-mw0 / 2, my - md0 / 2, fl), (mw0 / 2, my + md0 / 2, fl + mt), g, "dark")
     kw, kd, kh = ip["keyboard_mm"]
-    feat(doc, "IP68 실리콘 키보드 (숫자판 = Blender 시점)", prim.box((-35, fy - 6 - td / 2 - 10, tz + kh / 2), (kw, kd, kh), 4), g, "silicone")
+    kx = -mw0 / 2 + 20 + kw / 2
+    feat(doc, "IP68 실리콘 키보드 — 바닥에 놓음", prim.box((kx, my, fl + mt + kh / 2), (kw, kd, kh), 4), g, "silicone")
     mw, md, mh = ip["mouse_mm"]
-    feat(doc, "IP68 방수 마우스 (가운데 끌기 = 돌려 보기)", prim.ellipsoid((tw / 2 - 50, fy - 6 - td / 2, tz + mh / 2), (mw / 2, md / 2, mh / 2)), g, "silicone")
+    feat(doc, "IP68 방수 마우스 — 바닥에 놓음", prim.ellipsoid((mw0 / 2 - 20 - mw / 2, my, fl + mt + mh / 2), (mw / 2, md / 2, mh / 2)), g, "silicone")
+    W, H, T = dk["monitor_mm"]
+    sw, sd_, sh = dk["monitor_stand_mm"]
+    for n, ((side, col), m) in enumerate(zip([(1, 0), (-1, 0), (1, 1), (-1, 1)], dk["monitors"][: dk["monitor_count"]])):
+        x, y = side * (X / 2 + 60 + W / 2 + col * (W + 40)), -Y / 2 + 40
+        pbox(doc, f"모니터 {n + 1} 받침 발 — 바닥에 놓임", (x - sw / 2, y - sd_ / 2, fl), (x + sw / 2, y + sd_ / 2, fl + 12), g, "petg_dark")
+        pbox(doc, f"모니터 {n + 1} 받침 기둥", (x - 15, y + sd_ / 2 - 40, fl + 12), (x + 15, y + sd_ / 2 - 20, fl + sh + H / 2), g, "pc")
+        feat(doc, f"{m[0]} — IP66 방수 모니터", prim.box((x, y + sd_ / 2 - 52, fl + sh + H / 2), (W + 16, T, H + 16), 4), g, "pc")
     if machine == "sc1":
         link(doc, parts["port_panel"], "단자판 — 데스크톱 뒤 (아날로그 · 디지털 · 양자)", at(0, Y / 2 + 2, (top + bot) / 2, R(V(1, 0, 0), 90)), g)
     return g

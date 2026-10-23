@@ -369,7 +369,7 @@ def _pad(c, parts, parent, top, machine):
 
 
 def _console(root, D, parts, machine):
-    """수조 바로 밑에 붙는 방수 데스크톱 + 앞판 접는 받침판의 IP68 키보드 · 마우스 (console.py)."""
+    """수조 바로 밑에 붙는 방수 데스크톱 + 바닥에 놓는 IP68 키보드 · 마우스 · IP66 모니터 (console.py)."""
     k = D["console"]
     dk, ip = k["desktop"], k["inputs"]
     c = coll(root, "수조 콘솔 — 방수 데스크톱 · 키보드 · 마우스 (HW 뷰포트)")
@@ -402,25 +402,26 @@ def _console(root, D, parts, machine):
         o = P.cyl(c, f"앞판 IP67 단자 — {lab}", (-90 + i * 40, fy - 4, top - 30), 7 if lab != "USB-C" else 5, 8, 1)
         paint(o, "silicone")
     paint(P.box_lohi(c, "전원 · 상태 LED", (100, fy - 2, top - 34), (130, fy, top - 26)), "lens")
-    # 앞판 경첩에 붙은 접는 받침판 + 키보드 · 마우스
-    tw, td, tt = ip["tray_mm"]
-    tz = top - ip["tray_drop_mm"]
-    paint(P.cyl(c, "받침판 경첩 (PETG 핀)", (0, fy - 6, tz), 4, tw - 20, 0), "petg")
-    paint(P.box_lohi(c, "접는 받침판 (데스크톱 앞판에 경첩)", (-tw / 2, fy - 6 - td, tz - tt), (tw / 2, fy - 6, tz)), "petg_dark")
-    for sx in (-1, 1):
-        st = P.box(c, "받침판 버팀", (sx * (tw / 2 - 20), fy - 30, tz - 26), (8, 6, 58))
-        st.rotation_euler = (math.radians(-40), 0, 0)
-        paint(st, "petg")
+    # 바닥에 놓고 쓰는 키보드 · 마우스 — 데스크톱 앞 바닥의 방수 실리콘 깔개 위
+    fl = k["floor_z"]
+    mw0, md0, mt = ip["mat_mm"]
+    my = fy - ip["front_gap_mm"] - md0 / 2  # 깔개 가운데 — 데스크톱 앞판에서 front_gap 앞
+    paint(P.box_lohi(c, "바닥 깔개 — IP68 실리콘 (미끄럼 막이 · 물 고임 홈)", (-mw0 / 2, my - md0 / 2, fl), (mw0 / 2, my + md0 / 2, fl + mt)), "black")
+    tz = fl + mt
     kw, kd, kh = ip["keyboard_mm"]
-    paint(P.box(c, "IP68 실리콘 키보드 (숫자판 = Blender 시점)", (-35, fy - 6 - td / 2 - 10, tz + kh / 2), (kw, kd, kh), 4), "silicone")
+    kx = -mw0 / 2 + 20 + kw / 2
+    paint(P.box(c, "IP68 실리콘 키보드 — 바닥에 놓음 (숫자판 = Blender 시점)", (kx, my, tz + kh / 2), (kw, kd, kh), 4), "silicone")
     for i in range(14):
         for j in range(5):
-            paint(P.box(c, "키", (-35 - kw / 2 + 14 + i * 24, fy - 6 - td / 2 - 10 - kd / 2 + 16 + j * 22, tz + kh + 0.8), (18, 16, 1.6), 1.5), "petg")
+            paint(P.box(c, "키", (kx - kw / 2 + 14 + i * 24, my - kd / 2 + 16 + j * 22, tz + kh + 0.8), (18, 16, 1.6), 1.5), "petg")
     mw, md, mh = ip["mouse_mm"]
-    paint(P.ellipsoid(c, "IP68 방수 마우스 (가운데 끌기 = 돌려 보기)", (tw / 2 - 50, fy - 6 - td / 2, tz + mh / 2), (mw / 2, md / 2, mh / 2)), "silicone")
-    for i, (x0, lab) in enumerate(((-35, "키보드"), (tw / 2 - 50, "마우스"))):
-        o = P.cyl_ab(c, f"IP67 선 — {lab}", (x0, fy - 6 - td / 2 + (kd / 2 if i == 0 else md / 2), tz + 4), (-90 + i * 40, fy - 6, top - 30), 2.5)
-        paint(o, "cable")
+    mx = mw0 / 2 - 20 - mw / 2
+    paint(P.ellipsoid(c, "IP68 방수 마우스 — 바닥에 놓음 (가운데 끌기 = 돌려 보기)", (mx, my, tz + mh / 2), (mw / 2, md / 2, mh / 2)), "silicone")
+    for i, (x0, y0, lab) in enumerate(((kx, my + kd / 2, "키보드"), (mx, my + md / 2, "마우스"))):
+        jack = (-90 + i * 40, fy - 4, top - 30)
+        knee = (jack[0], fy - 12, fl + 3)  # 바닥을 따라 오다가 앞판 밑에서 위로
+        for seg, (p0, p1) in enumerate((((x0, y0, tz + 3), (x0, y0 + 6, fl + 3)), ((x0, y0 + 6, fl + 3), knee), (knee, (jack[0], fy - 12, jack[2])), ((jack[0], fy - 12, jack[2]), jack))):
+            paint(P.cyl_ab(c, f"IP67 선 — {lab} (바닥 따라 앞판 M12 로) {seg + 1}", p0, p1, 2.5), "cable")
     if machine == "sc1":
         inst(c, parts["port_panel"], "단자판 — 데스크톱 뒤 (아날로그 · 디지털 · 양자)", (0, Y / 2 + 2, (top + bot) / 2), (-math.pi / 2, 0, math.pi))
     # SD · microSD 슬롯 (앞판, 방수 덮개) — 지금 컴퓨터가 구운 과정을 꽂아 재생 (양자 아날로그 데스크톱)
@@ -429,25 +430,29 @@ def _console(root, D, parts, machine):
         paint(P.box_lohi(c, f"{lab} — 덮개", (x0 - 3, fy - 5, top - 64), (x0 + w + 3, fy - 3, top - 52)), "silicone")
     sd = paint(P.box_lohi(c, "꽂힌 SD 카드 (구운 과정)", (-157, fy - 18, top - 59.4), (-137, fy - 3, top - 56.6)), "neg")
     sd["sd"] = True
-    _monitors(c, D, X, Y, top, bot)
+    _monitors(c, D, X, Y, fl)
     return c
 
 
-def _monitors(c, D, X, Y, top, bot):
-    """모니터 4대 — 데스크톱 양 옆 받침 팔 (뒤판 HDMI 2 · DP 2). 화면은 SD 에 구운 그림 (렌더에서 보임)."""
-    mons = D["console"]["desktop"].get("monitors", [])
-    W, H = 400.0, 240.0
-    spots = [(-1, 0), (-1, 1), (1, 0), (1, 1)]
+def _monitors(c, D, X, Y, fl):
+    """IP66 방수 모니터 — 보통 1대 (F1–F4 로 화면 바꿈), 더 이으면 최대 4대. 모두 데스크톱과 같은 바닥에 받침 발로 섬.
+    화면은 SD 에 구운 그림 (렌더에서 보임)."""
+    dk = D["console"]["desktop"]
+    mons = dk.get("monitors", [])[: dk.get("monitor_count", 1)]
+    W, H, T = dk.get("monitor_mm", (400.0, 240.0, 24.0))
+    sw, sd_, sh = dk.get("monitor_stand_mm", (180.0, 140.0, 160.0))
+    # 1대: 데스크톱 오른쪽 옆 바닥 · 2–4대: 오른쪽 · 왼쪽 · 오른쪽 바깥 · 왼쪽 바깥
+    spots = [(1, 0), (-1, 0), (1, 1), (-1, 1)]
     sd = Path(__file__).resolve().parent.parent.parent / "cad_out" / "sd" / "being" / "SNSS" / "monitors"
     pics = [sd / "step_06.png", sd / "timeline.png", None, None]
-    for k, ((side, row), m) in enumerate(zip(spots, mons)):
-        x = side * (X / 2 + 60 + W / 2)
-        z = top + 60 + row * (H + 30)
-        paint(P.box_lohi(c, f"모니터 팔 {k + 1}", (side * (X / 2 + 20) - 10, Y / 2 - 60, bot), (side * (X / 2 + 20) + 10, Y / 2 - 40, z + H / 2)), "pc")
-        frame = paint(P.box(c, f"{m[0]} — 틀", (x, Y / 2 - 50, z + H / 2), (W + 16, 24, H + 16), 4), "pc")
-        frame.rotation_euler = (0, 0, -side * 0.35)
-        scr = P.box(c, f"{m[0]} — 화면 ({m[1][:30]}…)", (x - side * 2, Y / 2 - 63, z + H / 2), (W, 2, H))
-        scr.rotation_euler = (0, 0, -side * 0.35)
+    for k, ((side, col), m) in enumerate(zip(spots, mons)):
+        x = side * (X / 2 + 60 + W / 2 + col * (W + 40))
+        y = -Y / 2 + 40
+        paint(P.box_lohi(c, f"모니터 {k + 1} 받침 발 — 바닥에 놓임 (PETG, 고무 패드)", (x - sw / 2, y - sd_ / 2, fl), (x + sw / 2, y + sd_ / 2, fl + 12)), "petg_dark")
+        paint(P.box_lohi(c, f"모니터 {k + 1} 받침 기둥", (x - 15, y + sd_ / 2 - 40, fl + 12), (x + 15, y + sd_ / 2 - 20, fl + sh + H / 2)), "pc")
+        zc = fl + sh + H / 2
+        paint(P.box(c, f"{m[0]} — IP66 방수 틀", (x, y + sd_ / 2 - 30 - T / 2 - 10, zc), (W + 16, T, H + 16), 4), "pc")
+        scr = P.box(c, f"{m[0]} — 화면 ({m[1][:30]}…)", (x - side * 2, y + sd_ / 2 - 30 - T - 11, zc), (W, 2, H))
         scr["monitor"] = k + 1
         paint(scr, "screen")
         if pics[k] is not None and pics[k].exists():
@@ -468,8 +473,7 @@ def _screen_image(o, png):
     nt.links.new(em.outputs[0], nt.nodes["Material Output"].inputs["Surface"])
     co = nt.nodes.new("ShaderNodeTexCoord")
     mp = nt.nodes.new("ShaderNodeMapping")
-    mp.inputs["Rotation"].default_value = (math.pi / 2, 0, 0)
-    mp.inputs["Location"].default_value = (0.5, 0.5, 0)
+    mp.inputs["Rotation"].default_value = (-math.pi / 2, 0, 0)  # 생성 좌표 (x, z) → 그림 (u, v): 앞에서 볼 때 바로 섬
     nt.links.new(co.outputs["Generated"], mp.inputs["Vector"])
     nt.links.new(mp.outputs[0], tex.inputs["Vector"])
     m.diffuse_color = (0.25, 0.45, 0.85, 1)
@@ -578,7 +582,7 @@ def build_sc3(D, parts, shapes):
                    ("자라는 존재 — 영점에서 껍질처럼 바깥으로", (0, 0, zc - 20), (-470, -260, zc)),
                    ("GO · PVA 주사 + 405 nm (물속은 비금속)", (24, 0, zc), (-470, -260, zc - 40)),
                    ("모터 · 펌프는 물 밖 다리 위", (0, -90, bz + 20), (-470, -260, bz + 40)),
-                   ("양자 아날로그 데스크톱 + SD · 모니터 4", (-150, -179, -100), (-470, -260, -100))])
+                   ("양자 아날로그 데스크톱 + SD · 바닥 모니터", (-150, -179, -100), (-470, -260, -100))])
     _camera(sc, (0, -60, 140), 1900, (1.0, -1.3, 0.6))
     return sc
 
@@ -727,7 +731,7 @@ def build_sc2(D, parts, tools, shapes):
                    ("빚는 존재 — 배지(수조)가 모니터", (0, 0, fill - 40), (-460, -260, 330)),
                    ("두 색 광엔진 + 보기 빛 630 nm", (0, 0, gz), (-460, -260, 640)),
                    ("수조에 붙은 방수 데스크톱 (IP67)", (-150, -179, -100), (-460, -260, -100)),
-                   ("IP68 키보드 · 마우스 = HW 뷰포트", (100, -300, -50), (-460, -420, -10))])
+                   ("바닥의 IP68 키보드 · 마우스 = HW 뷰포트", (100, -300, -150), (-460, -420, -10))])
     _zones(sc, L, root)
     _camera(sc, (-60, -100, 180), 1700, (1.0, -1.3, 0.7))
     return sc

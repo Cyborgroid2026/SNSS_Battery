@@ -134,7 +134,7 @@ def burn(pl: dict, proc: Process, target: str | Path, card_gb: float = 8.0) -> d
            "channels": [{"name": c[0], "unit": c[1], "at_0V": c[2], "at_10V": c[3]} for c in CHANNELS],
            "samples": int(len(prog)), "seconds": round(len(prog) / RATE_HZ, 1), "cues": cues, "files": files, "bytes": size,
            "clock": "외부 10 MHz → 1 PPS (Q1 · Q2) 에 표본 시계 맞춤", "zero_mm": list(pl["zero_mm"]),
-           "monitors": {"1": "monitors/step_NN.png (지금 단계)", "2": "monitors/timeline.png + 진행 막대", "3": "카메라 (수조 앞)",
+           "monitor_count": 1, "monitors": {"1": "monitors/step_NN.png (지금 단계 · F1)", "2": "monitors/timeline.png + 진행 막대", "3": "카메라 (수조 앞)",
                         "4": "아날로그 계측 (CV · 배지 전도도 · 누설)"}}
     (root / "manifest.json").write_text(json.dumps(man, ensure_ascii=False, indent=1), encoding="utf-8")
     return {"root": str(root), "samples": len(prog), "seconds": man["seconds"], "bytes": size, "cues": len(cues), "monitors": len(mons)}
