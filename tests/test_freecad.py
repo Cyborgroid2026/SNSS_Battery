@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from snss_battery import fcparams
-from snss_battery.layout import BED_CARRIAGE, PLATE, POD_H, make_layout, make_light_layout
+from snss_battery.layout import BED_CARRIAGE, PLATE, POD_H, TURN_SC1, make_layout, make_light_layout
 from snss_battery.printer import SculptorSpec
 
 
@@ -14,7 +14,7 @@ class TestDesignParams(unittest.TestCase):
         d = fcparams.design()
         for k in ("sc1", "sc2", "parts", "shapes", "quantum", "bottle", "coupons"):
             self.assertIn(k, d)
-        self.assertEqual(len(d["parts"]), 20)
+        self.assertEqual(len(d["parts"]), 23)
         self.assertEqual({s for s in d["shapes"]}, {"being", "seed", "bud", "coupon"})
         self.assertEqual(len(d["quantum"]), 35)
         self.assertEqual(len(d["sc2"]["tools"]), 6)
@@ -24,7 +24,7 @@ class TestDesignParams(unittest.TestCase):
         """FreeCAD 움직임 점검이 찾은 고침: 받침이 다 내려가도 너트 판이 Z 모터 방수 통(49 mm) 위 2 mm."""
         lay = make_layout()
         self.assertGreaterEqual(lay.bed_bottom_min, POD_H + 2)
-        self.assertEqual(lay.z_tip, lay.bed_bottom_min + BED_CARRIAGE + PLATE + SculptorSpec().build_mm[2])
+        self.assertEqual(lay.z_tip, lay.bed_bottom_min + BED_CARRIAGE + TURN_SC1 + PLATE + SculptorSpec().build_mm[2])
         self.assertEqual(lay.problems(), [])
         self.assertEqual(make_light_layout().problems(), [])
 
@@ -53,7 +53,7 @@ class TestFreeCADBuild(unittest.TestCase):
             self.assertEqual(d["invalid"], [], d["file"])
 
     def test_parts_match_sdf(self):
-        self.assertEqual(len(self.v["parts"]), 20)
+        self.assertEqual(len(self.v["parts"]), 23)
         for p in self.v["parts"]:
             self.assertTrue(p["valid"], p["key"])
             self.assertLess(abs(p["rel"]), 0.03, p["key"])

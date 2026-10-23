@@ -200,7 +200,18 @@ def run_build(out: Path = OUT, only: str = "", gui: bool = True) -> dict:
     env = dict(os.environ, SNSS_DESIGN=str(f), SNSS_OUT=str(out), SNSS_ONLY=only, SNSS_ADDON=str(ADDON))
     if gui and exe.name.lower() == "freecad":
         env["QT_QPA_PLATFORM"] = "offscreen"
-    r = subprocess.run([str(exe), str(ADDON / "build_all.py")], env=env, capture_output=True, text=True, timeout=1800)
+        for k in ("DISPLAY", "WAYLAND_DISPLAY"):  # 화면이 잡혀 있으면 화면 없는 GUI 가 X 를 붙잡고 멈춤
+            env.pop(k, None)
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as cache:  # 짓기마다 따로 된 캐시 — 끊긴 짓기의 '문서 복구' 창이 다음 GUI 짓기를 막지 않게
+        env["XDG_CACHE_HOME"] = cache
+        try:
+            r = subprocess.run([str(exe), str(ADDON / "build_all.py")], env=env, capture_output=True, text=True, timeout=900 if gui else 1800)
+        except subprocess.TimeoutExpired:
+            if gui:
+                return run_build(out, only, gui=False)
+            raise
     if not val.exists() and gui:
         return run_build(out, only, gui=False)
     log = (r.stdout or "") + (r.stderr or "")

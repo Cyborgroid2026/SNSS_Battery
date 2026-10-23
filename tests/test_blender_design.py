@@ -26,7 +26,7 @@ class TestBlenderDesign(unittest.TestCase):
             self.assertEqual(s["bad_modifiers"], [], s["scene"])
 
     def test_parts_closed_and_match_sdf(self):
-        self.assertEqual(len(self.v["parts"]), 20)
+        self.assertEqual(len(self.v["parts"]), 23)
         for p in self.v["parts"]:
             self.assertEqual(p["nonmanifold_edges"], 0, p["key"])
             self.assertLess(abs(p["rel"]), 0.03, p["key"])
