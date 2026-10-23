@@ -152,6 +152,10 @@ def realize(node, mat_coll, name):
 def drive(o, path, index, expr, **vars_):
     """드라이버: vars_ = {이름: (대상 ID, data_path)} — 단순 식이면 스크립트 자동 실행 없이도 동작."""
     fc = o.driver_add(path, index) if index is not None else o.driver_add(path)
+    while fc.keyframe_points:  # 기본 곡선이 붙으면 아주 작은 값(나노미터 층)이 눌림 → 드라이버 값 그대로
+        fc.keyframe_points.remove(fc.keyframe_points[0])
+    for m in list(fc.modifiers):
+        fc.modifiers.remove(m)
     d = fc.driver
     d.type = "SCRIPTED"
     for k, (idb, dp) in vars_.items():

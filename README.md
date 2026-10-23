@@ -18,6 +18,7 @@ GO · SNSS(멸균생리식염수) · PVA 가 따로 펜에 들어가 끝에서 �
 | 출력 부품 STL + 구매 목록 + 부품판 | `./tools.sh parts` |
 | 호환 단자 · SCPI 다리 · C–V 되먹임 · 양자 난수 씨앗 | `./tools.sh ports` · `python -m snss_battery scpi` · `cv-fit 측정.csv` · `sculpt new … --qrng /dev/…` |
 | **FreeCAD 설계** — 모든 작품(SC-1 · 부품 20종 · SC-2 · 도구 T0–T5 · 존재 · 시험편 · 양자 모듈 · 병 결정)을 매개변수 CAD 로, 고친 존재 모양을 조각가로 ([spec/FREECAD.md](spec/FREECAD.md)) | `./tools.sh freecad` → `./tools.sh view-freecad` (워크벤치 'SNSS 설계': 치수 표 · 속성 고치기 → '조각가 SC-1 / 빛 조각가 SC-2 로 빚기') |
+| **Blender 설계** — 같은 작품 전부를 Blender 장면 9개로 (치수는 드라이버, 부품은 비파괴 불리언, 존재는 메타볼 = SDF 의 부드러운 합), 고친 모양을 조각가로 ([spec/BLENDER_DESIGN.md](spec/BLENDER_DESIGN.md)) | `./tools.sh blender-design` → `./tools.sh view-blender-design` (사이드바 N → 'SNSS': 설계 값 · 'SC-1 / SC-2 로 빚기' · 점검) |
 | 웹 뷰어 ('조각가 · 존재' 탭) | `./tools.sh web` |
 | **빛 조각가 SC-2** — 펜 없이 잉크층 + 405 nm 빛, 배지가 모니터 ([spec/LIGHT.md](spec/LIGHT.md)) | `./tools.sh light` → `python -m snss_battery light being [--go 2 --irradiance 6]` · Blender `./tools.sh light-blender` · 웹 '빛 조각가 · 콘솔' 탭 |
 | SC-2 배지 속 전극 감지 (EIT) — 빚는 동안 자람 · 덧굳음 · 빠짐 | `./tools.sh light-eit` (`--compare` 전극 자리 비교) |
@@ -277,6 +278,7 @@ python3 -m unittest discover -s tests
 | `specrng.py` / `crosscheck.py` | 언어 독립 난수, 교차 검증 |
 | `cad.py` / `drawing.py` | 실물 형상·3D 메쉬 / 도면 (DXF·PDF) |
 | `fcparams.py` · `freecad/SNSS/` | FreeCAD 설계 — 모든 작품 치수를 모아 FreeCAD 매개변수 문서 9개로 짓고 B-rep 점검, 'SNSS 설계' 워크벤치 ([spec/FREECAD.md](spec/FREECAD.md)) |
+| `bldesign.py` · `blender/snss_design/` | Blender 설계 — 같은 값으로 장면 9개 (`SNSS_Design.blend`) · 메시 점검 · 애드온 'SNSS 설계' |
 | `plots.py`, `gui.py`, `web.py`, `cli.py` | 그래프, GUI, 웹 뷰어(애니메이션·실험 기록 API), 명령줄 |
 | `vendor/three/` | three.js r160 (MIT) — 오프라인 3D 표시용 |
 

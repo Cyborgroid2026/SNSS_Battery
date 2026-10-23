@@ -3,20 +3,20 @@
 [   0.0 s] SC-1 조각가
 [   0.0 s] SC-2 도구 · 빛 조각가
 [   0.0 s] 빚은 세포 · 시험편 · 양자 모듈 · 병 결정
-[   5.3 s] 점검
-[  12.6 s] 미리보기 렌더
-00:20.005  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/01_SC-1 조각가.png'
-00:22.902  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/02_SC-1 부품.png'
-00:28.081  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/03_SC-2 빛 조각가.png'
-00:30.701  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/04_SC-2 도구.png'
-00:32.470  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/05_존재 모양.png'
-00:40.226  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/06_빚은 세포.png'
-00:42.536  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/07_시험편.png'
-00:55.473  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/08_양자 모듈.png'
-00:58.496  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/09_병 결정.png'
-[  57.6 s] 저장
+[   5.1 s] 점검
+[  12.1 s] 미리보기 렌더
+00:19.267  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/01_SC-1 조각가.png'
+00:22.176  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/02_SC-1 부품.png'
+00:27.388  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/03_SC-2 빛 조각가.png'
+00:30.194  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/04_SC-2 도구.png'
+00:31.792  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/05_존재 모양.png'
+00:39.444  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/06_빚은 세포.png'
+00:41.912  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/07_시험편.png'
+00:55.053  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/08_양자 모듈.png'
+00:57.918  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/09_병 결정.png'
+[  57.0 s] 저장
 Info: Saved as "SNSS_Design.blend"
-[  57.6 s] 끝 → validation.json
+[  57.1 s] 끝 → validation.json
 Blender 5.2.2 LTS (hash d13f752e3b9c built 2026-09-15 01:34:58)
 
 Blender quit

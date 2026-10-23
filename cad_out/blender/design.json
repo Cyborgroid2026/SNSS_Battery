@@ -2941,11 +2941,11 @@
  },
  "jobs": {
   "sc1": {
-   "folder": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/01_new_being",
+   "folder": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/02_new_bl_being",
    "stl": {
-    "pos": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/01_new_being/being_pos.stl",
-    "neg": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/01_new_being/being_neg.stl",
-    "mem": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/01_new_being/being_mem.stl"
+    "pos": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/02_new_bl_being/bl_being_pos.stl",
+    "neg": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/02_new_bl_being/bl_being_neg.stl",
+    "mem": "/home/a71143055/Desktop/SNSS_Battery/sculpt_out/jobs/02_new_bl_being/bl_being_mem.stl"
    }
   }
  }

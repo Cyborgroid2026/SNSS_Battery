@@ -15,6 +15,8 @@
 #   ./tools.sh parts         조각가 출력 부품 STL (흔한 FDM 프린터로 뽑음) + 시중 구매 목록 + Blender 부품판
 #   ./tools.sh freecad       FreeCAD 설계 — 모든 작품을 매개변수 CAD 문서로 짓고 B-rep 점검 (처음이면 FreeCAD 1.1.4 를 ~/Applications 에 받음)
 #   ./tools.sh view-freecad  지은 문서를 FreeCAD 창으로 (워크벤치 'SNSS 설계': 고치기 → 조각가로 빚기)
+#   ./tools.sh blender-design      Blender 설계 — 모든 작품을 장면 9개(드라이버 · 비파괴 모디파이어 · 메타볼)로 짓고 점검 + 미리보기
+#   ./tools.sh view-blender-design 지은 SNSS_Design.blend 를 Blender 창으로 (사이드바 N → SNSS: 고치기 → 조각가로 빚기)
 #   ./tools.sh ports         아날로그 · 디지털 · 양자 공학기기 호환 단자
 #   ./tools.sh web           웹 뷰어 → http://127.0.0.1:8765/#tools (VS Code: Browser: Open Integrated Browser 에 붙여 넣기)
 #   ./tools.sh chem          용액 화학 (PHREEQC): 활동도, 어는점, 막전위 보정
@@ -184,6 +186,8 @@ case "${1:-}" in
     parts) "$PY" -m snss_battery parts && { command -v blender >/dev/null && blender -b --factory-startup --python sim/blender_parts.py -- sculpt_out/parts 2>&1 | grep -E "렌더|저장|Error" || true; } ;;
     freecad) shift; need_freecad; "$PY" -m snss_battery freecad "$@" ;;
     view-freecad) need_freecad; [[ -f cad_out/freecad/SC1_Sculptor.FCStd ]] || "$PY" -m snss_battery freecad; "$PY" -m snss_battery freecad --open ;;
+    blender-design) shift; "$PY" -m snss_battery blender-design "$@" ;;
+    view-blender-design) [[ -f cad_out/blender/SNSS_Design.blend ]] || "$PY" -m snss_battery blender-design; "$PY" -m snss_battery blender-design --open ;;
     ports) "$PY" -m snss_battery ports ;;
     web) cmd_web ;;
     chem) cmd_chem ;;

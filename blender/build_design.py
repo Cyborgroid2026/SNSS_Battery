@@ -59,6 +59,7 @@ def main():
             V["renders"].append(check.render(sc, out / "preview" / f"{i + 1:02d}_{sc.name}.png"))
     bpy.context.window_manager.windows[0].scene = s1 if bpy.context.window_manager.windows else None
     step("저장")
+    bpy.context.preferences.filepaths.save_version = 0  # .blend1 백업을 남기지 않음
     bpy.ops.wm.save_as_mainfile(filepath=str(out / "SNSS_Design.blend"), compress=True)
     V["seconds"] = round(time.time() - t0, 1)
     (out / "validation.json").write_text(json.dumps(V, ensure_ascii=False, indent=1), encoding="utf-8")
