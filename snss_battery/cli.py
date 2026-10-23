@@ -511,6 +511,17 @@ def cmd_freecad(a: argparse.Namespace) -> None:
     print(f"FreeCAD 에서 열기: python3 -m snss_battery freecad --open (워크벤치 'SNSS 설계') · 기록 {fcparams.OUT.relative_to(fcparams.ROOT)}/validation.json")
 
 
+def cmd_blender_design(a: argparse.Namespace) -> None:
+    from . import bldesign
+
+    if a.open:
+        print(f"Blender 창을 엽니다 (애드온 'SNSS 설계' · 사이드바 N → SNSS): {bldesign.open_gui()}")
+        return
+    v = bldesign.run_build(render=not a.no_render)
+    print(bldesign.describe(v))
+    print("Blender 에서 열기: python3 -m snss_battery blender-design --open · 기록 cad_out/blender/validation.json")
+
+
 def cmd_ports(_: argparse.Namespace) -> None:
     from .interfaces import describe
 
@@ -706,6 +717,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--headless", action="store_true", help="GUI 없이 (색 · 투명도 없이 저장)")
     p.add_argument("--open", action="store_true", help="지은 문서를 FreeCAD 창으로 열기")
     p.set_defaults(func=cmd_freecad)
+    p = sub.add_parser("blender-design", help="Blender 설계 — 모든 작품을 Blender 장면(드라이버 · 비파괴 모디파이어 · 메타볼)으로 짓고 점검")
+    p.add_argument("--no-render", action="store_true", help="미리보기 렌더 생략 (빠름)")
+    p.add_argument("--open", action="store_true", help="지은 .blend 를 Blender 창으로 (애드온 'SNSS 설계')")
+    p.set_defaults(func=cmd_blender_design)
     sub.add_parser("ports", help="아날로그 · 디지털 · 양자 공학기기 호환 단자").set_defaults(func=cmd_ports)
     p = sub.add_parser("scpi", help="SCPI 다리 (TCP 5025) — 계측기처럼 조각가를 다룸 (G-code 는 화면에 출력)")
     p.add_argument("--host", default="127.0.0.1")

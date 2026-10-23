@@ -248,6 +248,7 @@ def build_parts(D, first=False):
         base.location = (x, y, 0)
         pc.instance_offset = (x, y, 0)
         out[key] = pc
+    _camera(sc, (460, -345, 0), 1500, (0.25, -0.6, 1.0))
     return sc, out
 
 
