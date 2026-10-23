@@ -27,6 +27,8 @@ def main():
     def step(m):
         print(f"[{time.time() - t0:6.1f} s] {m}", flush=True)
 
+    for o in list(bpy.data.objects):  # 시작 파일의 Cube · 카메라 · 빛
+        bpy.data.objects.remove(o)
     step("SC-1 부품")
     sp, parts = build.build_parts(D)
     step("존재 모양 (메타볼)")
@@ -58,6 +60,23 @@ def main():
         for i, sc in enumerate(order):
             V["renders"].append(check.render(sc, out / "preview" / f"{i + 1:02d}_{sc.name}.png"))
     bpy.context.window_manager.windows[0].scene = s1 if bpy.context.window_manager.windows else None
+    step("뷰포트 기본값 — 처음 열면 SC-1 의 3D 프린팅 패드를 비춤")
+    import math
+    from mathutils import Euler
+
+    pad = build.pad_view(s1)
+    for scr in bpy.data.screens:
+        for area in scr.areas:
+            if area.type != "VIEW_3D":
+                continue
+            sp = area.spaces[0]
+            sp.clip_start, sp.clip_end = 0.5, 20000
+            sp.shading.type, sp.shading.color_type, sp.shading.light = "SOLID", "MATERIAL", "STUDIO"
+            r3 = sp.region_3d
+            r3.view_location = pad + __import__("mathutils").Vector((0, 0, 25))
+            r3.view_distance = 380
+            r3.view_rotation = Euler((math.radians(65), 0, math.radians(30))).to_quaternion()
+            r3.view_perspective = "PERSP"
     step("저장")
     bpy.context.preferences.filepaths.save_version = 0  # .blend1 백업을 남기지 않음
     bpy.ops.wm.save_as_mainfile(filepath=str(out / "SNSS_Design.blend"), compress=True)

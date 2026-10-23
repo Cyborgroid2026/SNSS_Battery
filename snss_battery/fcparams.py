@@ -127,6 +127,7 @@ def design() -> dict:
         "bottle": asdict(bat.bottle) | {"gel_bottom": bd.gel_bottom_z, "gel_top": bd.gel_top_z, "block_h": bd.block_height,
                                          "cut_z": bd.cut_z, "gel_r": bd.gel_radius},
         "jobs": _jobs(),
+        "console": __import__("snss_battery.console", fromlist=["Console"]).Console().to_json(),
     }
 
 

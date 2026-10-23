@@ -35,7 +35,7 @@ COLORS = {
     "peek": ((0.82, 0.70, 0.50), 1), "being": ((0.95, 0.55, 0.30), 1), "silica": ((0.80, 0.90, 0.98), 0.6),
     "sio2": ((0.70, 0.85, 1.0), 0.7), "sin": ((0.95, 0.80, 0.45), 0.7), "active": ((0.95, 0.25, 0.20), 1),
     "bottle": ((0.85, 0.92, 0.95), 0.25), "crystal": ((0.35, 0.55, 0.85), 0.85), "red": ((0.85, 0.15, 0.12), 1),
-    "black": ((0.08, 0.08, 0.08), 1),
+    "black": ((0.08, 0.08, 0.08), 1), "label": ((1.0, 0.86, 0.35), 1),
 }
 STIFF = 4.0  # 메타볼 강성 — 서 있는 존재 부피가 SDF(부드러운 합) 와 0.2 % 안 (시험으로 고름)
 THRESH = 0.6
@@ -271,7 +271,8 @@ def build_sc1(D, parts, shapes):
     root = coll(sc, "조각가 SC-1")
     d = dims(sc, coll(root, "치수"), [("PenX", park[0], "펜 X (주차 = 뒤쪽 가운데)", -L["travel"][0], L["travel"][0]),
                                        ("PenY", park[1], "펜 Y", -L["travel"][1], L["travel"][1]),
-                                       ("BedDrop", 72.0, f"받침 내림 mm (0 = 첫 층, 최대 {bz:g})", 0, bz)])
+                                       ("BedDrop", 72.0, f"받침 내림 mm (0 = 첫 층, 최대 {bz:g})", 0, bz),
+                                       ("TurnTable", 0.0, "회전 받침 도 (HW 뷰포트 돌려 보기 · 빚는 동안 0)", -180, 180)])
     _bath(root, s["tank"]["inner_mm"], s["tank"]["fill_mm"])
     fixed = coll(root, "고정 (프레임 · 정지 부품)")
     for b in L["boxes"]:
@@ -291,7 +292,6 @@ def build_sc1(D, parts, shapes):
     for x, y, z, lab in pods:
         inst(fixed, parts["motor_pod"], f"모터 방수 통 ({lab})", (x, y, z))
         inst(fixed, parts["pod_lid"], f"방수 통 뚜껑 ({lab})", (x, y, z + 44))
-    inst(fixed, parts["port_panel"], "단자판 (배양조 밖)", (0, -FY / 2 - 70, -6), (math.pi / 2, 0, 0))
     inst(fixed, parts["level_probe"], "배지 전도도 전극 집게", (-130, 160, s["tank"]["fill_mm"] - 30))
     # 갠트리 (PenY) → 캐리지 · 펜 (PenX)
     mov = coll(root, "움직임 (갠트리 · 받침)")
@@ -320,12 +320,12 @@ def build_sc1(D, parts, shapes):
         o = P.cyl0(mov, f"원료 관 {lab} (실리콘 Ø3)", (px + 6 * math.cos(a), py + 6 * math.sin(a), bzp + 66), 1.5, gz - bzp - 30)
         o.parent = car
         paint(o, "silicone")
-    # 받침 (BedDrop): 배양 받침 + 세 팔 너트 판 + 존재
+    # 받침 (BedDrop): 세 팔 너트 판 → 회전 자석 원판 (TurnTable) → 3D 프린팅 패드(배양 받침 · 흑연 패드) → 존재
     bed = empty(mov, "배양 받침 (BedDrop)")
     P.drive(bed, "location", 2, "-v", v=(d, '["BedDrop"]'))
     top = z_tip
-    inst(mov, parts["pad_holder"], "배양 받침 (흑연 패드 2 · 수확 손잡이)", (0, -2, top - 6), parent=bed)
-    nz = top - 6 - C["BED_CARRIAGE"]
+    turn_h = D["console"]["turntable"]["disc_sc1_mm"]
+    nz = top - 6 - turn_h - C["BED_CARRIAGE"]
     paint(P.box_lohi(mov, "너트 판 가운데", (-30, -30, nz), (30, 30, nz + C["BED_CARRIAGE"])), "petg").parent = bed
     for x, y in ((C["Z_SCREW"], -C["Z_SCREW"]), (C["Z_SCREW"], C["Z_SCREW"]), (-C["Z_SCREW"], -C["Z_SCREW"])):
         L_ = math.hypot(x, y)
@@ -336,13 +336,128 @@ def build_sc1(D, parts, shapes):
         nut = P.cyl0(mov, "받침 너트 (나일론, 나사봉에 물림)", (x, y, nz), C["NUT_R"], C["BED_CARRIAGE"])
         nut.parent = bed
         paint(nut, "nylon")
-    for sx in (-1, 1):
-        paint(P.box_lohi(mov, f"흑연 패드 {'+ (왼발)' if sx < 0 else '− (오른발)'}", (sx * 9.5 - 7, -10.5, top - 1.1),
-                         (sx * 9.5 + 7, 11.5, top - 0.6)), "graphite").parent = bed
-    inst(mov, shapes["being"], "빚는 존재 (존재 모양 장면의 being)", (0, 0, top), parent=bed)["being"] = True
+    inst(mov, parts["micro_pod"], "회전 받침 방수 통 (N20, 너트 판 밑)", (0, 0, nz - 30), parent=bed)
+    turn = empty(mov, "회전 받침 (TurnTable)", parent=bed)
+    P.drive(turn, "rotation_euler", 2, "v * 0.0174533", v=(d, '["TurnTable"]'))
+    inst(mov, parts["turn_disc"], "회전 자석 원판", (0, 0, nz + C["BED_CARRIAGE"]), parent=turn)
+    _pad(mov, parts, turn, top, "sc1")
+    inst(mov, shapes["being"], "빚는 존재 (존재 모양 → 메시)", (0, 0, top), parent=turn)["being"] = True
+    _console(root, D, parts, "sc1")
+    _labels(root, [("3D 프린팅 패드 — 배양 받침 (흑연 + 왼발 · − 오른발)", (0, -2, top - 72), (-430, -260, 40)),
+                   ("빚는 존재 (양자 인공세포)", (0, 0, top - 72 + 40), (-430, -260, 120)),
+                   ("회전 받침 (마우스 가운데 끌기 = 돌려 보기)", (0, 0, nz - 72), (-430, -260, -10)),
+                   ("SNSS 펜 (GO · SNSS · PVA → 혼합기)", (0, park[1], z_tip + 70), (-430, -260, 260))])
     _zones(sc, L, root)
-    _camera(sc, (0, 0, 150), 1150, (1.0, -1.3, 0.8))
+    _camera(sc, (-60, -80, 40), 1500, (1.0, -1.3, 0.7))
     return sc
+
+
+def _pad(c, parts, parent, top, machine):
+    """3D 프린팅 패드 — 존재가 자라는 배양 받침. 흑연 패드 두 장을 눈에 띄게 (왼발 + 빨강 테 · 오른발 − 파랑 테)."""
+    if machine == "sc1":
+        inst(c, parts["pad_holder"], "3D 프린팅 패드 — 배양 받침 (수확 손잡이)", (0, -2, top - 6), parent=parent)
+        z0 = top - 1.1
+    else:
+        inst(c, parts["turntable"], "3D 프린팅 패드 — 회전 받침 원판 Ø118", (0, 0, top - 6), parent=parent)
+        z0 = top - 1.0
+    for sx in (-1, 1):
+        g = paint(P.box_lohi(c, f"흑연 패드 {'+ (왼발)' if sx < 0 else '− (오른발)'}", (sx * 9.5 - 7, -8.7, z0), (sx * 9.5 + 7, 13.7, top - 0.2)), "graphite")
+        g.parent = parent
+        rim = paint(P.box_lohi(c, f"패드 테 {'+' if sx < 0 else '−'}", (sx * 9.5 - 7.6, -9.3, top - 0.2), (sx * 9.5 + 7.6, 14.3, top)),
+                    "red" if sx < 0 else "neg")
+        rim.parent = parent
+
+
+def _console(root, D, parts, machine):
+    """수조 바로 밑에 붙는 방수 데스크톱 + 앞판 접는 받침판의 IP68 키보드 · 마우스 (console.py)."""
+    k = D["console"]
+    dk, ip = k["desktop"], k["inputs"]
+    c = coll(root, "수조 콘솔 — 방수 데스크톱 · 키보드 · 마우스 (HW 뷰포트)")
+    X, Y = dk["footprint_mm"]
+    t0 = -6.0
+    tray_lo = t0 - dk["tray_mm"]
+    paint(P.box_lohi(c, "수조 받침 테 — PETG 판 + EPDM 패킹", (-X / 2 - 10, -Y / 2 - 10, tray_lo), (X / 2 + 10, Y / 2 + 10, t0 - 2)), "petg_dark")
+    paint(P.box_lohi(c, "EPDM 패킹 2 mm", (-X / 2, -Y / 2, t0 - 2), (X / 2, Y / 2, t0)), "black")
+    for i, (lo, hi) in enumerate((((-X / 2 - 10, -Y / 2 - 10, t0 - 2), (X / 2 + 10, -Y / 2 - 1, t0 + 10)),
+                                  ((-X / 2 - 10, Y / 2 + 1, t0 - 2), (X / 2 + 10, Y / 2 + 10, t0 + 10)),
+                                  ((-X / 2 - 10, -Y / 2 - 1, t0 - 2), (-X / 2 - 1, Y / 2 + 1, t0 + 10)),
+                                  ((X / 2 + 1, -Y / 2 - 1, t0 - 2), (X / 2 + 10, Y / 2 + 1, t0 + 10)))):
+        paint(P.box_lohi(c, f"받침 테 턱 {i + 1} (수조가 미끄러지지 않게)", lo, hi), "petg_dark")
+    top = k["desktop_top_z"]
+    paint(P.box_lohi(c, f"XPS 단열 {dk['insulation_mm']:g} mm (본체 열 → 배지 약 {k['heat_into_bath_w']:.1f} W)",
+                     (-X / 2, -Y / 2, top), (X / 2, Y / 2, tray_lo)), "xps")
+    bot = k["desktop_bottom_z"]
+    body = paint(P.box(c, "방수 데스크톱 본체 — IP67 · 팬 없음 (GPU · Blender · 콘솔 · Klipper)", (0, 0, (top + bot) / 2), (X, Y, top - bot), 6), "pc")
+    body["console"] = True
+    for sx in (-1, 1):
+        for i in range(13):
+            y = -Y / 2 + 20 + i * (Y - 40) / 12
+            paint(P.box_lohi(c, "방열 핀", (sx * X / 2 if sx > 0 else -X / 2 - dk["fin_mm"], y - 1.5, bot + 8),
+                             (X / 2 + dk["fin_mm"] if sx > 0 else -X / 2, y + 1.5, top - 8)), "pc")
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            paint(P.cyl0(c, "고무 다리", (sx * (X / 2 - 30), sy * (Y / 2 - 30), bot - dk["feet_mm"]), 15, dk["feet_mm"]), "black")
+    fy = -Y / 2
+    for i, lab in enumerate(("M12 키보드", "M12 마우스", "USB-C", "M12 예비")):
+        o = P.cyl(c, f"앞판 IP67 단자 — {lab}", (-90 + i * 40, fy - 4, top - 30), 7 if lab != "USB-C" else 5, 8, 1)
+        paint(o, "silicone")
+    paint(P.box_lohi(c, "전원 · 상태 LED", (100, fy - 2, top - 34), (130, fy, top - 26)), "lens")
+    # 앞판 경첩에 붙은 접는 받침판 + 키보드 · 마우스
+    tw, td, tt = ip["tray_mm"]
+    tz = top - ip["tray_drop_mm"]
+    paint(P.cyl(c, "받침판 경첩 (PETG 핀)", (0, fy - 6, tz), 4, tw - 20, 0), "petg")
+    paint(P.box_lohi(c, "접는 받침판 (데스크톱 앞판에 경첩)", (-tw / 2, fy - 6 - td, tz - tt), (tw / 2, fy - 6, tz)), "petg_dark")
+    for sx in (-1, 1):
+        st = P.box(c, "받침판 버팀", (sx * (tw / 2 - 20), fy - 30, tz - 26), (8, 6, 58))
+        st.rotation_euler = (math.radians(-40), 0, 0)
+        paint(st, "petg")
+    kw, kd, kh = ip["keyboard_mm"]
+    paint(P.box(c, "IP68 실리콘 키보드 (숫자판 = Blender 시점)", (-35, fy - 6 - td / 2 - 10, tz + kh / 2), (kw, kd, kh), 4), "silicone")
+    for i in range(14):
+        for j in range(5):
+            paint(P.box(c, "키", (-35 - kw / 2 + 14 + i * 24, fy - 6 - td / 2 - 10 - kd / 2 + 16 + j * 22, tz + kh + 0.8), (18, 16, 1.6), 1.5), "petg")
+    mw, md, mh = ip["mouse_mm"]
+    paint(P.ellipsoid(c, "IP68 방수 마우스 (가운데 끌기 = 돌려 보기)", (tw / 2 - 50, fy - 6 - td / 2, tz + mh / 2), (mw / 2, md / 2, mh / 2)), "silicone")
+    for i, (x0, lab) in enumerate(((-35, "키보드"), (tw / 2 - 50, "마우스"))):
+        o = P.cyl_ab(c, f"IP67 선 — {lab}", (x0, fy - 6 - td / 2 + (kd / 2 if i == 0 else md / 2), tz + 4), (-90 + i * 40, fy - 6, top - 30), 2.5)
+        paint(o, "cable")
+    if machine == "sc1":
+        inst(c, parts["port_panel"], "단자판 — 데스크톱 뒤 (아날로그 · 디지털 · 양자)", (0, Y / 2 + 2, (top + bot) / 2), (-math.pi / 2, 0, math.pi))
+    return c
+
+
+_FONT = None
+
+
+def _font():
+    global _FONT
+    if _FONT is None:
+        for f in ("/usr/share/fonts/truetype/nanum/NanumGothic.ttf", "/usr/share/fonts/truetype/nanum/NanumSquareRoundL.ttf"):
+            if Path(f).exists():
+                _FONT = bpy.data.fonts.load(f)
+                break
+    return _FONT
+
+
+def _labels(root, items, size=9.0):
+    """이름표 — 글자 (한글 글꼴) + 가리키는 선. items: (글, 가리키는 곳, 글 자리)."""
+    c = coll(root, "이름표")
+    for text, target, at in items:
+        cu = bpy.data.curves.new(text, "FONT")
+        cu.body, cu.size, cu.align_x = text, size, "LEFT"
+        if _font():
+            cu.font = _font()
+        o = bpy.data.objects.new(f"이름표 — {text}", cu)
+        c.objects.link(o)
+        o.location, o.rotation_euler = at, (math.pi / 2, 0, 0)
+        paint_curve(o, "label")
+        o.color = material("label").diffuse_color
+        paint(P.cyl_ab(c, f"가리킴 — {text}", (at[0] + len(text) * size * 0.62, at[1], at[2] + size * 0.35), target, 0.4), "label")
+    return c
+
+
+def paint_curve(o, key):
+    o.data.materials.append(material(key))
 
 
 # ---------- SC-2 도구 ----------
@@ -420,7 +535,10 @@ def build_sc2(D, parts, tools, shapes):
     sc = scene("SC-2 빛 조각가")
     root = coll(sc, "빛 조각가 SC-2")
     d = dims(sc, coll(root, "치수"), [("ToolX", px, "도구 캐리지 X (주차 = 뒤쪽)", -90, 90), ("ToolY", py, "도구 캐리지 Y", -110, 110),
-                                       ("BedDrop", 72.0, "받침 내림 mm (0 = 첫 층이 수면)", 0, s["build"][2])])
+                                       ("BedDrop", 72.0, "받침 내림 mm (0 = 첫 층이 수면)", 0, s["build"][2]),
+                                       ("TurnTable", 0.0, "회전 받침 도 (HW 뷰포트 돌려 보기 · 빛 쬘 때 0)", -180, 180),
+                                       ("ViewX", 0.0, "보기 빛 X mm (고른 곳)", -55, 55), ("ViewY", 0.0, "보기 빛 Y mm", -55, 55),
+                                       ("ViewR", 0.0, "보기 빛 반지름 mm (0 = 끔)", 0, 55)])
     _bath(root, s["tank_inner"], fill)
     fixed = coll(root, "고정 (프레임 · 정지 부품)")
     for b in L["boxes"]:
@@ -468,31 +586,27 @@ def build_sc2(D, parts, tools, shapes):
     bed = empty(mov, "배양 받침 (BedDrop)")
     P.drive(bed, "location", 2, "-v", v=(d, '["BedDrop"]'))
     top = fill
-    for n, lo, hi in (("배양 받침 120 × 120", (-60, -60, top - 6), (60, 60, top)),
-                      (f"받침 기둥 ({C['RISER']:g} mm)", (-20, -20, top - 6 - C["RISER"]), (20, 20, top - 6))):
-        paint(P.box_lohi(mov, n, lo, hi), "petg").parent = bed
+    paint(P.box_lohi(mov, f"받침 기둥 ({C['RISER'] - 30:g} mm + 방수 통 30)", (-20, -20, top - 6 - C["RISER"]), (20, 20, top - 36)), "petg").parent = bed
+    inst(mov, parts["micro_pod"], "회전 받침 방수 통 (N20, 기둥 위)", (0, 0, top - 36), parent=bed)
     nut = next(b for b in L["boxes"] if b["name"].startswith("받침 너트 판"))
     lay_obj(mov, nut, "petg", bed)
-    for sx in (-1, 1):
-        paint(P.box_lohi(mov, f"흑연 패드 {'+' if sx < 0 else '−'}", (sx * 9.5 - 7, -8.5, top - 0.8), (sx * 9.5 + 7, 13.5, top)), "graphite").parent = bed
-    inst(mov, shapes["being"], "빚는 존재 (존재 모양 장면의 being)", (0, 0, top), parent=bed)["being"] = True
-    desk = coll(root, "데스크톱 (수조 아래 — 모니터 없음, 수조가 모니터)")
-    TI, gb, ins = s["tank_inner"][0], -6, s["insulation"]
-    top_z = gb - 42 + 12
-    for n, lo, hi, k in (
-            (f"XPS 단열판 {ins:g} mm", (-(TI + 20) / 2, -(TI + 20) / 2, gb - 12 - ins), ((TI + 20) / 2, (TI + 20) / 2, gb - 12), "xps"),
-            ("받침대 윗판", (-215, -215, top_z - 18), (215, 215, top_z), "wood"),
-            ("받침대 바닥판", (-215, -215, gb - 42 - 520), (215, 215, gb - 42 - 502), "wood"),
-            ("데스크톱 (GPU · Blender · 설계 콘솔)", (-185, -215, gb - 42 - 502), (25, 215, gb - 42 - 52), "pc"),
-            ("키보드 서랍", (-215, -410, gb - 147), (215, -210, gb - 133), "wood"),
-            ("IP68 실리콘 키보드", (-210, -380, gb - 133), (150, -260, gb - 117), "silicone")):
-        paint(P.box_lohi(desk, n, lo, hi), k)
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            paint(P.box_lohi(desk, "받침대 다리", (sx * 200 - 15, sy * 200 - 15, gb - 42 - 520), (sx * 200 + 15, sy * 200 + 15, gb - 42)), "wood")
-    paint(P.ellipsoid(desk, "IP68 방수 마우스", (190, -320, gb - 126), (16, 27.5, 9)), "silicone")
+    turn = empty(mov, "회전 받침 (TurnTable)", parent=bed)
+    P.drive(turn, "rotation_euler", 2, "v * 0.0174533", v=(d, '["TurnTable"]'))
+    _pad(mov, parts, turn, top, "sc2")
+    inst(mov, shapes["being"], "빚는 존재 (존재 모양 → 메시)", (0, 0, top), parent=turn)["being"] = True
+    vl = paint(P.cyl0(mov, "보기 빛 630 nm (고른 곳, 굳지 않음)", (0, 0, fill + 0.2), 1, 0.3), "red")
+    P.drive(vl, "scale", 0, "max(0.001, r)", r=(d, '["ViewR"]'))
+    P.drive(vl, "scale", 1, "max(0.001, r)", r=(d, '["ViewR"]'))
+    P.drive(vl, "location", 0, "x", x=(d, '["ViewX"]'))
+    P.drive(vl, "location", 1, "y", y=(d, '["ViewY"]'))
+    _console(root, D, parts, "sc2")
+    _labels(root, [("3D 프린팅 패드 — 회전 받침 원판 (흑연 + · −)", (0, 0, fill - 72), (-460, -260, 250)),
+                   ("빚는 존재 — 배지(수조)가 모니터", (0, 0, fill - 40), (-460, -260, 330)),
+                   ("두 색 광엔진 + 보기 빛 630 nm", (0, 0, gz), (-460, -260, 640)),
+                   ("수조에 붙은 방수 데스크톱 (IP67)", (-150, -179, -100), (-460, -260, -100)),
+                   ("IP68 키보드 · 마우스 = HW 뷰포트", (100, -300, -50), (-460, -420, -10))])
     _zones(sc, L, root)
-    _camera(sc, (0, -60, 60), 1250, (1.0, -1.3, 0.8))
+    _camera(sc, (-60, -100, 180), 1700, (1.0, -1.3, 0.7))
     return sc
 
 
@@ -542,7 +656,35 @@ def build_shapes(D):
     floor = paint(P.box_lohi(root, "바닥 z 0 (아래는 잘라 냄 — 받침에 붙는 면)", (-220, -60, -0.4), (220, 60, 0)), "zone")
     floor.hide_render = True
     _camera(sc, (0, 0, 30), 560, (0.15, -1, 0.25))
-    return sc, out
+    baked = {}
+    dg = dg_of(sc)
+    for key, c in out.items():  # 조립 장면용: 메타볼은 인스턴스로 그려지지 않아 메시로 구움 (애드온 '모양 → 조립에 반영')
+        o = next(x for x in c.objects if x.get("SNSSShape") == key)
+        bc = bpy.data.collections.new(f"모양 메시 — {key} (조립용, 구움)")  # 장면에 넣지 않음 — 조립의 인스턴스로만
+        bc.use_fake_user = True
+        bake_shape(o, dg, bc)
+        baked[key] = bc
+    return sc, baked
+
+
+def bake_shape(o, dg, bc=None):
+    """메타볼 모양 → 메시 (z 0 아래 잘라 냄). bc 가 없으면 이미 있는 구운 메시를 바꿈."""
+    key = o["SNSSShape"]
+    bm = P.shape_bmesh(o, dg)
+    name = f"{key} 메시"
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    old = bpy.data.objects.get(name)
+    if old is not None and bc is None:
+        prev = old.data
+        old.data = me
+        bpy.data.meshes.remove(prev)
+        return old
+    m = bpy.data.objects.new(name, me)
+    bc.objects.link(m)
+    m["baked_from"] = o.name
+    return paint(m, "being")
 
 
 def build_cells(D, reduce=0.1):
@@ -687,6 +829,13 @@ def build_bottle(D):
     paint(P.cyl0(k, "프로브 − (아랫면)", (0, 0, b["gel_bottom"] - 40), 1.0, 40), "black")
     _camera(sc, (0, 0, 95), 420, (0.6, -1, 0.35))
     return sc
+
+
+def pad_view(sc):
+    """그 장면의 3D 프린팅 패드 자리 (세계 좌표) — 뷰포트 · 웹 뷰어가 처음 비추는 곳."""
+    dg = dg_of(sc)
+    o = next((x for x in sc.objects if x.name.startswith("3D 프린팅 패드")), None)
+    return o.evaluated_get(dg).matrix_world.translation.copy() if o else Vector((0, 0, 0))
 
 
 def dg_of(sc):

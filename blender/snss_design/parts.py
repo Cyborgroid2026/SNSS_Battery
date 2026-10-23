@@ -183,6 +183,28 @@ def belt_clamp(t):
             [P.box(c, "GT2 벨트 홈", (0, 0, 6.5), (26, 6.4, 1.6)), P.cyl(c, "나사", (-8, 0, 4), 1.7, 10), P.cyl(c, "나사", (8, 0, 4), 1.7, 10)])
 
 
+def turntable(t):
+    c = t.c
+    cuts = [P.cyl(c, "커플링 자석 Ø10", p, 5.1, 3.2) for p in _polar(6, 12, 1.6)]
+    cuts += [P.box(c, f"흑연 패드 자리 {'+' if sx < 0 else '−'}", (sx * 9.5, 2.5, 5.5), (14.4, 22.4, 1.0)) for sx in (-1, 1)]
+    cuts += [P.cyl(c, "전선 구멍 (±180° 고리)", (0, 50, 3), 3, 10), P.box(c, "0° 홈", (59, 0, 3), (4, 4, 8))]
+    return ("c", P.cyl(c, "원판 Ø118", (0, 0, 3), 59, 6), cuts)
+
+
+def turn_disc(t):
+    c = t.c
+    return ("c", P.cyl(c, "원판 Ø40", (0, 0, 1.5), 20, 3),
+            [P.cyl(c, "자석 Ø8", p, 4.1, 2.2) for p in _polar(6, 12, 1.1)] + [P.cyl(c, "가운데 핀", (0, 0, 1.5), 1.6, 5)])
+
+
+def micro_pod(t):
+    c = t.c
+    body = ("u", [("c", P.cyl(c, "통 Ø40", (0, 0, 15), 20, 30), [P.cyl(c, "속 (아래가 열림)", (0, 0, 13.75), 17.5, 27.51)]),
+                  P.ring(c, "아래 테", (0, 0, 1.5), 23, 17.5, 3)])
+    return ("c", body, [P.ring(c, "O-링 홈", (0, 0, 0.6), 21.6, 19.4, 1.2)])
+
+
 PARTS = {k: v for k, v in globals().items() if k in (
     "corner", "motor_mount", "pen_carriage", "y_end", "pen_body", "mixer", "syringe_pump", "pinch_valve", "tank_base", "pad_holder",
-    "level_probe", "port_panel", "electronics_box", "motor_pod", "pod_lid", "coupler", "bushing", "led_ring", "scanner_mount", "belt_clamp")}
+    "level_probe", "port_panel", "electronics_box", "motor_pod", "pod_lid", "coupler", "bushing", "led_ring", "scanner_mount", "belt_clamp",
+    "turntable", "turn_disc", "micro_pod")}

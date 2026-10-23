@@ -253,6 +253,29 @@ def _belt_clamp(p):
     return cut(d, box(p, (0, 0, 6.5), (26, 6.4, 1.6)), cyl(p, (-8, 0, 4), 1.7, 10), cyl(p, (8, 0, 4), 1.7, 10))
 
 
+def _turntable(p):
+    """SC-2 회전 받침 원판 Ø118 × 6 (120 받침판 자리): 밑 가운데 자석 6개 고리(커플링) · 흑연 패드 자리 · 전선 구멍 · 0° 홈."""
+    d = cyl(p, (0, 0, 3), 59, 6)
+    holes = [cyl(p, (12 * math.cos(k * math.pi / 3), 12 * math.sin(k * math.pi / 3), 1.6), 5.1, 3.2) for k in range(6)]
+    holes += [box(p, (sx * 9.5, 2.5, 5.5), (14.4, 22.4, 1.0)) for sx in (-1, 1)]  # 흑연 패드 0.8 + 여유
+    holes += [cyl(p, (0, 50, 3), 3, 10), box(p, (59, 0, 3), (4, 4, 8))]  # 전선 (±180° 고리) · 0° 홈 (원점 찾기)
+    return cut(d, *holes)
+
+
+def _turn_disc(p):
+    """SC-1 회전 자석 원판 Ø40 × 3: 배양 받침 밑에 붙음, 자석 6개 (Ø8 × 2) 가 너트 판 밑 작은 방수 통과 자석 커플링."""
+    d = cyl(p, (0, 0, 1.5), 20, 3)
+    holes = [cyl(p, (12 * math.cos(k * math.pi / 3), 12 * math.sin(k * math.pi / 3), 1.1), 4.1, 2.2) for k in range(6)]
+    return cut(d, *holes, cyl(p, (0, 0, 1.5), 1.6, 5))
+
+
+def _micro_pod(p):
+    """회전 받침 작은 방수 통 Ø40 × 30: N20 기어 모터 — 윗벽 2.5 mm 너머로 자석 커플링 (축 구멍 없음), 아래 뚜껑 O-링 홈."""
+    d = cut(cyl(p, (0, 0, 15), 20, 30), cyl(p, (0, 0, 13.75), 17.5, 27.5 + 0.01))
+    d = union(d, cut(cyl(p, (0, 0, 1.5), 23, 3), cyl(p, (0, 0, 1.5), 17.5, 4)))  # 아래 테 (뚜껑 · 케이블 글랜드 PG7)
+    return cut(d, cut(cyl(p, (0, 0, 0.6), 21.6, 1.2), cyl(p, (0, 0, 0.6), 19.4, 2)))  # O-링 홈
+
+
 def printed_parts(spec: SculptorSpec | None = None) -> list[PrintedPart]:
     return [
         PrintedPart("corner", "프레임 꼭짓점", 8, "PETG", "M8 나사봉 상자 프레임 (RepRap)", (-18, -18, -18), (18, 18, 18), _corner),
@@ -275,6 +298,9 @@ def printed_parts(spec: SculptorSpec | None = None) -> list[PrintedPart]:
         PrintedPart("led_ring", "405 nm 빛 고리", 1, "PETG (검정)", "펜 끝 광환원", (-17, -17, 0), (17, 17, 6), _led_ring),
         PrintedPart("scanner_mount", "스캐너 받침", 1, "PETG", "레이저 선 + 카메라", (-30, -15, 0), (30, 15, 40), _scanner_mount),
         PrintedPart("belt_clamp", "벨트 물림", 2, "PETG", "GT2 벨트 끝", (-12, -6, 0), (12, 6, 8), _belt_clamp),
+        PrintedPart("turntable", "회전 받침 원판 (SC-2)", 1, "PETG", "HW 뷰포트 돌려 보기 — 120 받침판 자리, 자석 커플링", (-59, -59, 0), (59, 59, 6), _turntable),
+        PrintedPart("turn_disc", "회전 자석 원판 (SC-1)", 1, "PETG (자석 묻음)", "배양 받침 밑 — HW 뷰포트 돌려 보기", (-20, -20, 0), (20, 20, 3), _turn_disc),
+        PrintedPart("micro_pod", "회전 받침 방수 통", 2, "PETG (벽 4겹 · 채움 100 %)", "N20 기어 모터 — 자석 커플링, 축 구멍 없음", (-23, -23, 0), (23, 23, 30), _micro_pod),
     ]
 
 

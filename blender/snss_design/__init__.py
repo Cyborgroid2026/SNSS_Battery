@@ -120,6 +120,8 @@ class SNSS_OT_send(bpy.types.Operator):
         if o is None:
             self.report({"WARNING"}, "모양(메타볼 · 메시)을 고르세요")
             return {"CANCELLED"}
+        if o.type == "META" and o.get("SNSSShape"):
+            bpy.ops.snss.bake()
         name, f = _export(context, o)
         h = float(o.get("TargetHeight", 0) or 0)
         if self.machine == "sc1":
@@ -199,6 +201,45 @@ class SNSS_OT_rebuild(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class SNSS_OT_view_pad(bpy.types.Operator):
+    bl_idname = "snss.view_pad"
+    bl_label = "3D 프린팅 패드 보기"
+    bl_description = "지금 장면의 3D 프린팅 패드(배양 받침)와 그 위 존재를 뷰포트 가운데로"
+
+    def execute(self, context):
+        import math
+
+        from mathutils import Euler, Vector
+
+        from .build import pad_view
+
+        pad = pad_view(context.scene)
+        r3 = context.space_data.region_3d if context.space_data and context.space_data.type == "VIEW_3D" else None
+        if r3 is None:
+            return {"CANCELLED"}
+        r3.view_location, r3.view_distance = pad + Vector((0, 0, 25)), 380
+        r3.view_rotation = Euler((math.radians(65), 0, math.radians(30))).to_quaternion()
+        return {"FINISHED"}
+
+
+class SNSS_OT_bake(bpy.types.Operator):
+    bl_idname = "snss.bake"
+    bl_label = "모양 → 조립에 반영"
+    bl_description = "존재 모양(메타볼)을 고친 뒤 SC-1 · SC-2 조립 속 존재 메시를 새로 구움"
+
+    def execute(self, context):
+        from .build import bake_shape, dg_of
+
+        sc = bpy.data.scenes.get("존재 모양")
+        n = 0
+        for o in sc.objects if sc else []:
+            if o.get("SNSSShape") and o.type == "META":
+                bake_shape(o, dg_of(sc))
+                n += 1
+        self.report({"INFO"}, f"모양 {n}개를 조립에 반영")
+        return {"FINISHED"}
+
+
 class SNSS_OT_cells(bpy.types.Operator):
     bl_idname = "snss.cells"
     bl_label = "마지막 빚은 세포 불러오기"
@@ -235,6 +276,8 @@ class SNSS_PT_panel(bpy.types.Panel):
             row = col.row(align=True)
             for k, t in (("BALL", "구"), ("CAPSULE", "캡슐"), ("ELLIPSOID", "타원체")):
                 row.operator("snss.add_element", text=f"+ {t}").kind = k
+        lay.operator("snss.view_pad", icon="ZOOM_SELECTED")
+        lay.operator("snss.bake", icon="MOD_REMESH")
         lay.operator("snss.check", icon="CHECKMARK")
         row = lay.row(align=True)
         row.operator("snss.cells", text="세포 SC-1").machine = "sc1"
@@ -247,7 +290,7 @@ class SNSS_PT_panel(bpy.types.Panel):
                 b.label(text=line[:80])
 
 
-CLASSES = (SNSS_OT_send, SNSS_OT_check, SNSS_OT_add_element, SNSS_OT_rebuild, SNSS_OT_cells, SNSS_PT_panel)
+CLASSES = (SNSS_OT_send, SNSS_OT_check, SNSS_OT_add_element, SNSS_OT_rebuild, SNSS_OT_view_pad, SNSS_OT_bake, SNSS_OT_cells, SNSS_PT_panel)
 
 
 def register():

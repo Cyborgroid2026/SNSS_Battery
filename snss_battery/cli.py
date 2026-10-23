@@ -517,6 +517,9 @@ def cmd_blender_design(a: argparse.Namespace) -> None:
     if a.open:
         print(f"Blender 창을 엽니다 (애드온 'SNSS 설계' · 사이드바 N → SNSS): {bldesign.open_gui()}")
         return
+    if a.web:
+        bldesign.serve_web(a.port)
+        return
     v = bldesign.run_build(render=not a.no_render)
     print(bldesign.describe(v))
     print("Blender 에서 열기: python3 -m snss_battery blender-design --open · 기록 cad_out/blender/validation.json")
@@ -720,6 +723,8 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("blender-design", help="Blender 설계 — 모든 작품을 Blender 장면(드라이버 · 비파괴 모디파이어 · 메타볼)으로 짓고 점검")
     p.add_argument("--no-render", action="store_true", help="미리보기 렌더 생략 (빠름)")
     p.add_argument("--open", action="store_true", help="지은 .blend 를 Blender 창으로 (애드온 'SNSS 설계')")
+    p.add_argument("--web", action="store_true", help="브라우저 속 Blender — Blender 가 웹 서버가 됨 (VS Code 통합 브라우저로)")
+    p.add_argument("--port", type=int, default=8790)
     p.set_defaults(func=cmd_blender_design)
     sub.add_parser("ports", help="아날로그 · 디지털 · 양자 공학기기 호환 단자").set_defaults(func=cmd_ports)
     p = sub.add_parser("scpi", help="SCPI 다리 (TCP 5025) — 계측기처럼 조각가를 다룸 (G-code 는 화면에 출력)")

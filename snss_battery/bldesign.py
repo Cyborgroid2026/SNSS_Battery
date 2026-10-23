@@ -82,6 +82,18 @@ def open_gui(out: Path = OUT) -> str:
     return f.name
 
 
+def serve_web(port: int = 8790, host: str = "127.0.0.1", out: Path = OUT) -> int:
+    """브라우저 속 Blender — Blender(머리 없이)가 SNSS_Design.blend 를 열고 웹 서버가 됨 (Ctrl+C 로 멈춤)."""
+    exe = blender_bin()
+    f = out / "SNSS_Design.blend"
+    if exe is None:
+        raise RuntimeError("blender 가 없습니다")
+    if not f.exists():
+        run_build(out)
+    print(f"브라우저 속 Blender → http://{host}:{port}/   (VS Code: Ctrl+Shift+P → 'Browser: Open Integrated Browser' 에 붙여 넣기)", flush=True)
+    return subprocess.call([exe, "-b", str(f), "--python", str(ROOT / "blender" / "serve_web.py"), "--", "--port", str(port), "--host", host])
+
+
 def describe(v: dict) -> str:
     lines = [f"[Blender 설계 — Blender {v['blender']}] 장면 {len(v['scenes'])}개 → {OUT.relative_to(ROOT)}/SNSS_Design.blend"]
     for s in v["scenes"]:

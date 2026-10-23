@@ -194,6 +194,7 @@ def build_sc1(D, out, parts, being_shape=None):
     z_tip, gz = L["z_tip"], L["gz"]
     sh = sheet(doc, [("PenX", park[0], "펜 X (주차 = 뒤쪽 가운데)"), ("PenY", park[1], "펜 Y"),
                      ("BedDrop", 72.0, f"받침 내림 mm (0 = 첫 층 · 최대 {bz:g}) — 지금은 서 있는 존재를 다 빚은 때"),
+                     ("TurnTable", 0.0, "회전 받침 도 (HW 뷰포트 돌려 보기 · 빚는 동안 0)"),
                      ("ZTip", z_tip, "펜 끝 높이 (고정)"), ("GantryZ", gz, "갠트리 높이 (고정)"),
                      ("Fill", s["tank"]["fill_mm"], "배지 높이")])
     root = group(doc, "조각가 SC-1")
@@ -220,7 +221,6 @@ def build_sc1(D, out, parts, being_shape=None):
         link(doc, parts["pod_lid"], f"방수 통 뚜껑 ({lab})", at(x, y, z + 44), pr)
     elec = next(b for b in L["boxes"] if b["name"] == "전자 방수 통")
     layout_obj(doc, elec, fixed, "petg_dark")
-    link(doc, parts["port_panel"], "단자판 (배양조 밖)", at(0, -FY / 2 - 70, -6, R(V(1, 0, 0), 90)), pr)
     link(doc, parts["level_probe"], "배지 전도도 전극 집게", at(-130, 160, s["tank"]["fill_mm"] - 30), pr)
     # 갠트리: X 빔은 Y 로, 캐리지 · 펜은 X 로 (표의 PenX · PenY)
     gant = apart(doc, "갠트리 — X 빔 (PenY 로 움직임)", root)
@@ -253,8 +253,13 @@ def build_sc1(D, out, parts, being_shape=None):
     bed = apart(doc, "배양 받침 (BedDrop 으로 내려감)", root)
     bed.setExpression("Placement.Base.z", "-Params.BedDrop")
     top = z_tip  # BedDrop = 0 일 때 받침 윗면 = 펜 끝
-    link(doc, parts["pad_holder"], "배양 받침 (흑연 패드 2 · 수확 손잡이)", at(0, -2, top - 6), bed)
-    nz = top - 6 - C["BED_CARRIAGE"]
+    turn_h = D["console"]["turntable"]["disc_sc1_mm"]
+    nz = top - 6 - turn_h - C["BED_CARRIAGE"]
+    turn = apart(doc, "회전 받침 (TurnTable)", bed)
+    turn.setExpression("Placement.Rotation.Angle", "Params.TurnTable * 1 deg")
+    link(doc, parts["pad_holder"], "3D 프린팅 패드 — 배양 받침 (흑연 패드 2 · 수확 손잡이)", at(0, -2, top - 6), turn)
+    link(doc, parts["turn_disc"], "회전 자석 원판", at(0, 0, nz + C["BED_CARRIAGE"]), turn)
+    link(doc, parts["micro_pod"], "회전 받침 방수 통 (N20, 너트 판 밑)", at(0, 0, nz - 30), bed)
     pbox(doc, "너트 판 가운데 (받침 자리)", (-30, -30, nz), (30, 30, nz + C["BED_CARRIAGE"]), bed)
     for x, y in ((C["Z_SCREW"], -C["Z_SCREW"]), (C["Z_SCREW"], C["Z_SCREW"]), (-C["Z_SCREW"], -C["Z_SCREW"])):
         ang = math.degrees(math.atan2(y, x))
@@ -263,10 +268,11 @@ def build_sc1(D, out, parts, being_shape=None):
         arm.Placement = App.Placement(rot.multVec(V(0, -12, 0)) + V(0, 0, nz), rot)  # 상자 원점은 모서리 → 가운데 줄이 나사봉을 향하게
         pcyl(doc, "받침 너트 (나일론, 나사봉에 물림)", (x, y, nz), C["NUT_R"], C["BED_CARRIAGE"], 2, bed, "nylon")
     for sx in (-1, 1):
-        pbox(doc, f"흑연 패드 {'+ (왼발)' if sx < 0 else '− (오른발)'}", (sx * 9.5 - 7, -11 + 0.5, top - 1.1), (sx * 9.5 + 7, 11 + 0.5, top - 0.6), bed, "graphite")
+        pbox(doc, f"흑연 패드 {'+ (왼발)' if sx < 0 else '− (오른발)'}", (sx * 9.5 - 7, -11 + 0.5, top - 1.1), (sx * 9.5 + 7, 11 + 0.5, top - 0.6), turn, "graphite")
     if being_shape is not None:
-        o = feat(doc, "빚는 존재 (Being_Shapes 의 모양)", being_shape.copy(), bed, "being")
+        o = feat(doc, "빚는 존재 (Being_Shapes 의 모양)", being_shape.copy(), turn, "being")
         o.Placement = at(0, 0, top)
+    _console(doc, D, parts, root, "sc1")
     # 비어 있어야 할 곳 · 쓸고 지나가는 범위 (투명, 숨김)
     zones = group(doc, "비어 있어야 할 곳 (layout.py zones)", root)
     for z in L["zones"]:
@@ -276,6 +282,40 @@ def build_sc1(D, out, parts, being_shape=None):
         if b["kind"] in ("gantry", "bed") and "(쓸림)" in b["name"]:
             layout_obj(doc, b, sweep, "sweep", hidden=True)
     return doc, bed, save(doc, out, "SC1_Sculptor.FCStd")
+
+
+def _console(doc, D, parts, root, machine):
+    """수조 바로 밑에 붙는 방수 데스크톱 + 앞판 접는 받침판의 IP68 키보드 · 마우스 (snss_battery/console.py)."""
+    k = D["console"]
+    dk, ip = k["desktop"], k["inputs"]
+    g = group(doc, "수조 콘솔 — 방수 데스크톱 · 키보드 · 마우스 (HW 뷰포트)", root)
+    X, Y = dk["footprint_mm"]
+    t0, tray_lo = -6.0, -6.0 - dk["tray_mm"]
+    tray = prim.cut(prim.box_lohi((-X / 2 - 10, -Y / 2 - 10, tray_lo), (X / 2 + 10, Y / 2 + 10, t0 + 10)),
+                    prim.box_lohi((-X / 2 - 1, -Y / 2 - 1, t0 - 2), (X / 2 + 1, Y / 2 + 1, t0 + 11)))
+    feat(doc, "수조 받침 테 — PETG + EPDM 패킹 (수조가 앉는 턱)", tray, g, "petg_dark")
+    top, bot = k["desktop_top_z"], k["desktop_bottom_z"]
+    pbox(doc, f"XPS 단열 {dk['insulation_mm']:g} mm (본체 열 → 배지 약 {k['heat_into_bath_w']:.1f} W)", (-X / 2, -Y / 2, top), (X / 2, Y / 2, tray_lo), g, "xps")
+    feat(doc, "방수 데스크톱 본체 — IP67 · 팬 없음", prim.box((0, 0, (top + bot) / 2), (X, Y, top - bot), 6), g, "pc")
+    fins = [prim.box_lohi((X / 2 if sx > 0 else -X / 2 - dk["fin_mm"], -Y / 2 + 20 + i * (Y - 40) / 12 - 1.5, bot + 8),
+                          (X / 2 + dk["fin_mm"] if sx > 0 else -X / 2, -Y / 2 + 20 + i * (Y - 40) / 12 + 1.5, top - 8)) for sx in (-1, 1) for i in range(13)]
+    feat(doc, "방열 핀 (양 옆, 방 공기로)", Part.makeCompound(fins), g, "pc")
+    feat(doc, "고무 다리 4", Part.makeCompound([prim.cyl((sx * (X / 2 - 30), sy * (Y / 2 - 30), bot - dk["feet_mm"] / 2), 15, dk["feet_mm"])
+                                               for sx in (-1, 1) for sy in (-1, 1)]), g, "dark")
+    fy = -Y / 2
+    feat(doc, "앞판 IP67 단자 (M12 키보드 · 마우스 · USB-C · 예비)",
+         Part.makeCompound([prim.cyl((-90 + i * 40, fy - 4, top - 30), 7, 8, 1) for i in range(4)]), g, "silicone")
+    tw, td, tt = ip["tray_mm"]
+    tz = top - ip["tray_drop_mm"]
+    pcyl(doc, "받침판 경첩 (PETG 핀)", (-(tw - 20) / 2, fy - 6, tz), 4, tw - 20, 0, g, "petg")
+    pbox(doc, "접는 받침판 (데스크톱 앞판에 경첩)", (-tw / 2, fy - 6 - td, tz - tt), (tw / 2, fy - 6, tz), g, "petg_dark")
+    kw, kd, kh = ip["keyboard_mm"]
+    feat(doc, "IP68 실리콘 키보드 (숫자판 = Blender 시점)", prim.box((-35, fy - 6 - td / 2 - 10, tz + kh / 2), (kw, kd, kh), 4), g, "silicone")
+    mw, md, mh = ip["mouse_mm"]
+    feat(doc, "IP68 방수 마우스 (가운데 끌기 = 돌려 보기)", prim.ellipsoid((tw / 2 - 50, fy - 6 - td / 2, tz + mh / 2), (mw / 2, md / 2, mh / 2)), g, "silicone")
+    if machine == "sc1":
+        link(doc, parts["port_panel"], "단자판 — 데스크톱 뒤 (아날로그 · 디지털 · 양자)", at(0, Y / 2 + 2, (top + bot) / 2, R(V(1, 0, 0), 90)), g)
+    return g
 
 
 # ---------- SC-2 도구 ----------
@@ -339,7 +379,8 @@ def build_sc2(D, out, parts, tools, being_shape=None):
     doc.saveAs(str(out / "SC2_LightSculptor.FCStd"))
     px, py = th["park"]
     sheet(doc, [("ToolX", px, "도구 캐리지 X (주차 = 뒤쪽)"), ("ToolY", py, "도구 캐리지 Y"),
-                ("BedDrop", 72.0, "받침 내림 mm (0 = 첫 층이 수면)"), ("Fill", fill, "배지 수면 = 노광면"),
+                ("BedDrop", 72.0, "받침 내림 mm (0 = 첫 층이 수면)"), ("TurnTable", 0.0, "회전 받침 도 (HW 뷰포트)"),
+                ("Fill", fill, "배지 수면 = 노광면"),
                 ("Throw", s["throw"], "수면 → 광엔진 렌즈"), ("InkDepth", s["ink"]["depth"], "잉크층 두께")])
     root = group(doc, "빛 조각가 SC-2")
     _bath(doc, s["tank_inner"], fill, group(doc, "배양조 · 배지", root))
@@ -394,31 +435,19 @@ def build_sc2(D, out, parts, tools, being_shape=None):
     bed = apart(doc, "배양 받침 (BedDrop 으로 내려감)", root)
     bed.setExpression("Placement.Base.z", "-Params.BedDrop")
     top = fill
-    pbox(doc, "배양 받침 120 × 120", (-60, -60, top - 6), (60, 60, top), bed, "petg")
-    pbox(doc, f"받침 기둥 ({C['RISER']:g} mm)", (-20, -20, top - 6 - C["RISER"]), (20, 20, top - 6), bed)
+    pbox(doc, f"받침 기둥 ({C['RISER'] - 30:g} mm + 방수 통 30)", (-20, -20, top - 6 - C["RISER"]), (20, 20, top - 36), bed)
+    link(doc, parts["micro_pod"], "회전 받침 방수 통 (N20, 기둥 위)", at(0, 0, top - 36), bed)
+    turn = apart(doc, "회전 받침 (TurnTable)", bed)
+    turn.setExpression("Placement.Rotation.Angle", "Params.TurnTable * 1 deg")
+    link(doc, parts["turntable"], "3D 프린팅 패드 — 회전 받침 원판 Ø118", at(0, 0, top - 6), turn)
     nut = next(b for b in L["boxes"] if b["name"].startswith("받침 너트 판"))
     layout_obj(doc, nut, bed, "petg")
     for sx in (-1, 1):
-        pbox(doc, f"흑연 패드 {'+' if sx < 0 else '−'}", (sx * 9.5 - 7, -8.5, top - 0.8), (sx * 9.5 + 7, 13.5, top), bed, "graphite")
+        pbox(doc, f"흑연 패드 {'+' if sx < 0 else '−'}", (sx * 9.5 - 7, -8.7, top - 1.0), (sx * 9.5 + 7, 13.7, top - 0.2), turn, "graphite")
     if being_shape is not None:
-        o = feat(doc, "빚는 존재 (Being_Shapes 의 모양)", being_shape.copy(), bed, "being")
+        o = feat(doc, "빚는 존재 (Being_Shapes 의 모양)", being_shape.copy(), turn, "being")
         o.Placement = at(0, 0, top)
-    # 수조 아래 데스크톱 · IP68 키보드 · 마우스 (모니터 없음 — 수조가 모니터)
-    desk = group(doc, "데스크톱 (수조 아래)", root)
-    TI = s["tank_inner"][0]
-    gb = -6
-    ins = s["insulation"]
-    pbox(doc, f"XPS 단열판 {ins:g} mm (+ 바람길)", (-(TI + 20) / 2, -(TI + 20) / 2, gb - 12 - ins), ((TI + 20) / 2, (TI + 20) / 2, gb - 12), desk, "xps")
-    top_z = gb - 42 + 12
-    pbox(doc, "받침대 윗판 (바람길 틈 12 mm)", (-215, -215, top_z - 18), (215, 215, top_z), desk, "wood")
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            pbox(doc, "받침대 다리", (sx * 200 - 15, sy * 200 - 15, gb - 42 - 520), (sx * 200 + 15, sy * 200 + 15, gb - 42), desk, "wood")
-    pbox(doc, "받침대 바닥판", (-215, -215, gb - 42 - 520), (215, 215, gb - 42 - 502), desk, "wood")
-    pbox(doc, "데스크톱 (GPU · Blender · 설계 콘솔)", (-185, -215, gb - 42 - 502), (25, 215, gb - 42 - 52), desk, "pc")
-    pbox(doc, "키보드 서랍", (-215, -410, gb - 147), (215, -210, gb - 133), desk, "wood")
-    pbox(doc, "IP68 실리콘 키보드", (-210, -380, gb - 133), (150, -260, gb - 117), desk, "silicone")
-    feat(doc, "IP68 방수 마우스", prim.ellipsoid((190, -320, gb - 126), (16, 27.5, 9)), desk, "silicone")
+    _console(doc, D, parts, root, "sc2")
     zones = group(doc, "비어 있어야 할 곳 (layout.py zones)", root)
     for z in L["zones"]:
         layout_obj(doc, z, zones, "zone", hidden=True)

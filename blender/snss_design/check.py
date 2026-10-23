@@ -135,7 +135,8 @@ def bed_motion(sc, drop) -> list[dict]:
     try:
         dg = dg_of(sc)
         bed = [(n, bm) for n, bm in collect(sc, "움직임", dg) if True]
-        bed_names = {o.name for o in bpy.data.objects if o.parent and o.parent.name.startswith("배양 받침 (BedDrop")}
+        roots = [o for o in sc.objects if o.name.startswith("배양 받침 (BedDrop")]
+        bed_names = {c.name for r in roots for c in r.children_recursive}  # 회전 받침 아래까지
         bed = [(n, bm) for n, bm in bed if n in bed_names and "존재" not in n]
         fixed = [(n, bm) for n, bm in collect(sc, "고정", dg) if "나사봉" not in n]
         out = []
@@ -201,14 +202,7 @@ def parts_report(sc, out: Path) -> list[dict]:
 
 
 def shape_mesh(o, dg):
-    """모양 개체(메타볼 · 메시) → 바닥 z 0 위만 남기고 막은 bmesh (개체 원점 기준)."""
-    bm = _at_origin(o, dg)
-    r = bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, 0), plane_no=(0, 0, 1), clear_inner=True)
-    edges = [e for e in r["geom_cut"] if isinstance(e, bmesh.types.BMEdge)]
-    if edges:
-        bmesh.ops.holes_fill(bm, edges=edges)
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    return bm
+    return P.shape_bmesh(o, dg)
 
 
 def shapes_report(sc, out: Path, sdf: dict) -> dict:

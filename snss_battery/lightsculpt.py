@@ -84,11 +84,11 @@ class Photo:
 
 @dataclass
 class Desktop:
-    where: str = "수조 아래 받침 — 수조 바닥과 사이에 XPS 단열 30 mm + 앞뒤로 빠지는 바람길"
-    pc: str = "데스크톱 (GPU · Blender · 설계 콘솔) — 프로젝터 HDMI · Z 모터 USB · 전극 측정 USB"
-    keyboard: str = "IP68 실리콘 키보드 (의료용, 물·식염수 세척 가능)"
-    mouse: str = "IP68 방수 마우스 (의료용, 밀봉 휠)"
-    exhaust_k: float = 5.0  # 단열판 아래 공기 = 방 + 5 K (바람길)
+    where: str = "수조 바로 밑에 붙은 방수 데스크톱 (IP67 · 팬 없음) — 사이에 XPS 단열 30 mm, 열은 양 옆 핀으로 방에 (console.py)"
+    pc: str = "데스크톱 (GPU · Blender · 설계 콘솔) — 프로젝터 HDMI · Z 모터 · 회전 받침 · 전극 측정 (방수 케이블)"
+    keyboard: str = "IP68 실리콘 키보드 (숫자판) — 데스크톱 앞 접는 받침판에, Blender 키맵 그대로 수조 속 존재를 살핌"
+    mouse: str = "IP68 방수 마우스 (가운데 버튼 · 밀봉 휠) — 끌면 회전 받침이 돌아감 (HW 뷰포트)"
+    exhaust_k: float = 5.0  # 데스크톱 윗판(XPS 아래) = 배지 + 5 K (본체 안 칸막이 공기층 + 핀)
     insulation_w_mk: float = 0.035
     insulation_mm: float = 30.0
 

@@ -164,6 +164,27 @@ def belt_clamp(P):
     return cut(d, box((0, 0, 6.5), (26, P["Belt"] + 0.4, 1.6)), cyl((-8, 0, 4), 1.7, 10), cyl((8, 0, 4), 1.7, 10))
 
 
+def turntable(P):
+    R = P["Radius"]
+    d = cyl((0, 0, 3), R, 6)
+    holes = [cyl(c, 5.1, 3.2) for c in polar(6, 12, 1.6)]
+    holes += [box((sx * 9.5, 2.5, 5.5), (14.4, 22.4, 1.0)) for sx in (-1, 1)]
+    holes += [cyl((0, 50, 3), 3, 10), box((R, 0, 3), (4, 4, 8))]
+    return cut(d, *holes)
+
+
+def turn_disc(P):
+    d = cyl((0, 0, 1.5), P["Radius"], 3)
+    return cut(d, *[cyl(c, 4.1, 2.2) for c in polar(6, 12, 1.1)], cyl((0, 0, 1.5), 1.6, 5))
+
+
+def micro_pod(P):
+    R, H = P["Radius"], P["Height"]
+    d = cut(cyl((0, 0, H / 2), R, H), cyl((0, 0, (H - 2.5) / 2), R - 2.5, H - 2.5 + 0.01))
+    d = union(d, ring((0, 0, 1.5), R + 3, R - 2.5, 3))
+    return cut(d, ring((0, 0, 0.6), R + 1.6, R - 0.6, 1.2))
+
+
 # key → (만드는 함수, {속성: (기본값, 설명)}) — 공통 치수(Rod · Lm8uu)는 쓰는 부품에만
 PARTS = {
     "corner": (corner, {"Size": (36.0, "꼭짓점 한 변"), "Round": (3.0, "모서리 반지름"), "Rod": COMMON["Rod"]}),
@@ -188,6 +209,9 @@ PARTS = {
     "led_ring": (led_ring, {"Leds": (4.0, "405 nm LED 수")}),
     "scanner_mount": (scanner_mount, {"Laser": (12.0, "레이저 선 모듈 지름")}),
     "belt_clamp": (belt_clamp, {"Belt": (6.0, "GT2 벨트 폭")}),
+    "turntable": (turntable, {"Radius": (59.0, "원판 반지름 (120 받침판 자리)")}),
+    "turn_disc": (turn_disc, {"Radius": (20.0, "자석 원판 반지름")}),
+    "micro_pod": (micro_pod, {"Radius": (20.0, "통 반지름"), "Height": (30.0, "통 높이")}),
 }
 
 

@@ -392,6 +392,12 @@ def bom(spec: SculptorSpec | None = None) -> list[BomLine]:
         BomLine("밖 단자판", "74HC390 × 4 + 비교기 (10 MHz → 1 PPS 분주)", "1식", "양자 계측기 시간 동기 (Q1)", "온라인 · 전자상가"),
         BomLine("밖 단자판", "신호 릴레이 (DPDT)", "1개", "발 단자 ↔ 외부 충전원 A2 연결/분리", "온라인 · 전자상가"),
         BomLine("전원", "24 V 100 W 어댑터 (누전 차단 콘센트에)", "1개", "가열·냉각 장치 없음 (상온) — 방수 케이블로 물속 전자 통", "온라인 · 전자상가"),
+        # 수조 콘솔 — 수조 밑에 붙는 방수 데스크톱 + 키보드 · 마우스 = HW 뷰포트 (console.py)
+        BomLine("수조 콘솔", "팬 없는 IP67 산업용 데스크톱 (GPU · 양 옆 방열 핀)", "1대", "수조 바로 밑 — Blender · 설계 콘솔 · Klipper 호스트", "온라인 · 전자상가"),
+        BomLine("수조 콘솔", "XPS 단열판 30 mm · EPDM 패킹 띠", "1장 · 2 m", "본체 열이 배지로 가지 않게 · 수조 받침 테", "철물점 · 건축 자재점"),
+        BomLine("수조 콘솔", "IP68 실리콘 키보드 (숫자판) · IP68 방수 마우스 (가운데 버튼 · 밀봉 휠)", "각 1개", "데스크톱 앞 접는 받침판 위 — Blender 키맵 그대로", "의료기 · 온라인"),
+        BomLine("수조 콘솔", "IP67 M12 · USB-C 판넬 단자 + 방수 케이블", "1식", "데스크톱 앞판 (키보드 · 마우스) · 뒤 (프로젝터 · Z · 전극)", "전자상가 · 온라인"),
+        BomLine("수조 콘솔", "N20 기어 모터 6 V 30 rpm + 네오디뮴 Ø10 × 3 자석 12개", "1식", "회전 받침 (작은 방수 통 속, 자석 커플링)", "전자상가 · 문구점"),
     ]
 
 
@@ -462,4 +468,8 @@ def klipper_cfg(spec: SculptorSpec | None = None) -> str:
             "  G4 P{(params.S|float * 1000)|int}", "",
             "[gcode_macro SCAN]", "description: 레이저 프로파일러로 작업물 겉면 읽기 (호스트 스크립트가 받음)", "gcode:",
             "  RESPOND MSG=\"SCAN_BEGIN\"", "  G0 X0 Y0 Z95 F3000", "  G0 X120 F1200", "  RESPOND MSG=\"SCAN_END\"", ""]
+    from .console import Console
+
+    out += ["[manual_stepper turn]", "step_pin: PE2", "dir_pin: PE3", "enable_pin: !PD4", "rotation_distance: 360",
+            "# 회전 받침 (N20 + 자석 커플링) — 도 단위 · HW 뷰포트 '돌려 보기' (console.py)", "", Console().klipper_macros()]
     return "\n".join(out)

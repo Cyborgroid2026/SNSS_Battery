@@ -130,6 +130,8 @@ HAND = 70.0  # 손 · 수확 통로 반폭 (받침 손잡이 포함)
 Z_SCREW = 102.0  # Z 나사봉 · 모터 방수 통 중심 (펜 작업 공간 · 손 통로 밖, 프레임 꼭짓점 안)
 POD_H = 49.0  # 모터 방수 통 44 + 뚜껑 5 (parts.motor_pod · pod_lid — FreeCAD 조립에서 잰 실제 높이)
 NUT_R = 14.0  # 받침 너트 판의 나사봉 너트 (나일론) 반지름
+TURN_SC1 = 3.0  # SC-1 배양 받침 밑 회전 자석 원판 (console.Turntable — HW 뷰포트 '돌려 보기')
+TURN_POD = (20.0, 30.0)  # 회전 받침 작은 방수 통 반지름 · 높이 (N20 기어 모터)
 
 
 def make_layout(spec: SculptorSpec | None = None) -> Layout:
@@ -138,7 +140,7 @@ def make_layout(spec: SculptorSpec | None = None) -> Layout:
     bx, by, bz = sp.build_mm[0] / 2, sp.build_mm[1] / 2, sp.build_mm[2]
     h = FX / 2 - 18  # 세로 봉 중심
     bed_bottom_min = POD_H + 2  # 너트 판이 나사봉을 타고 내려가도 Z 모터 방수 통 위 2 mm (FreeCAD 움직임 점검으로 찾음)
-    z_tip = bed_bottom_min + BED_CARRIAGE + PLATE + bz
+    z_tip = bed_bottom_min + BED_CARRIAGE + TURN_SC1 + PLATE + bz
     gz = z_tip + PEN_STACK
     park = (0.0, HAND + 2 + 31 + 2)  # 뒤쪽 가운데: 캐리지(반폭 31)가 손 통로 밖
     travel = (bx + 15, park[1])  # X: 출력 + 15 · Y: 주차까지
@@ -159,6 +161,7 @@ def make_layout(spec: SculptorSpec | None = None) -> Layout:
         boxes.append(_cyl("Z 나일론 나사봉", x, y, 4, 0, z_screw_top))
         boxes.append(_cyl("Z 모터 방수 통", x, y, 28, 0, POD_H))
         boxes.append(_cyl("받침 너트 (가장 낮을 때)", x, y, NUT_R, bed_bottom_min, bed_bottom_min + BED_CARRIAGE, "bed"))
+    boxes.append(_cyl("받침 너트 (가장 낮을 때) — 회전 받침 방수 통", 0, 0, TURN_POD[0], bed_bottom_min - TURN_POD[1], bed_bottom_min, "bed"))
     # 원료 펌프 3 (왼쪽 벽, 세로: 방수 통 아래 · 주사기 위)
     for i, (y, lab) in enumerate(((-20, "GO"), (40, "SNSS"), (100, "PVA"))):
         boxes.append(_cyl(f"원료 펌프 방수 통 {lab}", -118, y, 28, 0, POD_H))

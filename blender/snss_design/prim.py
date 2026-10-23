@@ -56,6 +56,14 @@ def cyl0(coll, name, base, r, h):
     return obj(name, _unit("cyl0"), coll, base, (0, 0, 0), (r, r, h))
 
 
+def cyl_ab(coll, name, a, b, r):
+    """두 점 사이 원기둥 (선 · 가리킴)."""
+    a, b = Vector(a), Vector(b)
+    d = b - a
+    rot = Vector((0, 0, 1)).rotation_difference(d.normalized()).to_euler()
+    return obj(name, _unit("cyl"), coll, (a + b) / 2, rot, (r, r, d.length))
+
+
 def sphere(coll, name, c, r):
     return obj(name, _unit("sphere"), coll, c, (0, 0, 0), (r, r, r))
 
@@ -175,6 +183,19 @@ def eval_mesh(o, depsgraph, world=True):
     if world:
         bm.transform(ev.matrix_world)
     ev.to_mesh_clear()
+    return bm
+
+
+def shape_bmesh(o, depsgraph):
+    """모양 개체(메타볼 · 메시) → 바닥 z 0 위만 남기고 막은 bmesh (크기 · 회전 포함, 개체 위치만 빼서 원점 기준)."""
+    bm = eval_mesh(o, depsgraph, world=True)
+    t = o.evaluated_get(depsgraph).matrix_world.translation.copy()
+    bmesh.ops.translate(bm, verts=bm.verts, vec=-t)
+    r = bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, 0), plane_no=(0, 0, 1), clear_inner=True)
+    edges = [e for e in r["geom_cut"] if isinstance(e, bmesh.types.BMEdge)]
+    if edges:
+        bmesh.ops.holes_fill(bm, edges=edges)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     return bm
 
 

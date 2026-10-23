@@ -176,6 +176,10 @@ def klipper_light_cfg(spec: LightSculptorSpec) -> str:
             "[gcode_macro INK_SWAP]", "gcode:", "  PAUSE", "",
             "[gcode_macro LEAK_CHECK]", "gcode:", "  RESPOND MSG=\"LEAK_CHECK — 흑연 기준 전극 누설 < 50 µA 확인\"", "",
             "[gcode_macro CURE]", "gcode:", f"  G4 P{int(spec.cure_h * 3600 * 1000)}", ""]
+    from .console import Console
+
+    out += ["[manual_stepper turn]", "step_pin: PE2", "dir_pin: PE3", "enable_pin: !PD4", "rotation_distance: 360",
+            "# 회전 받침 (받침 기둥 위 작은 방수 통, 자석 커플링) — HW 뷰포트 '돌려 보기' (console.py)", "", Console().klipper_macros()]
     return "\n".join(out)
 
 

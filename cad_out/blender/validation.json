@@ -3,17 +3,17 @@
  "scenes": [
   {
    "scene": "SC-1 조각가",
-   "objects": 97,
-   "meshes": 54,
-   "instances": 34,
-   "drivers": 3,
+   "objects": 228,
+   "meshes": 180,
+   "instances": 36,
+   "drivers": 4,
    "bad_drivers": [],
    "bad_modifiers": []
   },
   {
    "scene": "SC-1 부품",
-   "objects": 173,
-   "meshes": 169,
+   "objects": 198,
+   "meshes": 194,
    "instances": 0,
    "drivers": 20,
    "bad_drivers": [],
@@ -21,10 +21,10 @@
   },
   {
    "scene": "SC-2 빛 조각가",
-   "objects": 99,
-   "meshes": 68,
-   "instances": 24,
-   "drivers": 3,
+   "objects": 224,
+   "meshes": 185,
+   "instances": 26,
+   "drivers": 8,
    "bad_drivers": [],
    "bad_modifiers": []
   },
@@ -263,6 +263,33 @@
    "rel": -0.0008970529874516743,
    "nonmanifold_edges": 0,
    "qty": 2
+  },
+  {
+   "key": "turntable",
+   "name": "회전 받침 원판 (SC-2)",
+   "volume_cm3": 63.003,
+   "sdf_volume_cm3": 63.08783,
+   "rel": -0.0013451408558708606,
+   "nonmanifold_edges": 0,
+   "qty": 1
+  },
+  {
+   "key": "turn_disc",
+   "name": "회전 자석 원판 (SC-1)",
+   "volume_cm3": 3.04,
+   "sdf_volume_cm3": 3.0285,
+   "rel": 0.0037949353738831724,
+   "nonmanifold_edges": 0,
+   "qty": 1
+  },
+  {
+   "key": "micro_pod",
+   "name": "회전 받침 방수 통",
+   "volume_cm3": 12.0774,
+   "sdf_volume_cm3": 12.07819,
+   "rel": -6.371773446264554e-05,
+   "nonmanifold_edges": 0,
+   "qty": 2
   }
  ],
  "shapes": {
@@ -308,17 +335,17 @@
    {
     "zone": "출력 공간",
     "part": "방수 통 뚜껑 (Z)",
-    "gap": 40.97
+    "gap": 42.55
    },
    {
     "zone": "출력 공간",
     "part": "방수 통 뚜껑 (Z).001",
-    "gap": 40.97
+    "gap": 42.55
    },
    {
     "zone": "출력 공간",
     "part": "방수 통 뚜껑 (Z).002",
-    "gap": 40.97
+    "gap": 42.55
    },
    {
     "zone": "펜 작업 공간 (출력 중)",
@@ -328,12 +355,12 @@
    {
     "zone": "펜 작업 공간 (출력 중)",
     "part": "방수 통 뚜껑 (Z)",
-    "gap": 24.19
+    "gap": 26.78
    },
    {
     "zone": "펜 작업 공간 (출력 중)",
     "part": "방수 통 뚜껑 (Z).001",
-    "gap": 24.19
+    "gap": 26.78
    },
    {
     "zone": "펜 이동 공간 (끝 높이 위)",
@@ -368,17 +395,17 @@
    {
     "zone": "손 · 수확 통로 (주차 때)",
     "part": "방수 통 뚜껑 (Z)",
-    "gap": 20.33
+    "gap": 22.57
    },
    {
     "zone": "손 · 수확 통로 (주차 때)",
     "part": "방수 통 뚜껑 (Z).001",
-    "gap": 20.33
+    "gap": 22.57
    },
    {
     "zone": "손 · 수확 통로 (주차 때)",
     "part": "방수 통 뚜껑 (Z).002",
-    "gap": 20.33
+    "gap": 22.57
    }
   ],
   "SC-2": [
@@ -458,20 +485,10 @@
   "SC-1": [],
   "SC-2": []
  },
- "renders": [
-  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/01_SC-1 조각가.png",
-  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/02_SC-1 부품.png",
-  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/03_SC-2 빛 조각가.png",
-  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/04_SC-2 도구.png",
-  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/05_존재 모양.png",
-  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/06_빚은 세포.png",
-  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/07_시험편.png",
-  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/08_양자 모듈.png",
-  "/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/09_병 결정.png"
- ],
+ "renders": [],
  "quantum": {
   "layers": 35,
   "top_z_mm": 1.502994179725647
  },
- "seconds": 53.1
+ "seconds": 13.7
 }
