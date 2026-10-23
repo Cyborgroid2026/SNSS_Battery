@@ -186,7 +186,7 @@ def write_design(out: Path = OUT) -> Path:
     return f
 
 
-def run_build(out: Path = OUT, only: str = "", gui: bool = True) -> dict:
+def run_build(out: Path = OUT, only: str = "", gui: bool = False) -> dict:
     """FreeCAD 로 모든 작품을 짓고 점검 → validation.json.
     gui=True: 화면 없는 GUI (QT_QPA_PLATFORM=offscreen) — 색 · 투명도 · 미리보기 그림까지 파일에 저장. 안 되면 머리 없이."""
     exe = freecad_bin(gui) or freecad_bin(False)

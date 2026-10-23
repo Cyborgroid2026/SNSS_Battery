@@ -25,3 +25,20 @@ class SNSSWorkbench(Gui.Workbench):
 
 
 Gui.addWorkbench(SNSSWorkbench())
+
+
+class _Paint:
+    """문서를 열면 SNSS 색 · 투명도를 입힘 (짓기는 머리 없이 하므로 색이 속성으로만 들어 있음)."""
+
+    def slotFinishRestoreDocument(self, doc):
+        try:
+            from snss_fc.style import apply_doc
+
+            apply_doc(doc)
+        except Exception:
+            pass
+
+
+import FreeCAD as _App  # noqa: E402
+
+_App.addDocumentObserver(_Paint())

@@ -506,7 +506,7 @@ def cmd_freecad(a: argparse.Namespace) -> None:
     if a.open:
         print(f"FreeCAD 창을 엽니다: {fcparams.open_gui()}")
         return
-    v = fcparams.run_build(only=a.only, gui=not a.headless)
+    v = fcparams.run_build(only=a.only, gui=a.gui)
     print(fcparams.describe(v))
     print(f"FreeCAD 에서 열기: python3 -m snss_battery freecad --open (워크벤치 'SNSS 설계') · 기록 {fcparams.OUT.relative_to(fcparams.ROOT)}/validation.json")
 
@@ -717,7 +717,7 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=cmd_parts)
     p = sub.add_parser("freecad", help="FreeCAD 설계 — 모든 작품을 매개변수 CAD 문서로 짓고 B-rep 점검 (SNSS 설계 워크벤치)")
     p.add_argument("--only", default="", help="쉼표로 고르기: sc1 · sc2 · cells · small (부품 · 존재 모양은 늘)")
-    p.add_argument("--headless", action="store_true", help="GUI 없이 (색 · 투명도 없이 저장)")
+    p.add_argument("--gui", action="store_true", help="화면 없는 GUI 로 지음 (기본은 머리 없이 — 색은 속성으로 남고 열 때 워크벤치가 칠함)")
     p.add_argument("--open", action="store_true", help="지은 문서를 FreeCAD 창으로 열기")
     p.set_defaults(func=cmd_freecad)
     p = sub.add_parser("blender-design", help="Blender 설계 — 모든 작품을 Blender 장면(드라이버 · 비파괴 모디파이어 · 메타볼)으로 짓고 점검")

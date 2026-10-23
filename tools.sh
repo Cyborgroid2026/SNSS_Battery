@@ -17,6 +17,7 @@
 #   ./tools.sh view-freecad  지은 문서를 FreeCAD 창으로 (워크벤치 'SNSS 설계': 고치기 → 조각가로 빚기)
 #   ./tools.sh blender-design      Blender 설계 — 모든 작품을 장면 9개(드라이버 · 비파괴 모디파이어 · 메타볼)로 짓고 점검 + 미리보기
 #   ./tools.sh view-blender-design 지은 SNSS_Design.blend 를 Blender 창으로 (사이드바 N → SNSS: 고치기 → 조각가로 빚기)
+#   ./tools.sh blender-web         브라우저 속 Blender → http://127.0.0.1:8790/ (VS Code: Browser: Open Integrated Browser) · HW 뷰포트
 #   ./tools.sh ports         아날로그 · 디지털 · 양자 공학기기 호환 단자
 #   ./tools.sh web           웹 뷰어 → http://127.0.0.1:8765/#tools (VS Code: Browser: Open Integrated Browser 에 붙여 넣기)
 #   ./tools.sh chem          용액 화학 (PHREEQC): 활동도, 어는점, 막전위 보정
@@ -187,6 +188,7 @@ case "${1:-}" in
     freecad) shift; need_freecad; "$PY" -m snss_battery freecad "$@" ;;
     view-freecad) need_freecad; [[ -f cad_out/freecad/SC1_Sculptor.FCStd ]] || "$PY" -m snss_battery freecad; "$PY" -m snss_battery freecad --open ;;
     blender-design) shift; "$PY" -m snss_battery blender-design "$@" ;;
+    blender-web) shift; [[ -f cad_out/blender/SNSS_Design.blend ]] || "$PY" -m snss_battery blender-design; "$PY" -m snss_battery blender-design --web "$@" ;;
     view-blender-design) [[ -f cad_out/blender/SNSS_Design.blend ]] || "$PY" -m snss_battery blender-design; "$PY" -m snss_battery blender-design --open ;;
     ports) "$PY" -m snss_battery ports ;;
     web) cmd_web ;;

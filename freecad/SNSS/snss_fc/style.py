@@ -20,8 +20,23 @@ COLORS = {
 
 
 def paint(obj, key: str, hidden: bool = False):
-    if not App.GuiUp or obj is None:
+    """색 이름을 개체 속성 SNSSColor 로 적어 둠 (머리 없이 지어도 남음) — GUI 가 있으면 바로, 없으면 문서를 열 때 워크벤치가 칠함."""
+    if obj is None:
         return obj
+    if "SNSSColor" not in obj.PropertiesList:
+        obj.addProperty("App::PropertyString", "SNSSColor", "SNSS", "색 이름 (style.COLORS) — 열 때 칠함")
+        obj.addProperty("App::PropertyBool", "SNSSHidden", "SNSS", "처음에 숨김")
+        obj.setEditorMode("SNSSColor", 2)
+        obj.setEditorMode("SNSSHidden", 2)
+    obj.SNSSColor, obj.SNSSHidden = key, bool(hidden)
+    if not App.GuiUp:
+        return obj
+    return apply(obj)
+
+
+def apply(obj):
+    key = getattr(obj, "SNSSColor", "") or "petg"
+    hidden = getattr(obj, "SNSSHidden", False)
     rgb, tr = COLORS.get(key, COLORS["petg"])
     vo = obj.ViewObject
     if vo is None:
@@ -40,3 +55,15 @@ def paint(obj, key: str, hidden: bool = False):
     if hidden:
         vo.Visibility = False
     return obj
+
+
+def apply_doc(doc):
+    """머리 없이 지은 문서를 열었을 때 — SNSSColor 가 있는 개체를 칠함 (처음 한 번)."""
+    if not App.GuiUp:
+        return
+    for o in doc.Objects:
+        if "SNSSColor" in o.PropertiesList:
+            try:
+                apply(o)
+            except Exception:
+                pass
