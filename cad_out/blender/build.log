@@ -1,46 +1,46 @@
 [   0.0 s] SC-1 부품
 [   0.0 s] 존재 모양 (메타볼)
-[   0.7 s] SC-1 조각가
-[   6.2 s] SC-2 도구 · 빛 조각가
-[   6.2 s] SC-3 영점 막대
-00:10.863  io.stl           | WARNING Removed 58 degenerate triangles during import
-00:16.278  io.stl           | WARNING Removed 382 degenerate triangles during import
-00:21.861  io.stl           | WARNING Removed 56 degenerate triangles during import
-00:23.809  io.stl           | WARNING Removed 44 degenerate triangles during import
-00:31.234  io.stl           | WARNING Removed 48 degenerate triangles during import
-[  30.2 s] 빚은 세포 · 시험편 · 양자 모듈 · 병 결정
-[  35.7 s] 점검
-[  43.9 s] 미리보기 렌더
-01:11.439  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/01_SC-3 영점 막대.png'
-01:26.913  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/02_SC-1 조각가.png'
-01:31.979  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/03_SC-1 부품.png'
-01:47.283  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/04_SC-2 빛 조각가.png'
-01:51.360  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/05_SC-2 도구.png'
-01:54.676  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/06_존재 모양.png'
-02:06.496  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/07_빚은 세포.png'
-02:09.940  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/08_시험편.png'
-02:26.362  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/09_양자 모듈.png'
-02:30.844  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/10_병 결정.png'
-[ 149.7 s] 뷰포트 기본값 — 처음 열면 SC-1 의 3D 프린팅 패드를 비춤
-[ 149.7 s] 저장
+[   0.8 s] SC-1 조각가
+[   6.8 s] SC-2 도구 · 빛 조각가
+[   6.9 s] SC-3 영점 막대
+00:12.058  io.stl           | WARNING Removed 58 degenerate triangles during import
+00:18.653  io.stl           | WARNING Removed 382 degenerate triangles during import
+00:24.271  io.stl           | WARNING Removed 56 degenerate triangles during import
+00:26.105  io.stl           | WARNING Removed 44 degenerate triangles during import
+00:33.288  io.stl           | WARNING Removed 48 degenerate triangles during import
+[  31.9 s] 빚은 세포 · 시험편 · 양자 모듈 · 병 결정
+[  37.3 s] 점검
+[  45.3 s] 미리보기 렌더
+01:05.940  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/01_SC-3 영점 막대.png'
+01:16.972  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/02_SC-1 조각가.png'
+01:20.737  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/03_SC-1 부품.png'
+01:30.272  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/04_SC-2 빛 조각가.png'
+01:33.072  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/05_SC-2 도구.png'
+01:35.136  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/06_존재 모양.png'
+01:42.916  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/07_빚은 세포.png'
+01:45.323  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/08_시험편.png'
+01:59.137  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/09_양자 모듈.png'
+02:02.945  render           | Saved: '/home/a71143055/Desktop/SNSS_Battery/cad_out/blender/preview/10_병 결정.png'
+[ 121.5 s] 뷰포트 기본값 — 처음 열면 SC-1 의 3D 프린팅 패드를 비춤
+[ 121.5 s] 저장
 Info: Saved as "SNSS_Design.blend"
-[ 149.9 s] 끝 → validation.json
+[ 121.6 s] 끝 → validation.json
 Blender 5.2.2 LTS (hash d13f752e3b9c built 2026-09-15 01:34:58)
-Timer 'STL Import' took 45.88 ms
-Timer 'STL Import' took 35.24 ms
-Timer 'STL Import' took 56.58 ms
-Timer 'STL Import' took 23.83 ms
-Timer 'STL Import' took 13.98 ms
-Timer 'STL Import' took 4.50 ms
-Timer 'STL Import' took 10.94 ms
-Timer 'STL Import' took 59.19 ms
-Timer 'STL Import' took 6.63 ms
-Timer 'STL Import' took 2.39 ms
-Timer 'STL Import' took 98.41 ms
-Timer 'STL Import' took 22.78 ms
-Timer 'STL Import' took 13.87 ms
-Timer 'STL Import' took 13.53 ms
-Timer 'STL Import' took 72.39 ms
-Timer 'STL Import' took 25.99 ms
+Timer 'STL Import' took 49.53 ms
+Timer 'STL Import' took 38.51 ms
+Timer 'STL Import' took 63.28 ms
+Timer 'STL Import' took 21.93 ms
+Timer 'STL Import' took 28.05 ms
+Timer 'STL Import' took 6.13 ms
+Timer 'STL Import' took 10.44 ms
+Timer 'STL Import' took 76.18 ms
+Timer 'STL Import' took 4.55 ms
+Timer 'STL Import' took 1.59 ms
+Timer 'STL Import' took 74.07 ms
+Timer 'STL Import' took 22.72 ms
+Timer 'STL Import' took 14.13 ms
+Timer 'STL Import' took 12.77 ms
+Timer 'STL Import' took 77.80 ms
+Timer 'STL Import' took 21.43 ms
 
 Blender quit
