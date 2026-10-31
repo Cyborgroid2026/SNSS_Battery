@@ -26,6 +26,24 @@
   const SAMPLES = [tis].filter(Boolean); // 층 쌓기 시료는 뺐음
   let S = SAMPLES[0];
 
+  // ---------- 현실 물리 (snss_battery/benchphys.py — 같은 단계 id) ----------
+  const PH = Object.fromEntries((DATA.benchphys || []).map((p) => [p.id, p]));
+  const ph = (id) => (S && S.tissue ? PH[id] : null) || null;
+  const interp = (xs, ys, x) => { // 꺾은선 보간 (범위 밖은 끝값)
+    if (!xs || !xs.length) return NaN;
+    if (x <= xs[0]) return ys[0];
+    for (let k = 1; k < xs.length; k++) if (x <= xs[k]) return ys[k - 1] + (ys[k] - ys[k - 1]) * (x - xs[k - 1]) / ((xs[k] - xs[k - 1]) || 1);
+    return ys[ys.length - 1];
+  };
+  const psat = (c) => 133.322 * 10 ** (8.07131 - 1730.63 / (233.426 + c)); // 물 포화 증기압 Pa (Antoine)
+  // FEniCSx 가운데 기둥: 동결 시작 뒤 h 시간에 얼음 전선 높이 비율 (0–1)
+  function frontFrac(h) {
+    const r = (PH.dfreeze || {}).render || {};
+    if (!r.front_t_h || !r.front_t_h.length) return null;
+    const ts = [0, ...r.front_t_h], zs = [0, ...r.front_mm];
+    return clamp(interp(ts, zs, h) / zs[zs.length - 1]);
+  }
+
   // ---------- 절차 ----------
   const f1 = (v) => (v ?? 0).toFixed(1), f2 = (v) => (v ?? 0).toFixed(2);
   const nb = (rows) => `<table>${rows.map(([a, b]) => `<tr><td>${a}</td><td><b>${b}</b></td></tr>`).join("")}</table>`;
@@ -127,6 +145,16 @@
     if (label) text(label, x + w / 2, y + h + 18, 12, "#eef3f8", "center", "600");
     if (sub) text(sub, x + w / 2, y + h + 32, 10, "#aebccb");
   }
+  // 자석 교반 소용돌이: benchphys 깊이 (mm) × 비커 축척 × 3 배 과장 — 단계끼리 비율은 그대로
+  function vortex(x, w, ysurf, mm, pxPerMm) {
+    const d = mm * pxPerMm * 3;
+    if (!(d > 0.5)) return;
+    ctx.fillStyle = "#e3e9ef";
+    ctx.beginPath(); ctx.moveTo(x + 3, ysurf);
+    for (let k = 0; k <= 20; k++) { const u = k / 20, r = Math.abs(2 * u - 1); ctx.lineTo(x + 3 + (w - 6) * u, ysurf + d * (1 - r * r)); }
+    ctx.closePath(); ctx.fill();
+    text(`소용돌이 ${mm.toFixed(1)} mm (×3)`, x + w / 2, ysurf - 6, 9.5, "#33404d");
+  }
   function shade(hex, f) {
     const n = parseInt(hex.slice(1), 16);
     const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(clamp(v * f, 0, 255)));
@@ -162,17 +190,19 @@
   // 통째 결정: 병이 있는 곳 (bench 실험대 · plate 냉각판 · bath 항온수조) 과 얼음 상태
   function tisState() {
     const fz = S.freezing.hours, th = (STEPS.find((x) => x.id === "thaw") || { h: 2 }).h, share = fz / (fz + th);
+    const fzh = (STEPS.find((x) => x.id === "dfreeze") || { h: fz }).h; // 단계 시간 = FEniCSx 다 어는 시간
     const ft = prog("ft"), N = S.freeze_thaw - 1;
     if (prog("demold") > 0 || ft >= 1) return { at: "bench", ice: 0, gel: true, bath: false };
     if (ft > 0) {
       const c = (ft * N) % 1, n = Math.min(N, Math.floor(ft * N) + 1);
-      return c < share ? { at: "plate", ice: Math.sqrt(c / share), gel: true, cycle: n, phase: "동결" }
+      const fr = frontFrac((c / share) * fzh);
+      return c < share ? { at: "plate", ice: fr ?? Math.sqrt(c / share), gel: true, cycle: n, phase: "동결" }
                        : { at: "bench", ice: 1 - (c - share) / (1 - share), gel: true, bath: true, cycle: n, phase: "해동" };
     }
     const tw = prog("thaw");
     if (tw > 0) return { at: "bench", ice: 1 - tw, gel: true, bath: true };
     const df = prog("dfreeze");
-    if (df > 0) return { at: "plate", ice: Math.sqrt(df), gel: false };
+    if (df > 0) return { at: "plate", ice: frontFrac(df * fzh) ?? Math.sqrt(df), gel: false }; // FEniCSx 전선 (없으면 스테판 √t)
     const su = prog("setup");
     return { at: su > 0.4 ? "plate" : "bench", move: clamp((su - 0.15) / 0.3), ice: 0, gel: false };
   }
@@ -188,11 +218,12 @@
     return -20;
   }
   function hotTemp() {
-    if (S.tissue) {
-      const P = prog("stock"), C = prog("cool");
-      if (C > 0) return C >= 1 ? 22 : lerp(90, 38, C);
+    if (S.tissue) { // 가열 · 식힘 곡선 (benchphys: 온도 제어 가열 + 뉴턴 냉각 + 증발)
+      const P = prog("stock"), C = prog("cool"), hs = ph("stock"), hc = ph("cool");
+      const at = (id) => STEPS.find((x) => x.id === id).h * 60;
+      if (C > 0) return C >= 1 ? 22 : hc && hc.series.x ? interp(hc.series.x, hc.series.y, C * at("cool")) : lerp(90, 38, C);
       if (P <= 0) return 22;
-      return P < 0.2 ? lerp(22, 90, P / 0.2) : 90;
+      return hs && hs.series.x ? interp(hs.series.x, hs.series.y, P * at("stock")) : P < 0.2 ? lerp(22, 90, P / 0.2) : 90;
     }
     const P = prog("stock");
     if (P <= 0) return 22;
@@ -250,10 +281,23 @@
     beaker(70, 290, 92, 96, level * 0.85, c, "", "");
     text("PVA 원액", 116, 270, 12, "#263241", "center", "700");
     text(S.tissue ? `덜어 낸 식염수 + PVA ${f1(S.tq.pvaWt)} %` : S.r0 ? "5 wt%" : "10 wt% + GO 1 mg/mL", 116, 284, 10, "#5d6673");
-    if (on && P < 1) for (let k = 0; k < 6; k++) { // 김
-      const ph = (performance.now() / 900 + k / 6) % 1;
-      ctx.strokeStyle = `rgba(255,255,255,${0.6 * (1 - ph)})`; ctx.lineWidth = 3;
-      ctx.beginPath(); const x0 = 90 + k * 11; ctx.moveTo(x0, 285 - ph * 40); ctx.quadraticCurveTo(x0 + 6, 275 - ph * 40, x0, 265 - ph * 40); ctx.stroke();
+    const Cl = prog("cool"), steamy = on && (P < 1 || (Cl > 0 && Cl < 1));
+    const vap = clamp(psat(T) / psat(90), 0, 1.5); // 김의 양 ∝ 포화 증기압 (90 °C 기준)
+    if (steamy) for (let k = 0; k < 6; k++) { // 김
+      const q = (performance.now() / 900 + k / 6) % 1;
+      ctx.strokeStyle = `rgba(255,255,255,${0.6 * vap * (1 - q)})`; ctx.lineWidth = 3;
+      ctx.beginPath(); const x0 = 90 + k * 11; ctx.moveTo(x0, 285 - q * 40); ctx.quadraticCurveTo(x0 + 6, 275 - q * 40, x0, 265 - q * 40); ctx.stroke();
+    }
+    const dp = prog("disperse"), pd = ph("disperse");
+    if (dp > 0 && dp < 1 && pd && level > 0) { // PVA 분산: 소용돌이 + 가라앉는 알갱이 (스토크스)
+      const lv = clamp(level) * 0.85 * 86, top = 290 + 96 - 3 - lv;
+      vortex(70, 92, top, pd.render.vortex_mm, 92 / 67);
+      const v = pd.render.sink_mm_s * (92 / 67);
+      ctx.fillStyle = "#fffaf0";
+      for (let k = 0; k < 14; k++) {
+        const y = top + ((performance.now() / 1000 * v + k * 13) % Math.max(lv, 1)), x = 80 + ((k * 37) % 72);
+        ctx.beginPath(); ctx.arc(x, y, 1.6, 0, 6.29); ctx.fill();
+      }
     }
     // 온도계
     ctx.strokeStyle = "#555"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(150, 250); ctx.lineTo(140, 360); ctx.stroke();
@@ -282,10 +326,15 @@
       }
       const lv = m <= 0 ? 0 : (rf > 0 ? 1 - rf : 1) * lerp(0.55, 0.85, clamp((m - 0.1) / 0.8));
       beaker(x0 + 84, 330, 76, 96, lv, m < 0.15 ? "#dfeaf2" : COL.mix, "1 L 비커", dg > 0 && dg < 1 ? "진공 · 기포 빼기" : "섞기");
-      if (dg > 0 && dg < 1) for (let k = 0; k < 8; k++) { // 기포
-        const ph = (performance.now() / 700 + k / 8) % 1;
-        ctx.fillStyle = `rgba(255,255,255,${0.7 * (1 - ph)})`; ctx.beginPath(); ctx.arc(x0 + 96 + k * 7, 420 - ph * 70 * lv, 2, 0, 6.29); ctx.fill();
+      const pdg = ph("degas"), pm = ph("mix");
+      const depthPx = lv * 86, mmPx = pdg ? depthPx / pdg.render.depth_mm : 1;
+      if (dg > 0 && dg < 1) for (let k = 0; k < 10; k++) { // 기포: 큰 것 · 작은 것이 스토크스 속도 그대로 (실시간)
+        const big = k % 2 === 0, v = pdg ? pdg.render.rise_mm_s[big ? 0 : 1] * mmPx : 40;
+        const y = ((performance.now() / 1000) * v + k * 17) % Math.max(depthPx, 1);
+        ctx.fillStyle = `rgba(255,255,255,${0.75 * (1 - y / Math.max(depthPx, 1))})`;
+        ctx.beginPath(); ctx.arc(x0 + 92 + k * 6, 423 - y, big ? 2.6 : 1.3, 0, 6.29); ctx.fill();
       }
+      if (m > 0.15 && m < 1 && pm && lv > 0) vortex(x0 + 84, 76, 330 + 96 - 3 - lv * 86, pm.render.vortex_mm, 76 / 105);
       if (m > 0 && m < 1) { ctx.strokeStyle = "#566270"; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x0 + 122, 418, 10 * Math.abs(Math.cos(performance.now() / 120)), 2.5, 0, 0, 6.29); ctx.stroke(); }
       return;
     }
@@ -524,7 +573,10 @@
       const tk = prog("take"), mx = prog("mix"), rf = prog("refill");
       const level = rf > 0 ? lerp(0.0, 1, clamp(rf * 1.2)) : mx > 0 ? 0.675 * (1 - clamp(mx * 3)) : 1 - 0.325 * clamp(tk * 1.5);
       const color = rf > 0 || st.gel || st.ice > 0 ? COL.mix : "#cfe6f5";
+      const pdm = ph("demold"), sag = dm > 0.35 && pdm ? ease(clamp((dm - 0.35) / 0.65)) * pdm.render.strain : 0;
+      if (sag > 0) { ctx.save(); ctx.translate(bx, bb); ctx.scale(1 + 0.25 * sag, 1 - 0.5 * sag); ctx.translate(-bx, -bb); } // 제 무게로 처짐 · 부풂
       tissueCrystal(bx, bb, full, { level: dm > 0 ? 1 : level, color, ice: st.ice, core: !!st.bath, gel: st.gel || dm > 0 });
+      if (sag > 0) { ctx.restore(); text(`제 무게로 처짐 −${(0.5 * sag * BOT.fill).toFixed(0)} mm`, bx, bb - full * (1 - 0.5 * sag) - 10, 11, "#a8650f", "center", "700"); }
       frontMm = st.bath ? 0 : BOT.fill * st.ice;
       if (dm < 0.35) {
         if (st.at === "plate" && !(st.move < 1)) insulation(px, pb);
@@ -648,9 +700,38 @@
       ["멀티미터", reading, on ? "" : "cold"],
     ].map(([k, v, c]) => `<div><small>${k}</small><b class="${c}">${esc(v)}</b></div>`).join("");
     [...$("#labSteps").children].forEach((li, k) => { li.classList.toggle("on", k === i); li.classList.toggle("done", k < i || (k === i && u >= 1)); });
-    if (render.lastStep !== i || render.lastS !== S.key) { $("#labNote").innerHTML = `<div><b>${esc(step.t)}</b></div>` + step.n(); render.lastStep = i; render.lastS = S.key; }
+    if (render.lastStep !== i || render.lastS !== S.key) {
+      $("#labNote").innerHTML = `<div><b>${esc(step.t)}</b></div>` + step.n();
+      const pp = $("#labPhys");
+      if (pp) pp.innerHTML = physPanel(ph(step.id));
+      render.lastStep = i; render.lastS = S.key;
+    }
     $("#labBar").style.width = `${(100 * t) / TOTAL}%`;
     $("#labClock").textContent = `${hoursNow().toFixed(1)} / ${HOURS[HOURS.length - 1].toFixed(0)} h`;
+  }
+
+  // ---------- 물리 칸 ----------
+  const ENGINE = { mantaflow: "Mantaflow 유체", bullet: "Bullet 강체", fenicsx: "FEniCSx 열전달", "해석식": "해석식" };
+  function physChart(sr) {
+    if (!sr || !sr.x || sr.x.length < 2) return "";
+    const W2 = 260, H2 = 96, L = 34, B = 20, xs = sr.x, ys = sr.y;
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const X = (v) => L + ((v - x0) / ((x1 - x0) || 1)) * (W2 - L - 6), Y = (v) => H2 - B - ((v - y0) / ((y1 - y0) || 1)) * (H2 - B - 8);
+    const pts = xs.map((v, k) => `${X(v).toFixed(1)},${Y(ys[k]).toFixed(1)}`).join(" ");
+    const f = (v) => (Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2));
+    return `<svg class="phys-chart" viewBox="0 0 ${W2} ${H2}" role="img" aria-label="${esc(sr.yl)} – ${esc(sr.xl)}">
+      <line x1="${L}" y1="${H2 - B}" x2="${W2 - 4}" y2="${H2 - B}" class="ax"/><line x1="${L}" y1="6" x2="${L}" y2="${H2 - B}" class="ax"/>
+      <polyline points="${pts}" class="ln"/>
+      <text x="${L - 4}" y="12" text-anchor="end">${f(y1)}</text><text x="${L - 4}" y="${H2 - B}" text-anchor="end">${f(y0)}</text>
+      <text x="${L}" y="${H2 - 6}">${f(x0)}</text><text x="${W2 - 4}" y="${H2 - 6}" text-anchor="end">${f(x1)} ${esc(sr.xl)}</text>
+      <text x="${L + 6}" y="14" class="yl">${esc(sr.yl)}</text></svg>`;
+  }
+  function physPanel(p) {
+    if (!p) return '<p class="phys-none">이 시료에는 물리 계산이 없습니다.</p>';
+    return `<div class="phys-head"><span class="phys-eng ${esc(p.engine)}">${esc(ENGINE[p.engine] || p.engine)}</span>`
+      + `<span class="phys-ok ${p.ok ? "ok" : "warn"}">${p.ok ? "✔ 레시피와 맞음" : "⚠ 조심"}</span></div>`
+      + `<table class="phys-items">${p.items.map(([a, b]) => `<tr><td>${esc(a)}</td><td><b>${esc(b)}</b></td></tr>`).join("")}</table>`
+      + physChart(p.series) + `<p class="phys-verdict">${esc(p.verdict)}</p>`;
   }
 
   // ---------- 조작 ----------

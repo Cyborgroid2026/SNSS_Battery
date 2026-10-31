@@ -24,6 +24,7 @@ GO · SNSS(멸균생리식염수) · PVA 가 따로 펜에 들어가 끝에서 �
 | **SC-3 + 콘솔 실제로 만들기** — 출력 부품 16종 STL · 살 것 · 조립 16단계 · 조립 점검 (뜬 것 · 부딪침 · 노즐 틈 · 꺼내는 길) · 재료마다 노즐 따로 ([spec/SC3_BUILD.md](spec/SC3_BUILD.md)) | `python3 -m snss_battery sc3 build` → `cad_out/sc3/ASSEMBLY.md` |
 | 수조 콘솔 — 수조 밑에 붙는 방수 데스크톱 · 바닥에 놓는 IP68 키보드 · 마우스 · IP66 모니터 · 회전 받침 · 키맵 | `python3 -c "from snss_battery.console import Console; print(Console().describe())"` |
 | 웹 뷰어 ('조각가 · 존재' 탭) | `./tools.sh web` |
+| 실험대 19단계의 현실 물리 — 교반 소용돌이 · 가열 · 증발 · GO 응집 · 감압 기포 · 동결 전선 · 겔 처짐 ([spec/PHYSICS.md](spec/PHYSICS.md)) | `./tools.sh bench-physics` · 웹 '실험대' 탭 '물리' 칸 |
 | **빛 조각가 SC-2** — 펜 없이 잉크층 + 405 nm 빛, 배지가 모니터 ([spec/LIGHT.md](spec/LIGHT.md)) | `./tools.sh light` → `python -m snss_battery light being [--go 2 --irradiance 6]` · Blender `./tools.sh light-blender` · 웹 '빛 조각가 · 콘솔' 탭 |
 | SC-2 배지 속 전극 감지 (EIT) — 빚는 동안 자람 · 덧굳음 · 빠짐 | `./tools.sh light-eit` (`--compare` 전극 자리 비교) |
 | SC-2 한 주기 동영상 (빛 → 도구 주입 → 빛) | `./tools.sh light-blender --anim` |

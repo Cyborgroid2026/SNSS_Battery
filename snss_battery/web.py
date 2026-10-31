@@ -108,6 +108,7 @@ def build_site(
         "light": light,
         "recipes": recipes,
         "samples": _samples(battery, folder),
+        "benchphys": _benchphys(),
         "tools": _standard_tools(folder),
         "lighting": {"text": lighting.describe(), "budget_mw": {k: v * 1000 for k, v in lighting.budget_w.items()},
                      "led_off_h": lighting.led.first_off_h(), "bulb_k": lighting.bulb.parallel,
@@ -212,6 +213,13 @@ def _standard_tools(folder: Path) -> dict:
             out["frames"] = json.loads((frames / "frames.json").read_text())
     out["elab_url"] = "http://localhost:3148"
     return out
+
+
+def _benchphys() -> list[dict]:
+    """실험대 19단계의 현실 물리 (benchphys) — 웹 '실험대' 물리 칸 · 그림이 씀."""
+    from .benchphys import bench_physics
+
+    return [p.to_json() for p in bench_physics()]
 
 
 def _samples(battery: BottleGelBattery, folder: Path | None = None) -> list[dict]:
@@ -1021,6 +1029,7 @@ aside .panel { background: var(--panel); border: 1px solid var(--line); border-r
         <div class="lab-stage"><canvas id="labC"></canvas></div>
         <aside class="lab-side">
           <div class="lab-card"><h3>계기</h3><div class="lcd" id="labLcd"></div></div>
+          <div class="lab-card"><h3>물리 — 이 단계에서 실제로 일어나는 일</h3><div class="phys" id="labPhys"></div></div>
           <div class="lab-card"><h3>실험 노트 — 이 단계의 양</h3><div class="notebook" id="labNote"></div></div>
           <div class="lab-card"><h3>절차 (RECIPE.md)</h3><ol class="lab-steps" id="labSteps"></ol></div>
         </aside>

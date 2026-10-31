@@ -283,6 +283,13 @@ def _xy(text: str) -> tuple[float, ...]:
     return tuple(float(v) for v in text.split(","))
 
 
+def cmd_bench_physics(_: argparse.Namespace) -> None:
+    """실험대 19단계의 현실 물리 (benchphys) — 단계마다 물성으로 계산한 시간 · 흐름 · 열 · 응집 · 처짐."""
+    from .benchphys import describe
+
+    print(describe())
+
+
 def cmd_light(a: argparse.Namespace) -> None:
     """빛 조각가 SC-2: 펜 없이 빛으로 — 명세 · 공간 배치 · 층별 빛 그림 · 생명 신호."""
     from pathlib import Path
@@ -693,6 +700,9 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("sculptor", help="SNSS 조각가 SC-1 — 3D 펜을 단 상온 3D 프린터 명세 · 재료표 · Klipper 설정")
     p.add_argument("--out", default="sculpt_out")
     p.set_defaults(func=cmd_sculptor)
+
+    p = sub.add_parser("bench-physics", help="실험대 19단계의 현실 물리 — 교반 · 가열 · 증발 · 응집 · 기포 · 동결 · 처짐 (spec/PHYSICS.md)")
+    p.set_defaults(func=cmd_bench_physics)
 
     p = sub.add_parser("light", help="빛 조각가 SC-2 — 펜 없이 배지 속 잉크층 + 405 nm 빛으로 결정 (배지가 모니터)")
     p.add_argument("shape", nargs="?", default="being", help="모양: being · seed · coupon · bud · .stl · none(명세만)")

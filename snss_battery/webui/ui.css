@@ -120,3 +120,20 @@ ol.lab-steps li.on::before { background: #e07a1f; color: #fff; }
 .mode { display: inline-block; white-space: nowrap; padding: 0 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; color: #fff; line-height: 17px; vertical-align: 1px; }
 .mode.hand { background: #e07a1f; }
 .mode.machine { background: #3b7dd8; }
+
+/* 실험대 물리 칸 (benchphys) */
+.phys { font-size: 12.5px; }
+.phys-head { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+.phys-eng { padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 11.5px; background: var(--accent-soft); color: var(--accent); }
+.phys-eng.mantaflow { background: color-mix(in srgb, #2f9ec4 20%, transparent); color: #2f9ec4; }
+.phys-eng.bullet { background: color-mix(in srgb, #8a5cd6 20%, transparent); color: #8a5cd6; }
+.phys-eng.fenicsx { background: color-mix(in srgb, #3b7dd8 20%, transparent); color: #3b7dd8; }
+.phys-ok { font-weight: 600; font-size: 11.5px; } .phys-ok.ok { color: var(--ok); } .phys-ok.warn { color: #c47f17; }
+.phys-items { width: 100%; margin: 0; } .phys-items td { padding: 2px 4px; border: 0; vertical-align: top; }
+.phys-items td:first-child { color: var(--muted); }
+.phys-verdict { margin: 6px 0 0; line-height: 1.45; }
+.phys-chart { width: 100%; height: auto; margin-top: 4px; }
+.phys-chart .ax { stroke: var(--line); stroke-width: 1; }
+.phys-chart .ln { fill: none; stroke: var(--accent); stroke-width: 2; }
+.phys-chart text { fill: var(--muted); font-size: 9.5px; } .phys-chart .yl { fill: var(--ink); font-weight: 600; }
+.phys-none { color: var(--muted); margin: 0; }

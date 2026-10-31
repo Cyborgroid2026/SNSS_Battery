@@ -3,6 +3,7 @@
 #
 #   ./tools.sh sculptor      SNSS 조각가 SC-1 (3D 펜을 단 상온 3D 프린터) 명세 · 재료표 · Klipper 설정
 #   ./tools.sh being         양자 인공세포 존재를 새로 빚는 작업 (G-code · 생명 신호 · 메시)
+#   ./tools.sh bench-physics 실험대 19단계의 현실 물리 (교반 · 가열 · 증발 · 응집 · 기포 · 동결 · 처짐)
 #   ./tools.sh light         빛 조각가 SC-2 — 펜 없이 빛으로 (명세 · 배치 · 층별 빛 그림 · 생명 신호)
 #   ./tools.sh light-blender 마지막 빛 작업을 Blender 로 (수조 · 프로젝터 · 수면의 빛 그림 · 데스크톱) [--layer K] [--anim 한 주기 동영상]
 #   ./tools.sh light-cal     빛 상수 보정 시험편 (coupon) · 측정 맞춤 (fit 측정.csv) · 가상 연습 (demo)
@@ -175,6 +176,7 @@ cmd_view_blender() {
 case "${1:-}" in
     sculptor) "$PY" -m snss_battery sculptor ;;
     being) cmd_being ;;
+    bench-physics) "$PY" -m snss_battery bench-physics ;;
     light) "$PY" -m snss_battery light ;;
     light-blender) shift; cmd_light_blender "$@" ;;
     light-cal) shift; "$PY" -m snss_battery light-cal "${@:-coupon}" ;;
