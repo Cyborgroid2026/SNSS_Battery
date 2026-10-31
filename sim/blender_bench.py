@@ -1,6 +1,8 @@
 """실험대 19단계 — 물리 엔진 렌더 (Blender 5: Mantaflow 유체 · Bullet 강체 · Cycles 경로 추적) (명세: spec/PHYSICS.md §렌더).
 
-    blender -b --factory-startup --python sim/blender_bench.py -- <physics.json> <출력 폴더> [--steps take,mix] [--samples 96] [--quick]
+    blender -b --factory-startup --python sim/blender_bench.py -- <physics.json> <출력 폴더> [--steps take,mix] [--samples 96] [--quick] [--rebake]
+
+Mantaflow 캐시(<출력>/cache_*)가 있으면 다시 굽지 않고 씀 — 물리 값을 바꿨으면 --rebake.
 
 physics.json = snss_battery.benchphys 결과 (report/make_pptx.py · ./tools.sh bench-render 가 만듦). 단계마다 그 숫자로 장면을 움직인다:
 - Mantaflow FLIP 유체: take(식염수 붓기) · refill(진한 혼합액을 깔때기로) — 점도 ν = μ/ρ, 표면장력 그대로.
@@ -401,7 +403,8 @@ def render(step_no, sid):
 
 
 # ---------- 물리 엔진 ----------
-def bake_fluid(domain, frames, cache):
+def bake_fluid(domain, frames, cache, key=None):
+    """굽기. key(그 장면의 물리 값)가 캐시에 적힌 것과 같으면 다시 굽지 않고 읽음."""
     sc = bpy.context.scene
     ds = domain.modifiers["Fluid"].domain_settings
     ds.cache_type = "ALL"
@@ -409,10 +412,23 @@ def bake_fluid(domain, frames, cache):
     ds.cache_frame_start, ds.cache_frame_end = 1, frames
     sc.frame_start, sc.frame_end = 1, frames
     t = time.time()
-    with bpy.context.temp_override(object=domain, active_object=domain, scene=sc):
-        bpy.ops.fluid.bake_all()
-    sc.frame_set(frames)
-    n = len(domain.evaluated_get(bpy.context.evaluated_depsgraph_get()).data.vertices)
+    last = Path(cache) / "mesh" / f"fluid_mesh_{frames:04d}.bobj.gz"
+    n = 0
+    kf = Path(cache) / "key.json"
+    key = json.dumps({**(key or {}), "frames": frames, "res": FLUID_RES}, sort_keys=True, default=str)
+    same = kf.exists() and kf.read_text(encoding="utf-8") == key
+    if last.exists() and same and "--rebake" not in argv:  # 같은 장면 · 같은 물리 값이면 캐시를 읽음 (교반은 한 번에 30 분)
+        sc.frame_set(frames)
+        n = len(domain.evaluated_get(bpy.context.evaluated_depsgraph_get()).data.vertices)
+        if n > 8:
+            print(f"Mantaflow 캐시 다시 씀 ({cache}) — 다시 구우려면 --rebake")
+    if n <= 8:
+        with bpy.context.temp_override(object=domain, active_object=domain, scene=sc):
+            bpy.ops.fluid.bake_all()
+        sc.frame_set(frames)
+        n = len(domain.evaluated_get(bpy.context.evaluated_depsgraph_get()).data.vertices)
+        kf.parent.mkdir(parents=True, exist_ok=True)
+        kf.write_text(key, encoding="utf-8")
     print(f"Mantaflow 굽기 {time.time() - t:.0f} s · 액체 메시 꼭짓점 {n}")
     if n <= 8:
         raise RuntimeError("Mantaflow 가 액체를 만들지 못함 (흘러나오는 곳이 충돌체 안?)")
@@ -487,7 +503,7 @@ def stir_fluid(r_in, depth, bar_len, rpm, mu, rho, base, frames, cache, res):
     g.hide_render = True
     ds = dom.modifiers["Fluid"].domain_settings
     ds.use_guide, ds.guide_source, ds.guide_vel_factor = True, "EFFECTOR", 1.0
-    bake_fluid(dom, frames, cache)
+    bake_fluid(dom, frames, cache, {"r_in": r_in, "depth": depth, "bar": bar_len, "rpm": rpm, "mu": mu, "rho": rho})
     ev = dom.evaluated_get(bpy.context.evaluated_depsgraph_get())
     pts = [(v.co - Vector((x0, y0, 0))) for v in ev.data.vertices]
     rr = [math.hypot(p.x, p.y) for p in pts]
@@ -640,7 +656,7 @@ def s_take(P, m):
     r_out = 0.0065
     v = r["pour_ml_s"] * 1e-6 / (math.pi * r_out ** 2)
     inflow(tuple(mouth + d * 0.004), r_out, tuple(d * v), rot=(0, th, 0))
-    bake_fluid(dom, 24, OUT / "cache_take")  # 1 s × 56 mL/s ≈ 56 mL
+    bake_fluid(dom, 24, OUT / "cache_take", r)  # 1 s × 56 mL/s ≈ 56 mL
     dom.data.materials.append(m["saline"])
     camera((0.14, -0.42, 0.26), (0.03, 0, 0.17), 55)
 
@@ -730,8 +746,8 @@ def s_mix(P, m):
                          OUT / "cache_mix", 48 if QUICK else 72)
     ENGINE_OUT["mix"] = {"vortex_mm": dh, "formula_mm": r["vortex_mm"], "t_s": (fr - 1) / 24, "spinup_s": r["spinup_s"]}
     dom.data.materials.append(m["go_mix"])
-    revolve("GO 비커", [(0.0, 0.0), (0.0335, 0.0), (0.0335, 0.095)], m["glass"], (0.1, 0.05, top + 0.06), solid=0.0018).rotation_euler = (0, -1.0, 0)
-    tube("GO 가는 줄기", [(0.055, 0.05, top + 0.16), (0.042, 0.04, top + 0.11), (0.04, 0.035, top + r["depth_mm"] / 1000 + 0.004)], 0.0012, m["go_stock"])
+    revolve("GO 비커", [(0.0, 0.0), (0.0335, 0.0), (0.0335, 0.095)], m["glass"], (0.15, 0.05, top + 0.14), solid=0.0018).rotation_euler = (0, -1.0, 0)
+    tube("GO 가는 줄기", [(0.07, 0.05, top + 0.2), (0.05, 0.04, top + 0.13), (0.042, 0.035, top + r["depth_mm"] / 1000 + 0.004)], 0.0012, m["go_stock"])
     camera((0.0, -0.3, 0.5), (0.02, 0.03, top + 0.05), 55)
 
 
@@ -787,7 +803,7 @@ def s_refill(P, m):
     v = r["pour_ml_s"] * 1e-6 / (math.pi * 0.0055 ** 2)  # 물결 없는 최대 유량 / 출구 넓이
     dv = Vector((-0.9, 0, -0.45)).normalized()
     inflow((0.032, 0, 0.3), 0.0055, tuple(dv * v), rot=(0, math.atan2(dv.x, dv.z), 0))
-    bake_fluid(dom, 36 if QUICK else 60, OUT / "cache_refill")
+    bake_fluid(dom, 36 if QUICK else 60, OUT / "cache_refill", r)
     dom.data.materials.append(m["go_mix"])
     camera((0.15, -0.5, 0.28), (0.02, 0, 0.16), 45)
 

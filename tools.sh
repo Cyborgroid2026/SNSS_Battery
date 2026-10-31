@@ -186,7 +186,7 @@ case "${1:-}" in
         docker image inspect snss/office >/dev/null 2>&1 || docker build -t snss/office -f sim/office.Dockerfile sim
         mkdir -p report/check && rm -f report/check/*.png
         docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD:/w" snss/office sh -c \
-            "soffice --headless --convert-to pdf --outdir report/check report.pptx >/dev/null 2>&1 && pdftoppm -r 60 -png report/check/report.pdf report/check/slide"
+            "soffice -env:UserInstallation=file:///tmp/lo --headless --convert-to pdf --outdir report/check report.pptx >/dev/null 2>&1 && pdftoppm -r 60 -png report/check/report.pdf report/check/slide"
         echo "슬라이드 그림: report/check/slide-*.png (LibreOffice 로 그린 모습 — 글꼴은 Noto CJK)" ;;
     light) "$PY" -m snss_battery light ;;
     light-blender) shift; cmd_light_blender "$@" ;;
