@@ -3,6 +3,10 @@
     ./tools.sh web &                              # 웹 뷰어가 떠 있어야 스크린샷을 찍음
     .venv/bin/python report/make_pptx.py          # 스크린샷 → report/img/bench/*.jpg → report/report.pptx
     .venv/bin/python report/make_pptx.py --no-shots   # 저장된 스크린샷으로 슬라이드만 다시
+    .venv/bin/python report/make_pptx.py --no-shots --render   # 물리 엔진 렌더(Blender)를 새로 그리고 슬라이드로
+
+단계 그림: report/img/physics/stepNN.png (sim/blender_bench.py — Mantaflow 유체 · Bullet 강체 · Cycles) 가 있으면 그것을,
+없으면 웹 '실험대' 스크린샷을 씀 (--web 으로 스크린샷 강제). 단계마다 물리 칸 = snss_battery.benchphys.
 
 필요: .venv/bin/pip install python-pptx playwright (브라우저는 설치된 google-chrome 을 씀).
 단계 내용은 snss_battery/process.py (RECIPE.md 3절) 그대로.
@@ -10,6 +14,7 @@
 
 from __future__ import annotations
 
+import math
 import sys
 from pathlib import Path
 
@@ -26,6 +31,8 @@ from pptx.util import Emu, Inches, Pt  # noqa: E402
 from snss_battery.process import HAND, process, summary  # noqa: E402
 
 SHOTS = ROOT / "report" / "img" / "bench"
+PHYS = ROOT / "report" / "img" / "physics"
+ENGINE = {"mantaflow": "Mantaflow 유체 (FLIP)", "bullet": "Bullet 강체", "fenicsx": "FEniCSx 열전달", "해석식": "해석식 (닫힌 식)"}
 OUT = ROOT / "report" / "report.pptx"
 URL = "http://127.0.0.1:8765/#lab"
 FONT = "Malgun Gothic"  # 맑은 고딕 — Windows · Office 기본 한글 글꼴
@@ -67,6 +74,41 @@ def shoot() -> None:
             im = im.crop((0, 0, im.width, int(im.width / 2.54)))
         im.save(f.with_suffix(".jpg"), quality=88)
         f.unlink()
+
+
+def physics_json() -> list[dict]:
+    import json
+
+    from snss_battery.benchphys import bench_physics
+
+    data = [s.to_json() for s in bench_physics()]
+    PHYS.mkdir(parents=True, exist_ok=True)
+    (PHYS / "physics.json").write_text(json.dumps(data, ensure_ascii=False, indent=1, default=float), encoding="utf-8")
+    return data
+
+
+def render_physics() -> None:
+    """Blender (Mantaflow · Bullet · Cycles) 로 19단계 그림 — 몇 분 (유체 굽기 포함)."""
+    import subprocess
+
+    physics_json()
+    subprocess.run(["blender", "-b", "--factory-startup", "--python", str(ROOT / "sim" / "blender_bench.py"), "--",
+                    str(PHYS / "physics.json"), str(PHYS)], check=True)
+
+
+def step_image(k: int) -> tuple[Path, bool]:
+    """물리 엔진 렌더가 있으면 (jpg 로 줄여) 그것, 없으면 웹 스크린샷."""
+    png = PHYS / f"step{k:02d}.png"
+    if not png.exists() and png.with_suffix(".jpg").exists() and "--web" not in sys.argv:  # git 에는 jpg 만
+        return png.with_suffix(".jpg"), True
+    if png.exists() and "--web" not in sys.argv:
+        jpg = png.with_suffix(".jpg")
+        if not jpg.exists() or jpg.stat().st_mtime < png.stat().st_mtime:
+            from PIL import Image
+
+            Image.open(png).convert("RGB").save(jpg, quality=88)
+        return jpg, True
+    return SHOTS / f"step{k:02d}.jpg", False
 
 
 # ---------- 슬라이드 도우미 ----------
@@ -138,6 +180,26 @@ def chip(slide, x, y, label, fill, w=None, size=13):
     return w
 
 
+def fit_size(paras, w_in: float, h_in: float, size: float, floor: float = 8.0, space: float = 3.0) -> float:
+    """글자 크기를 칸에 들어갈 때까지 줄임 — 줄 수 어림: 한글 1 em, 그 밖 0.55 em, 줄 높이 1.2 em + 문단 간격."""
+    def height(sz):
+        tot = 0.0
+        for para in paras:
+            em = sum(sum(1.0 if ord(ch) > 0x2E80 else 0.55 for ch in t) * o.get("size", sz) / sz for t, o in para)
+            lines = max(1, math.ceil(em * sz / (w_in * 72 * 0.94)))
+            tot += lines * sz * 1.2 + space
+        return tot / 72
+    while size > floor and height(size) > h_in:
+        size -= 0.5
+    return size
+
+
+def scaled(paras, base: float, size: float):
+    """문단 안 글 크기를 같은 비율로."""
+    k = size / base
+    return [[(t, {**o, "size": o.get("size", base) * k}) for t, o in para] for para in paras]
+
+
 def picture(slide, path, x, y, w=None, h=None, name=None):
     pic = slide.shapes.add_picture(str(path), Inches(x), Inches(y), Inches(w) if w else None, Inches(h) if h else None)
     pic.line.color.rgb, pic.line.width = rgb(LINE), Pt(0.75)
@@ -166,6 +228,12 @@ def dur(h: float) -> str:
 def build() -> None:
     steps = process()
     sm = summary(steps)
+    phys = {p["id"]: p for p in physics_json()}
+    from snss_battery.benchphys import engine_items
+
+    for sid, rows_ in engine_items(PHYS / "engine.json").items():  # 엔진이 잰 값을 물리 칸 맨 위에
+        if sid in phys:
+            phys[sid]["items"] = rows_ + phys[sid]["items"]
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(W), Inches(H)
     blank = prs.slide_layouts[6]
@@ -176,9 +244,10 @@ def build() -> None:
     bg(s, INK)
     text(s, 0.7, 0.75, 6.0, 0.4, "SNSS 생리식염수 결정 배터리", size=16, color="9EC3E6", bold=True)
     text(s, 0.7, 1.2, 6.0, 1.9, "통째 결정 실험 —\n실험대에서 보는 19단계", size=36, color=WHITE, bold=True, space=0)
-    text(s, 0.7, 3.35, 5.6, 1.2, "약국 식염수병을 그릇 삼아 아래에서 위로 얼려, 얼음 결정 하나하나가 "
-         "인공세포가 되게 하는 과정을 웹 뷰어 '실험대' 화면으로 따라갑니다.", size=16, color="D5E3F0")
-    text(s, 0.7, 6.55, 6.0, 0.4, "웹 뷰어 http://127.0.0.1:8765/#lab · 2026-10-19", size=12, color="8FA9C2")
+    text(s, 0.7, 3.35, 5.6, 1.6, "약국 식염수병을 그릇 삼아 아래에서 위로 얼려, 얼음 결정 하나하나가 "
+         "인공세포가 되게 하는 과정을 — 단계마다 실제 물성으로 계산한 물리와, 그 숫자로 움직인 물리 엔진 "
+         "(Blender Mantaflow 유체 · Bullet 강체 · FEniCSx 열전달) 렌더로 따라갑니다.", size=15, color="D5E3F0")
+    text(s, 0.7, 6.55, 6.0, 0.4, "웹 뷰어 http://127.0.0.1:8765/#lab · ./tools.sh bench-physics · 2026-10-31", size=12, color="8FA9C2")
     picture(s, SHOTS / "full.jpg", 6.75, 1.2, w=6.0, name="실험대 전체 화면")
     text(s, 6.75, 4.75, 6.0, 0.4, "웹 뷰어 '실험대' 탭 — 지금 화면", size=12, color="8FA9C2")
     s.notes_slide.notes_text_frame.text = (
@@ -259,24 +328,56 @@ def build() -> None:
             arr.fill.fore_color.rgb = rgb(MUTED)
             arr.line.fill.background()
 
-    # 5. 단계별
+    # 4b. 물리로 다시 본 실험 — 레시피와 어긋나는 곳
+    s = new()
+    bg(s, WHITE)
+    title(s, "물리로 다시 본 실험 — 조심할 곳", "단계마다 실제 물성으로 계산 (snss_battery/benchphys.py · spec/PHYSICS.md) — ⚠ 는 레시피 그대로면 어긋날 수 있는 곳")
+    warn = [(k, st, phys[st.id]) for k, st in enumerate(steps, 1) if not phys[st.id]["ok"]]
+    for i, (k, st, p) in enumerate(warn[:8]):
+        bh = min(1.3, (H - 1.75) / math.ceil(min(len(warn), 8) / 2) - 0.15)
+        x, y = 0.6 + (i % 2) * 6.15, 1.6 + (i // 2) * (bh + 0.15)
+        box(s, x, y, 5.95, bh, "FFF4E5", name=f"주의 {k}")
+        paras = [[(f"{k}. {st.title}  ", {"bold": True, "color": HANDC, "size": 13}), (ENGINE.get(p["engine"], p["engine"]), {"color": MUTED, "size": 11})],
+                 [(p["verdict"], {"size": 13})]]
+        sz = fit_size(paras, 5.6, bh - 0.15, 13)
+        text(s, x + 0.2, y + 0.08, 5.6, bh - 0.12, scaled(paras, 13, sz), size=sz, space=3)
+    if not warn:
+        text(s, 0.6, 1.8, W - 1.2, 1.0, "계산상 어긋나는 단계가 없습니다.", size=18)
+
+    # 5. 단계별 — 왼쪽 물리 엔진 그림, 오른쪽 물리 칸
     for k, st in enumerate(steps, 1):
         s = new()
         bg(s, WHITE)
         hand = st.mode == HAND
+        p = phys[st.id]
         text(s, 0.6, 0.3, 9.3, 0.6, [[(f"{k}. ", {"color": MUTED}), (st.title, {})]], size=28, bold=True, name="제목")
         cw = chip(s, W - 0.6 - 1.25, 0.4, "수작업" if hand else "기계작업", HANDC if hand else MACHC, w=1.25)
         text(s, W - 0.6 - cw - 3.1, 0.42, 3.0, 0.38, f"걸림 {dur(st.hours)} · 손 {st.hands_min:.0f} 분", size=14,
              color=MUTED, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
-        picture(s, SHOTS / f"step{k:02d}.jpg", 0.6, 1.05, w=W - 1.2, name=f"실험대 화면 {k}")
-        y = 1.05 + (W - 1.2) / 2.54 + 0.22
+        img, rendered = step_image(k)
+        pw = 8.6
+        picture(s, img, 0.6, 1.05, w=pw, name=f"단계 그림 {k}")
+        ph = pw / 2.54
+        px = 0.6 + pw + 0.2
+        box(s, px, 1.05, W - 0.6 - px, ph, PAPER if p["ok"] else "FFF4E5", name="물리")
+        rows = [[("물리 ", {"bold": True, "color": INK}), ("✔" if p["ok"] else "⚠", {"bold": True, "color": "2F8A4F" if p["ok"] else HANDC}),
+                 (f"  {ENGINE.get(p['engine'], p['engine'])}", {"color": MUTED, "size": 10})]]
+        rows += [[(f"{a}  ", {"color": MUTED, "size": 10}), (b, {"bold": True, "size": 11})] for a, b in p["items"][:4]]
+        rows += [[(p["verdict"], {"size": 10.5})]]
+        sz = fit_size(rows, W - 0.6 - px - 0.3, ph - 0.14, 11)
+        text(s, px + 0.15, 1.12, W - 0.6 - px - 0.3, ph - 0.14, scaled(rows, 11, sz), size=sz, space=3)
+        if rendered:
+            text(s, 0.6, 1.05 + ph + 0.02, pw, 0.25, "Blender Cycles 경로 추적 렌더 — 물리 엔진 · 계산값으로 움직임 (sim/blender_bench.py)",
+                 size=9, color=MUTED)
+        y = 1.05 + ph + 0.3
         box(s, 0.6, y, 7.45, H - y - 0.35, PAPER, name="할 일")
         text(s, 0.82, y + 0.12, 7.05, H - y - 0.55, [[("할 일  ", {"bold": True, "color": HANDC if hand else MACHC}),
-                                                      (st.action, {})]], size=14, anchor=MSO_ANCHOR.MIDDLE)
+                                                      (st.action, {})]], size=16, anchor=MSO_ANCHOR.MIDDLE)
         box(s, 8.25, y, W - 8.85, H - y - 0.35, ICE, name="넘어가는 조건")
         text(s, 8.47, y + 0.12, W - 9.29, H - y - 0.55, [[("넘어가는 조건  ", {"bold": True, "color": INK}),
-                                                          (st.check, {})]], size=14, anchor=MSO_ANCHOR.MIDDLE)
-        s.notes_slide.notes_text_frame.text = (f"장비: {' · '.join(st.equipment)}\n할 일: {st.action}\n넘어가는 조건: {st.check}")
+                                                          (st.check, {})]], size=16, anchor=MSO_ANCHOR.MIDDLE)
+        s.notes_slide.notes_text_frame.text = (f"장비: {' · '.join(st.equipment)}\n할 일: {st.action}\n넘어가는 조건: {st.check}\n"
+                                               f"물리 ({p['engine']}): " + " · ".join(f"{a} {b}" for a, b in p["items"]) + f"\n→ {p['verdict']}")
 
     # 마지막 — 판정
     s = new()
@@ -300,4 +401,10 @@ def build() -> None:
 if __name__ == "__main__":
     if "--no-shots" not in sys.argv:
         shoot()
+    if "--render" in sys.argv:
+        render_physics()
     build()
+    import shutil
+
+    shutil.copy2(OUT, ROOT / "report.pptx")  # 프로젝트 맨 위의 발표 자료도 같은 것으로
+    print(f"복사: {ROOT / 'report.pptx'}")

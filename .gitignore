@@ -18,3 +18,6 @@ cad_out/freecad/build.log
 cad_out/freecad/*.FCBak
 cad_out/blender/build.log
 cad_out/blender/*.blend1
+report/img/physics/cache_*/
+report/img/physics/*.png
+report/check/

@@ -731,7 +731,8 @@
     return `<div class="phys-head"><span class="phys-eng ${esc(p.engine)}">${esc(ENGINE[p.engine] || p.engine)}</span>`
       + `<span class="phys-ok ${p.ok ? "ok" : "warn"}">${p.ok ? "✔ 레시피와 맞음" : "⚠ 조심"}</span></div>`
       + `<table class="phys-items">${p.items.map(([a, b]) => `<tr><td>${esc(a)}</td><td><b>${esc(b)}</b></td></tr>`).join("")}</table>`
-      + physChart(p.series) + `<p class="phys-verdict">${esc(p.verdict)}</p>`;
+      + physChart(p.series) + `<p class="phys-verdict">${esc(p.verdict)}</p>`
+      + (p.render_img ? `<img class="phys-render" src="${esc(p.render_img)}" alt="물리 엔진 렌더" title="Blender Cycles — Mantaflow · Bullet · 계산값 (./tools.sh bench-render)">` : "");
   }
 
   // ---------- 조작 ----------

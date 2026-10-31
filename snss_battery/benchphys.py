@@ -83,6 +83,10 @@ class Stir:
         w = 2 * math.pi * self.rpm / 60
         return (k * w * self.bar_mm / 2000) ** 2 / G * 1000
 
+    def spinup_s(self) -> float:
+        """소용돌이가 자리 잡는 시간 — 에크만 스핀업 τ = H / √(ν Ω) (바닥 경계층이 액체를 돌려 세움)."""
+        return self.depth_mm / 1000 / math.sqrt(self.mu / self.rho * 2 * math.pi * self.rpm / 60)
+
     def mix_s(self, po: float = 1.0) -> float:
         """섞이는 시간 (Grenville 상관식, 출력수 Po = 1 가정). 층흐름은 확산 · 접힘에 기대므로 inf."""
         n = self.rpm / 60
@@ -219,11 +223,12 @@ def bench_physics(rc: TissueRecipe | None = None) -> list[StepPhys]:
     # 4. PVA 분산: 100 mL 식염수, 250 mL 비커 (안 67 mm), 막대 25 mm, 300 rpm
     st4 = Stir(300, 25, 67, 100e3 / (math.pi * 33.5 ** 2), 1005, mu_water(T_ROOM))
     v_sink = 2 / 9 * (1270 - 1005) * G * (50e-6) ** 2 / mu_water(T_ROOM)
-    add("disperse", "bullet", [("레이놀즈 수", f"{st4.re:,.0f} ({st4.regime})"), ("소용돌이 깊이", f"{st4.vortex_mm():.1f} mm"),
-                               ("섞이는 시간", f"{st4.mix_s():.0f} s"), ("PVA 알갱이 (Ø100 µm) 가라앉는 속도", f"{v_sink * 1000:.1f} mm/s")],
+    add("disperse", "mantaflow", [("레이놀즈 수", f"{st4.re:,.0f} ({st4.regime})"), ("소용돌이 깊이 (랭킨 어림)", f"{st4.vortex_mm():.1f} mm"),
+                                  ("자리 잡는 시간 (에크만)", f"{st4.spinup_s():.1f} s"), ("섞이는 시간", f"{st4.mix_s():.0f} s"),
+                                  ("PVA 알갱이 (Ø100 µm) 가라앉는 속도", f"{v_sink * 1000:.1f} mm/s")],
         "찬 물에서 PVA 는 녹지 않고 젖기만 함 — 소용돌이(약 {:.0f} mm)로 끌려 들어가게 가장자리에 조금씩. 한 번에 부으면 겉만 젖은 덩이(피시아이).".format(st4.vortex_mm()),
         render={"rho": 1005, "mu": mu_water(T_ROOM), "vortex_mm": st4.vortex_mm(), "particles": 400, "particle_um": 100,
-                "sink_mm_s": v_sink * 1000, "rpm": 300, "color": "saline"})
+                "sink_mm_s": v_sink * 1000, "rpm": 300, "color": "saline", "spinup_s": st4.spinup_s()})
 
     # 5. PVA 용해 (90 °C, 2 h, 호일 덮음): 핫플레이트 유효 150 W (가정)
     m5 = (rc.take_out_ml * 1.005 + pva_g) / 1000
@@ -265,17 +270,19 @@ def bench_physics(rc: TissueRecipe | None = None) -> list[StepPhys]:
     st8 = Stir(300, 40, 105, depth8, rho_mix, mu_mix)
     da = st8.mix_s() / ag["t_half_s"] if math.isfinite(st8.mix_s()) else math.inf
     add("mix", "mantaflow", [("섞인 점도 (PVA {:.0f} %)".format(rc.pva_wt), f"{mu_mix * 1000:.0f} mPa·s"), ("레이놀즈 수", f"{st8.re:,.0f} ({st8.regime})"),
-                             ("소용돌이 깊이", f"{st8.vortex_mm():.1f} mm"), ("섞이는 시간", f"{st8.mix_s():.0f} s"),
+                             ("소용돌이 깊이 (랭킨 어림)", f"{st8.vortex_mm():.1f} mm"), ("자리 잡는 시간 (에크만)", f"{st8.spinup_s():.1f} s"),
+                             ("섞이는 시간", f"{st8.mix_s():.0f} s"),
                              ("담쾰러 수 (섞임 / 응집)", f"{da:.0f}")],
         f"섞이는 데 {st8.mix_s():.0f} s 인데 응집은 {ag['t_half_s']:.0f} s — GO 가 넣는 자리에서 먼저 엉김 (Da {da:.0f} ≫ 1). 가늘게 · 소용돌이 벽 쪽으로 넣을 것.",
-        da < 1, render={"rho": rho_mix, "mu": mu_mix, "vortex_mm": st8.vortex_mm(), "rpm": 300, "depth_mm": depth8, "color": "go_mix"})
+        da < 1, render={"rho": rho_mix, "mu": mu_mix, "vortex_mm": st8.vortex_mm(), "rpm": 300, "depth_mm": depth8, "color": "go_mix",
+                        "spinup_s": st8.spinup_s()})
 
     # 9. 기포 빼기: 진공 5 kPa (가정), 기포 0.15 · 0.05 mm
     pv = 5e3
     grow = (P_ATM / pv) ** (1 / 3)
     rise = {r0: 2 / 9 * rho_mix * G * (r0 * grow * 1e-3) ** 2 / mu_mix for r0 in (0.15, 0.05)}
     boil = p_sat(T_ROOM)
-    add("degas", "mantaflow", [("감압 5 kPa 에서 기포 부피", f"×{grow ** 3:.0f} (반지름 ×{grow:.1f})"),
+    add("degas", "해석식", [("감압 5 kPa 에서 기포 부피", f"×{grow ** 3:.0f} (반지름 ×{grow:.1f})"),
                                ("떠오름 Ø0.3 / Ø0.1 mm (스토크스)", f"{rise[0.15] * 1000:.1f} / {rise[0.05] * 1000:.2f} mm/s"),
                                ("액면까지 (깊이 {:.0f} mm)".format(depth8), f"{depth8 / (rise[0.05] * 1000):.0f} s"),
                                ("끓는 압력 (22 °C 물)", f"{boil / 1000:.1f} kPa")],
@@ -373,6 +380,24 @@ def _fem_front() -> tuple[list[float], list[float]]:
         return [float(z) for z in g["z_mm"]], [float(row[0]) for row in g["t_h"]]
     except (OSError, KeyError, ValueError, IndexError):
         return [], []
+
+
+def engine_items(path=None) -> dict[str, list[tuple[str, str]]]:
+    """물리 엔진 렌더(sim/blender_bench.py)가 잰 값 — report/img/physics/engine.json. 단계 id → 물리 칸 첫 줄들."""
+    import json
+    from pathlib import Path
+
+    f = Path(path) if path else Path(__file__).resolve().parents[1] / "report" / "img" / "physics" / "engine.json"
+    try:
+        d = json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    out = {}
+    for sid, v in d.items():
+        if "vortex_mm" in v:
+            out[sid] = [(f"Mantaflow 소용돌이 깊이 ({v.get('t_s', 0):.0f} s 뒤)",
+                         f"{v['vortex_mm']:.1f} mm (랭킨 어림 {v['formula_mm']:.1f})")]
+    return out
 
 
 def describe(rc: TissueRecipe | None = None) -> str:

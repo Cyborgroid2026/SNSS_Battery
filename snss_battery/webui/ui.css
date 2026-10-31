@@ -132,6 +132,7 @@ ol.lab-steps li.on::before { background: #e07a1f; color: #fff; }
 .phys-items { width: 100%; margin: 0; } .phys-items td { padding: 2px 4px; border: 0; vertical-align: top; }
 .phys-items td:first-child { color: var(--muted); }
 .phys-verdict { margin: 6px 0 0; line-height: 1.45; }
+.phys-render { width: 100%; border-radius: 6px; margin-top: 8px; border: 1px solid var(--line); }
 .phys-chart { width: 100%; height: auto; margin-top: 4px; }
 .phys-chart .ax { stroke: var(--line); stroke-width: 1; }
 .phys-chart .ln { fill: none; stroke: var(--accent); stroke-width: 2; }

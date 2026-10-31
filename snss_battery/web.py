@@ -108,7 +108,7 @@ def build_site(
         "light": light,
         "recipes": recipes,
         "samples": _samples(battery, folder),
-        "benchphys": _benchphys(),
+        "benchphys": _benchphys(folder),
         "tools": _standard_tools(folder),
         "lighting": {"text": lighting.describe(), "budget_mw": {k: v * 1000 for k, v in lighting.budget_w.items()},
                      "led_off_h": lighting.led.first_off_h(), "bulb_k": lighting.bulb.parallel,
@@ -215,11 +215,26 @@ def _standard_tools(folder: Path) -> dict:
     return out
 
 
-def _benchphys() -> list[dict]:
-    """실험대 19단계의 현실 물리 (benchphys) — 웹 '실험대' 물리 칸 · 그림이 씀."""
+def _benchphys(folder: Path | None = None) -> list[dict]:
+    """실험대 19단계의 현실 물리 (benchphys) — 웹 '실험대' 물리 칸 · 그림이 씀.
+    물리 엔진 렌더(report/img/physics/stepNN.jpg, ./tools.sh bench-render)가 있으면 사이트에 복사해 그 단계 칸에 보임."""
     from .benchphys import bench_physics
 
-    return [p.to_json() for p in bench_physics()]
+    from .benchphys import engine_items
+
+    out = [p.to_json() for p in bench_physics()]
+    eng = engine_items()
+    for p in out:  # 물리 엔진 렌더가 잰 값 (소용돌이 깊이) 을 맨 위에
+        p["items"] = eng.get(p["id"], []) + p["items"]
+    src = ROOT / "report" / "img" / "physics"
+    if folder is not None and src.exists():
+        (folder / "physics").mkdir(parents=True, exist_ok=True)
+        for k, p in enumerate(out, 1):
+            f = src / f"step{k:02d}.jpg"
+            if f.exists():
+                shutil.copy2(f, folder / "physics" / f.name)
+                p["render_img"] = f"physics/{f.name}"
+    return out
 
 
 def _samples(battery: BottleGelBattery, folder: Path | None = None) -> list[dict]:

@@ -4,6 +4,9 @@
 #   ./tools.sh sculptor      SNSS 조각가 SC-1 (3D 펜을 단 상온 3D 프린터) 명세 · 재료표 · Klipper 설정
 #   ./tools.sh being         양자 인공세포 존재를 새로 빚는 작업 (G-code · 생명 신호 · 메시)
 #   ./tools.sh bench-physics 실험대 19단계의 현실 물리 (교반 · 가열 · 증발 · 응집 · 기포 · 동결 · 처짐)
+#   ./tools.sh bench-render  19단계 물리 엔진 렌더 (Blender Mantaflow 유체 · Bullet 강체 · Cycles) → report.pptx 다시
+#   ./tools.sh report-pptx   저장된 렌더로 발표 자료(report.pptx)만 다시
+#   ./tools.sh report-check  report.pptx 를 LibreOffice(Docker)로 그려 쪽마다 png — 글자 넘침 · 배치 확인
 #   ./tools.sh light         빛 조각가 SC-2 — 펜 없이 빛으로 (명세 · 배치 · 층별 빛 그림 · 생명 신호)
 #   ./tools.sh light-blender 마지막 빛 작업을 Blender 로 (수조 · 프로젝터 · 수면의 빛 그림 · 데스크톱) [--layer K] [--anim 한 주기 동영상]
 #   ./tools.sh light-cal     빛 상수 보정 시험편 (coupon) · 측정 맞춤 (fit 측정.csv) · 가상 연습 (demo)
@@ -177,6 +180,14 @@ case "${1:-}" in
     sculptor) "$PY" -m snss_battery sculptor ;;
     being) cmd_being ;;
     bench-physics) "$PY" -m snss_battery bench-physics ;;
+    bench-render) need_blender; "$PY" report/make_pptx.py --no-shots --render ;;
+    report-pptx) "$PY" report/make_pptx.py --no-shots ;;
+    report-check) need_docker
+        docker image inspect snss/office >/dev/null 2>&1 || docker build -t snss/office -f sim/office.Dockerfile sim
+        mkdir -p report/check && rm -f report/check/*.png
+        docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD:/w" snss/office sh -c \
+            "soffice --headless --convert-to pdf --outdir report/check report.pptx >/dev/null 2>&1 && pdftoppm -r 60 -png report/check/report.pdf report/check/slide"
+        echo "슬라이드 그림: report/check/slide-*.png (LibreOffice 로 그린 모습 — 글꼴은 Noto CJK)" ;;
     light) "$PY" -m snss_battery light ;;
     light-blender) shift; cmd_light_blender "$@" ;;
     light-cal) shift; "$PY" -m snss_battery light-cal "${@:-coupon}" ;;
