@@ -155,7 +155,7 @@ def go_aggregation(go_mg_ml: float, nacl_mm: float, pva_wt: float, mu: float, mi
     r = a * n_agg ** (1 / d_f)
     drho = 800.0 * (r / a) ** (d_f - 3)  # GO(1800) − 물, 덩이 속 물로 묽어짐
     v = 2 / 9 * drho * G * r ** 2 / mu
-    settled_mm = float(np.trapezoid(v, ts) * 1000)
+    settled_mm = float((getattr(np, "trapezoid", None) or np.trapz)(v, ts) * 1000)
     return {"ccc_mm": ccc, "aggregates": nacl_mm >= ccc, "t_half_s": t_half, "radius_um": float(r[-1] * 1e6),
             "settle_mm": settled_mm, "t_min": list(np.round(ts / 60, 1)), "r_um": list(np.round(r * 1e6, 2))}
 
